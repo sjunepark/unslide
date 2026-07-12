@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.tsx",
+    "validate": "npm run check && npm test && npm run render:spike && npm run capture:spike && npm run render:report && npm run capture:report",
     "render:report": "tsx src/reports/operating-review/render.tsx",
     "capture:report": "tsx scripts/capture.ts artifacts/operating-review/report.html .tmp/captures/operating-review",
     "render:spike": "tsx src/spike/render.tsx",

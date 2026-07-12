@@ -24,6 +24,8 @@ by both reports. Phase 4 hardens the verified workflow from a clean checkout.
 - `npm run capture:report` — capture its pages under
   `.tmp/captures/operating-review/`.
 - `npm run check` — type-check report and tooling source.
+- `npm test` — run focused generation and Chromium capture health checks.
+- `npm run validate` — run all v1 checks and regenerate both reports.
 
 ## Scope
 
@@ -55,6 +57,7 @@ decision before implementation.
 ## Validation
 
 - Run `npm run check` for source changes.
+- Run `npm test` for page-foundation, rendering, or capture changes.
 - Generate and capture the affected report, then inspect every page image for
   content fit and visual defects.
 - Verify Markdown links and paths.

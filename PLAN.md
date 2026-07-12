@@ -1,8 +1,8 @@
 # Plan
 
-Status: minimum reuse extraction complete; v1 hardening next.
+Status: v1 hardening in progress; clean-checkout verification next.
 
-Current next action: **Phase 4 — v1 hardening.**
+Current next action: **Verify the complete workflow from a clean checkout.**
 
 This is the live plan. Update completed work, decisions, blockers, and the next
 action in place. Do not append session logs.
@@ -33,7 +33,7 @@ names.
 | 1. Rendering-loop spike | Complete | Three-page data-driven HTML report plus agent-readable page captures |
 | 2. Real report trial | Complete | One credible report reproduced through the complete loop |
 | 3. Minimum reuse extraction | Complete | Small interface justified by repeated real usage |
-| 4. V1 hardening | Next | Fresh-clone workflow and documented v1 release |
+| 4. V1 hardening | In progress | Fresh-clone workflow and documented v1 release |
 
 ## Phase 0 — Foundation
 
@@ -246,6 +246,18 @@ Make the proven workflow repeatable from a clean checkout.
 - Installation, render, capture, and artifact paths are documented.
 - No out-of-scope system was introduced to solve a hypothetical future need.
 
+### Hardening State
+
+- Dependencies and the Chromium toolchain are pinned by `package-lock.json`.
+- Focused tests cover standalone HTML generation, title escaping, page
+  structure, real Chromium capture, PNG health, and safe capture cleanup.
+- `docs/WORKFLOW.md` records installation, authoring, rendering, capture,
+  validation, platform support, artifact ownership, and the decision to keep
+  the foundation repository-local.
+- Remaining evidence: run the documented installation and `npm run validate`
+  from a clean checkout, inspect the regenerated captures, and record the
+  verified release state.
+
 ## Deferred Backlog
 
 Consider only after v1 evidence:
@@ -261,7 +273,6 @@ Consider only after v1 evidence:
 
 ## Next Action
 
-Begin Phase 4 by adding focused generation and capture health checks, verifying
-all documented commands from a clean checkout, documenting supported
-development platforms and artifact locations, and deciding whether the proven
-foundation remains repository-local for v1.
+Create a clean checkout, run the documented installation and validation
+commands from its root, inspect the regenerated page images, and then record
+the verified v1 exit state.

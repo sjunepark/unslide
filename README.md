@@ -59,6 +59,8 @@ there is no general component catalogue or published package interface.
   expressed without committing to syntax.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system shape, flows, and invariants.
 - [PLAN.md](PLAN.md) — current progress and the next implementation slice.
+- [docs/WORKFLOW.md](docs/WORKFLOW.md) — verified install, render, capture,
+  validation, and artifact paths.
 - [Explicit pages decision](docs/decisions/0001-explicit-pages.md) — why v1
   deliberately avoids automatic pagination.
 - [Rendered preview decision](docs/decisions/0002-rendered-preview.md) — why
