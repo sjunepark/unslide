@@ -1,7 +1,7 @@
 # Architecture
 
-Status: **implemented through the real-report trial**. The spike and operating
-report now provide evidence for the minimum reuse extraction.
+Status: **V1 implemented and verified**. The spike and operating report prove
+the repository-local page foundation, static output, and capture workflow.
 
 ## Purpose and Boundary
 

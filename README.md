@@ -8,7 +8,9 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **Phase 1 rendering loop proven; real-report trial next.**
+Status: **V1 complete.** The explicit-page authoring, standalone HTML, isolated
+capture, real-report trial, minimum reuse extraction, and clean-checkout
+workflow are verified.
 
 ## Rendering Spike
 

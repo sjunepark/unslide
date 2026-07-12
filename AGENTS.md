@@ -11,8 +11,9 @@
 
 ## Current Phase
 
-Phase 3 extracted only the page foundation and static output mechanics repeated
-by both reports. Phase 4 hardens the verified workflow from a clean checkout.
+V1 is complete. The page foundation and static output mechanics are proven by
+both reports, and the documented workflow passes from a clean checkout. Future
+work begins only from real report evidence or an explicit scope decision.
 
 ## Commands
 

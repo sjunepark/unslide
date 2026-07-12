@@ -59,3 +59,19 @@ The proven foundation remains repository-local under `src/unslide/`. Two
 reports justify shared page geometry, chrome/numbering, the HTML shell, and
 capture. They do not yet justify a published package, configurable theme
 system, component catalogue, or stable public API.
+
+## Clean-Checkout Evidence
+
+The complete workflow was verified on 13 July 2026 from a fresh clone of
+committed `main` on macOS 26.5.1 arm64 with Node.js 24.11.0, npm 11.6.1,
+Playwright 1.61.1, and its managed Chromium build:
+
+- `npm ci` completed with zero audit vulnerabilities;
+- `npx playwright install chromium` completed successfully;
+- `npm run validate` passed both focused tests and generated 3 fixture pages
+  plus 8 operating-report pages;
+- every generated page image was visually inspected;
+- both HTML artifacts contained no external URLs, scripts, or linked styles;
+- direct local opening required no server or Playwright runtime;
+- Chromium print output contained exactly 3 and 8 A4 landscape pages; and
+- every repository-local Markdown link resolved.

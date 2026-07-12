@@ -1,8 +1,9 @@
 # Plan
 
-Status: v1 hardening in progress; clean-checkout verification next.
+Status: **V1 complete; all exit criteria verified.**
 
-Current next action: **Verify the complete workflow from a clean checkout.**
+Current next action: **Use the workflow for real reports; revisit deferred
+scope only with new evidence or an explicit decision.**
 
 This is the live plan. Update completed work, decisions, blockers, and the next
 action in place. Do not append session logs.
@@ -33,7 +34,7 @@ names.
 | 1. Rendering-loop spike | Complete | Three-page data-driven HTML report plus agent-readable page captures |
 | 2. Real report trial | Complete | One credible report reproduced through the complete loop |
 | 3. Minimum reuse extraction | Complete | Small interface justified by repeated real usage |
-| 4. V1 hardening | In progress | Fresh-clone workflow and documented v1 release |
+| 4. V1 hardening | Complete | Fresh-clone workflow and documented v1 release |
 
 ## Phase 0 — Foundation
 
@@ -246,7 +247,7 @@ Make the proven workflow repeatable from a clean checkout.
 - Installation, render, capture, and artifact paths are documented.
 - No out-of-scope system was introduced to solve a hypothetical future need.
 
-### Hardening State
+### Verified Outcome
 
 - Dependencies and the Chromium toolchain are pinned by `package-lock.json`.
 - Focused tests cover standalone HTML generation, title escaping, page
@@ -254,9 +255,15 @@ Make the proven workflow repeatable from a clean checkout.
 - `docs/WORKFLOW.md` records installation, authoring, rendering, capture,
   validation, platform support, artifact ownership, and the decision to keep
   the foundation repository-local.
-- Remaining evidence: run the documented installation and `npm run validate`
-  from a clean checkout, inspect the regenerated captures, and record the
-  verified release state.
+- A fresh clone of committed `main` passed `npm ci`, Chromium installation, and
+  `npm run validate` on macOS 26.5.1 arm64 with Node.js 24.11.0 and npm 11.6.1.
+- The clean run produced three fixture captures and eight operating-report
+  captures. Every image was inspected and remained readable without overflow.
+- Both generated HTML files opened directly, contained no external runtime
+  references, and printed as exactly three and eight A4 landscape pages.
+- All repository-local Markdown links resolve, the dependency audit reports no
+  vulnerabilities, and the required implementation review passes completed
+  with all safe findings applied.
 
 ## Deferred Backlog
 
@@ -273,6 +280,6 @@ Consider only after v1 evidence:
 
 ## Next Action
 
-Create a clean checkout, run the documented installation and validation
-commands from its root, inspect the regenerated page images, and then record
-the verified v1 exit state.
+V1 has no remaining implementation phase. Continue using the documented loop
+for real reports, and accept deferred capabilities only through new report
+evidence and an explicit scope decision.
