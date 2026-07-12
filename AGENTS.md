@@ -11,8 +11,8 @@
 
 ## Current Phase
 
-Phases 1 and 2 proved the rendering loop with a spike and a credible report.
-Phase 3 may extract only mechanics repeated by both reports.
+Phase 3 extracted only the page foundation and static output mechanics repeated
+by both reports. Phase 4 hardens the verified workflow from a clean checkout.
 
 ## Commands
 

@@ -176,9 +176,8 @@ Small report-specific markup may remain in report source indefinitely.
 
 The three-page spike and eight-page operating review established the same A4
 landscape geometry, screen and print treatment, optional chrome, final page
-numbering, embedded document shell, and isolated capture path. Those mechanics
-required synchronized report-local code and are candidates for the minimum
-reuse extraction.
+numbering, embedded document shell, and isolated capture path. The shared page
+foundation and HTML writer now own those mechanics.
 
 The real report did not demonstrate a common content vocabulary. Its
 trajectory figure, commercial mix, regional table, bilingual market page, and

@@ -45,6 +45,13 @@ Its standalone artifact is `artifacts/operating-review/report.html`; its page
 images are under `.tmp/captures/operating-review/`. The typed source and data
 live in `src/reports/operating-review/`.
 
+## Proven Foundation
+
+After both reports repeated the same mechanics, `src/unslide/` centralized the
+fixed A4 page geometry, optional chrome with numbering, print separation, and
+standalone HTML writer. Report-specific TSX and CSS remain beside each report;
+there is no general component catalogue or published package interface.
+
 ## Start Here
 
 - [PRODUCT.md](PRODUCT.md) — problem, thesis, users, v1 scope, and success.

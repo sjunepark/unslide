@@ -1,8 +1,8 @@
 # Plan
 
-Status: real-report trial complete; minimum reuse extraction next.
+Status: minimum reuse extraction complete; v1 hardening next.
 
-Current next action: **Phase 3 — minimum reuse extraction.**
+Current next action: **Phase 4 — v1 hardening.**
 
 This is the live plan. Update completed work, decisions, blockers, and the next
 action in place. Do not append session logs.
@@ -32,8 +32,8 @@ names.
 | 0. Foundation | Complete | Product, design, architecture, decisions, and live plan |
 | 1. Rendering-loop spike | Complete | Three-page data-driven HTML report plus agent-readable page captures |
 | 2. Real report trial | Complete | One credible report reproduced through the complete loop |
-| 3. Minimum reuse extraction | Next | Small interface justified by repeated real usage |
-| 4. V1 hardening | Pending | Fresh-clone workflow and documented v1 release |
+| 3. Minimum reuse extraction | Complete | Small interface justified by repeated real usage |
+| 4. V1 hardening | Next | Fresh-clone workflow and documented v1 release |
 
 ## Phase 0 — Foundation
 
@@ -202,6 +202,20 @@ A small reusable module whose deletion would force meaningful mechanics back
 into multiple report files. If deletion merely removes thin wrappers, keep the
 solution report-local instead of publishing a library.
 
+### Verified Outcome
+
+- `src/unslide/page.tsx` centralizes the repeated fixed-page structure,
+  optional chrome, and page numbering used by both reports.
+- `src/unslide/foundation.css` centralizes A4 landscape geometry, content and
+  chrome regions, visible screen separation, and print page breaks.
+- `src/unslide/render.tsx` owns title escaping, the embedded document shell,
+  shared/report CSS inclusion, and standalone file output.
+- Capture was already one shared development command. Report-specific
+  headings, metrics, tables, figures, bilingual layout, and styling remain
+  direct report source.
+- Both reports were regenerated, captured, and visually inspected after the
+  extraction. The normalized geometry introduced no overflow or visual defect.
+
 ## Phase 4 — V1 Hardening
 
 ### Objective
@@ -247,7 +261,7 @@ Consider only after v1 evidence:
 
 ## Next Action
 
-Begin Phase 3 by comparing the spike and operating report, then centralize only
-their repeated page foundation and static document output. Keep all
-report-specific composition and styling local; remove wrappers that merely
-rename ordinary TSX or CSS.
+Begin Phase 4 by adding focused generation and capture health checks, verifying
+all documented commands from a clean checkout, documenting supported
+development platforms and artifact locations, and deciding whether the proven
+foundation remains repository-local for v1.

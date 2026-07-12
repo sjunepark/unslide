@@ -132,6 +132,7 @@ Recipients still receive HTML.
 
 ## Current Code Map
 
+- `src/unslide/` contains the proven page foundation and static HTML writer.
 - `src/spike/` contains the deliberately small three-page fixture.
 - `src/reports/operating-review/` contains the credible eight-page report and
   its caller-owned typed data.
@@ -140,10 +141,10 @@ Recipients still receive HTML.
 - `artifacts/` is generated standalone HTML; `.tmp/captures/` is disposable
   visual evidence. Both are untracked.
 
-The reports currently duplicate their document shell, page geometry, chrome,
-numbering context, and static-render setup. Phase 3 evaluates that demonstrated
-repetition. Report-specific composition, tables, figures, and styling remain
-owned by each report.
+The shared foundation owns only the document shell, A4 landscape geometry,
+chrome/numbering structure, and screen/print page behavior. Report-specific
+composition, tables, figures, typography, and styling remain owned by each
+report.
 
 ## Related Decisions
 

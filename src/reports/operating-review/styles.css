@@ -10,43 +10,10 @@
   --coral: oklch(0.65 0.16 35);
   --blue: oklch(0.54 0.12 235);
   --rule: oklch(0.86 0.012 155);
+  --page-background: var(--paper);
+  --chrome-color: var(--muted);
+  --rule-color: var(--rule);
 }
-
-* { box-sizing: border-box; }
-body { margin: 0; }
-
-.report {
-  display: grid;
-  gap: 14mm;
-  justify-content: center;
-  padding: 14mm 0;
-}
-
-.page {
-  position: relative;
-  width: 297mm;
-  height: 210mm;
-  overflow: visible;
-  background: var(--paper);
-  box-shadow: 0 2mm 8mm oklch(0.2 0.03 155 / 18%);
-}
-
-.page-header,
-.page-footer {
-  position: absolute;
-  right: 17mm;
-  left: 17mm;
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 7.5pt;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.page-header { top: 10mm; padding-bottom: 3mm; border-bottom: 0.25mm solid var(--rule); }
-.page-footer { bottom: 8mm; }
-.page-content { position: absolute; inset: 26mm 17mm 21mm; }
 
 h1, h2, h3, p, figure { margin-top: 0; }
 h1, h2 { text-wrap: balance; }
@@ -202,11 +169,3 @@ h2 { margin-bottom: 0; font-size: 27pt; line-height: 1.08; letter-spacing: -0.03
 .source-map strong { font-size: 10pt; }
 .source-map b { color: oklch(0.76 0.04 155); text-align: center; }
 .end-mark { position: absolute; right: 0; bottom: 0; margin: 0; color: var(--muted); font-size: 7pt; letter-spacing: 0.12em; }
-
-@page { size: A4 landscape; margin: 0; }
-@media print {
-  :root { background: white; }
-  .report { display: block; padding: 0; }
-  .page { break-after: page; box-shadow: none; }
-  .page:last-child { break-after: auto; }
-}

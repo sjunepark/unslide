@@ -1,42 +1,6 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Page } from "../unslide/page.js";
 import type { SpikeReportData } from "./data.js";
-
-interface PageProps extends PropsWithChildren {
-  number: number;
-  total: number;
-  reportLabel: string;
-  className?: string;
-  chrome?: boolean;
-}
-
-function Page({
-  number,
-  total,
-  reportLabel,
-  className = "",
-  chrome = true,
-  children,
-}: PageProps) {
-  return (
-    <section className={`page ${className}`} data-page={number}>
-      {chrome && (
-        <header className="page-header">
-          <span>{reportLabel}</span>
-          <span>CONFIDENTIAL</span>
-        </header>
-      )}
-      <main className="page-content">{children}</main>
-      {chrome && (
-        <footer className="page-footer">
-          <span>{reportLabel} · Operating review</span>
-          <span>
-            {number} / {total}
-          </span>
-        </footer>
-      )}
-    </section>
-  );
-}
 
 function SectionTitle({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
   return (
@@ -50,16 +14,15 @@ function SectionTitle({ eyebrow, children }: { eyebrow: string; children: ReactN
 export function SpikeReport({ data }: { data: SpikeReportData }) {
   const totalPages = 3;
   const reportLabel = `${data.company} · ${data.period}`;
+  const chrome = {
+    headerLeft: reportLabel,
+    headerRight: "Confidential",
+    footerLeft: `${reportLabel} · Operating review`,
+  };
 
   return (
-    <div className="report">
-      <Page
-        number={1}
-        total={totalPages}
-        reportLabel={reportLabel}
-        className="cover"
-        chrome={false}
-      >
+    <main className="report">
+      <Page number={1} total={totalPages} className="cover">
         <div className="cover-mark">N</div>
         <div className="cover-copy">
           <p className="eyebrow">{data.company} · {data.period}</p>
@@ -72,7 +35,7 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
         </div>
       </Page>
 
-      <Page number={2} total={totalPages} reportLabel={reportLabel}>
+      <Page number={2} total={totalPages} chrome={chrome}>
         <SectionTitle eyebrow="Executive snapshot">Performance remained resilient</SectionTitle>
         <p className="lead">{data.summary}</p>
         <div className="metric-grid">
@@ -90,7 +53,7 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
         </div>
       </Page>
 
-      <Page number={3} total={totalPages} reportLabel={reportLabel}>
+      <Page number={3} total={totalPages} chrome={chrome}>
         <SectionTitle eyebrow="Regional detail">Growth is broad, with uneven economics</SectionTitle>
         <table>
           <thead>
@@ -116,6 +79,6 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
         </table>
         <p className="table-note">Revenue contribution by reporting region; management reporting basis.</p>
       </Page>
-    </div>
+    </main>
   );
 }

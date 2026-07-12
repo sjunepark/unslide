@@ -1,42 +1,6 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Page } from "../../unslide/page.js";
 import type { OperatingReviewData } from "./data.js";
-
-interface PageProps extends PropsWithChildren {
-  number: number;
-  total: number;
-  label: string;
-  section: string;
-  className?: string;
-  chrome?: boolean;
-}
-
-function Page({
-  number,
-  total,
-  label,
-  section,
-  className = "",
-  chrome = true,
-  children,
-}: PageProps) {
-  return (
-    <section className={`page ${className}`} data-page={number}>
-      {chrome && (
-        <header className="page-header">
-          <span>{label}</span>
-          <span>{section}</span>
-        </header>
-      )}
-      <div className="page-content">{children}</div>
-      {chrome && (
-        <footer className="page-footer">
-          <span>Confidential · {label}</span>
-          <span>{number} / {total}</span>
-        </footer>
-      )}
-    </section>
-  );
-}
 
 function Heading({ title, note }: { title: ReactNode; note?: ReactNode }) {
   return (
@@ -50,10 +14,15 @@ function Heading({ title, note }: { title: ReactNode; note?: ReactNode }) {
 export function OperatingReview({ data }: { data: OperatingReviewData }) {
   const total = 8;
   const label = `${data.company} · ${data.period}`;
+  const chrome = (section: string) => ({
+    headerLeft: label,
+    headerRight: section,
+    footerLeft: `Confidential · ${label}`,
+  });
 
   return (
     <main className="report">
-      <Page number={1} total={total} label={label} section="Cover" chrome={false} className="cover">
+      <Page number={1} total={total} className="cover">
         <div className="cover-grid">
           <div className="wordmark">NORTHSTAR / 26</div>
           <div className="cover-index">OPERATING REVIEW</div>
@@ -71,7 +40,7 @@ export function OperatingReview({ data }: { data: OperatingReviewData }) {
         </div>
       </Page>
 
-      <Page number={2} total={total} label={label} section="Executive view">
+      <Page number={2} total={total} chrome={chrome("Executive view")}>
         <Heading title="A stronger quarter, with one clear pressure point" />
         <p className="thesis">{data.thesis}</p>
         <div className="metric-line">
@@ -89,7 +58,7 @@ export function OperatingReview({ data }: { data: OperatingReviewData }) {
         </div>
       </Page>
 
-      <Page number={3} total={total} label={label} section="Performance trajectory">
+      <Page number={3} total={total} chrome={chrome("Performance trajectory")}>
         <Heading
           title="Revenue and margin are improving together"
           note="Four-quarter management view; revenue bars and gross-margin line use caller-prepared display positions."
@@ -123,7 +92,7 @@ export function OperatingReview({ data }: { data: OperatingReviewData }) {
         <p className="figure-callout">{data.insights.marginExpansion}</p>
       </Page>
 
-      <Page number={4} total={total} label={label} section="Commercial mix">
+      <Page number={4} total={total} chrome={chrome("Commercial mix")}>
         <Heading title="Enterprise is carrying growth; digital needs a retention reset" />
         <div className="channel-layout">
           <div className="channel-list">
@@ -151,7 +120,7 @@ export function OperatingReview({ data }: { data: OperatingReviewData }) {
         </div>
       </Page>
 
-      <Page number={5} total={total} label={label} section="Regional performance">
+      <Page number={5} total={total} chrome={chrome("Regional performance")}>
         <Heading title="Regional growth is broad; economics remain uneven" />
         <table className="region-table">
           <thead>
@@ -168,7 +137,7 @@ export function OperatingReview({ data }: { data: OperatingReviewData }) {
         <div className="table-readout"><span>Highest growth</span><strong>{data.insights.highestGrowth}</strong><span>Largest margin gap</span><strong>{data.insights.largestMarginGap}</strong></div>
       </Page>
 
-      <Page number={6} total={total} label={label} section="한국 사업 / Korea">
+      <Page number={6} total={total} chrome={chrome("한국 사업 / Korea")}>
         <div className="korea-heading">
           <span>Market spotlight</span>
           <h2 lang="ko">{data.korea.headline}</h2>
@@ -190,7 +159,7 @@ export function OperatingReview({ data }: { data: OperatingReviewData }) {
         </div>
       </Page>
 
-      <Page number={7} total={total} label={label} section="Second-half execution">
+      <Page number={7} total={total} chrome={chrome("Second-half execution")}>
         <Heading title="Four priorities translate the quarter into action" note="Measures are operating commitments, not framework-owned calculations." />
         <div className="priority-head"><span>Owner / priority</span><span>Success measure</span><span>Timing</span></div>
         <div className="priorities">
@@ -206,7 +175,7 @@ export function OperatingReview({ data }: { data: OperatingReviewData }) {
         <div className="decision-list"><strong>Committee decisions requested</strong><ol>{data.decisions.map((decision) => <li key={decision}>{decision}</li>)}</ol></div>
       </Page>
 
-      <Page number={8} total={total} label={label} section="Appendix">
+      <Page number={8} total={total} chrome={chrome("Appendix")}>
         <Heading title="Definitions and reporting basis" note="The report receives these values already prepared; it does not calculate business performance." />
         <dl className="notes">
           {data.notes.map((note) => <div key={note.label}><dt>{note.label}</dt><dd>{note.text}</dd></div>)}

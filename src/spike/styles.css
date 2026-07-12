@@ -3,59 +3,9 @@
   background: #dfe4df;
   font-family: Inter, "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
   font-synthesis: none;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-}
-
-.report {
-  display: grid;
-  gap: 14mm;
-  justify-content: center;
-  padding: 14mm 0;
-}
-
-.page {
-  position: relative;
-  width: 297mm;
-  height: 210mm;
-  overflow: visible;
-  background: #f8f7f2;
-  box-shadow: 0 2mm 8mm rgb(22 35 27 / 18%);
-}
-
-.page-header,
-.page-footer {
-  position: absolute;
-  left: 18mm;
-  right: 18mm;
-  display: flex;
-  justify-content: space-between;
-  color: #66716a;
-  font-size: 8pt;
-  letter-spacing: 0.055em;
-  text-transform: uppercase;
-}
-
-.page-header {
-  top: 11mm;
-  padding-bottom: 3mm;
-  border-bottom: 0.25mm solid #ced4cf;
-}
-
-.page-footer {
-  bottom: 9mm;
-  align-items: center;
-}
-
-.page-content {
-  position: absolute;
-  inset: 27mm 18mm 23mm;
+  --page-background: #f8f7f2;
+  --chrome-color: #66716a;
+  --rule-color: #ced4cf;
 }
 
 .eyebrow {
@@ -242,29 +192,4 @@ tbody th {
   margin-top: 5mm;
   color: #758078;
   font-size: 8pt;
-}
-
-@page {
-  size: A4 landscape;
-  margin: 0;
-}
-
-@media print {
-  :root {
-    background: white;
-  }
-
-  .report {
-    display: block;
-    padding: 0;
-  }
-
-  .page {
-    break-after: page;
-    box-shadow: none;
-  }
-
-  .page:last-child {
-    break-after: auto;
-  }
 }
