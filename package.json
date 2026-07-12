@@ -1,0 +1,23 @@
+{
+  "name": "unslide",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "render:spike": "tsx src/spike/render.tsx",
+    "capture:spike": "tsx scripts/capture.ts artifacts/spike/report.html .tmp/captures/spike"
+  },
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.0.13",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "playwright": "1.61.1",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3"
+  }
+}

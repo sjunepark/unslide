@@ -1,0 +1,270 @@
+:root {
+  color: #17211b;
+  background: #dfe4df;
+  font-family: Inter, "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.report {
+  display: grid;
+  gap: 14mm;
+  justify-content: center;
+  padding: 14mm 0;
+}
+
+.page {
+  position: relative;
+  width: 297mm;
+  height: 210mm;
+  overflow: visible;
+  background: #f8f7f2;
+  box-shadow: 0 2mm 8mm rgb(22 35 27 / 18%);
+}
+
+.page-header,
+.page-footer {
+  position: absolute;
+  left: 18mm;
+  right: 18mm;
+  display: flex;
+  justify-content: space-between;
+  color: #66716a;
+  font-size: 8pt;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.page-header {
+  top: 11mm;
+  padding-bottom: 3mm;
+  border-bottom: 0.25mm solid #ced4cf;
+}
+
+.page-footer {
+  bottom: 9mm;
+  align-items: center;
+}
+
+.page-content {
+  position: absolute;
+  inset: 27mm 18mm 23mm;
+}
+
+.eyebrow {
+  margin: 0 0 4mm;
+  color: #ba5b36;
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 210mm;
+  margin-bottom: 8mm;
+  font-family: Georgia, "Noto Serif KR", serif;
+  font-size: 36pt;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+h2 {
+  margin-bottom: 9mm;
+  font-family: Georgia, "Noto Serif KR", serif;
+  font-size: 25pt;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+}
+
+.cover {
+  color: #f5f2e9;
+  background: #163c2b;
+}
+
+.cover .page-content {
+  inset: 20mm;
+}
+
+.cover-mark {
+  display: grid;
+  width: 15mm;
+  height: 15mm;
+  place-items: center;
+  border: 0.5mm solid #f5f2e9;
+  border-radius: 50%;
+  font-family: Georgia, serif;
+  font-size: 16pt;
+}
+
+.cover-copy {
+  position: absolute;
+  left: 0;
+  bottom: 40mm;
+}
+
+.cover .eyebrow {
+  color: #f2ad79;
+}
+
+.cover-subtitle {
+  max-width: 168mm;
+  color: #cdd8d1;
+  font-size: 15pt;
+  line-height: 1.45;
+}
+
+.cover-meta {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  color: #a9beb1;
+  font-size: 9pt;
+}
+
+.section-title {
+  max-width: 210mm;
+}
+
+.lead {
+  max-width: 225mm;
+  margin-bottom: 11mm;
+  color: #4a5650;
+  font-family: Georgia, "Noto Serif KR", serif;
+  font-size: 15pt;
+  line-height: 1.5;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7mm;
+}
+
+.metric {
+  padding-top: 5mm;
+  border-top: 0.8mm solid #225b42;
+}
+
+.metric p {
+  margin-bottom: 5mm;
+  color: #66716a;
+  font-size: 9pt;
+  text-transform: uppercase;
+}
+
+.metric strong {
+  display: block;
+  margin-bottom: 2mm;
+  font-family: Georgia, serif;
+  font-size: 25pt;
+  font-weight: 500;
+}
+
+.metric span {
+  font-size: 10pt;
+  font-weight: 700;
+}
+
+.metric .positive {
+  color: #1f7150;
+}
+
+.metric .neutral {
+  color: #59645e;
+}
+
+.takeaway {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: 45mm 1fr;
+  padding: 5mm 0 0;
+  border-top: 0.25mm solid #ced4cf;
+}
+
+.takeaway p:last-child {
+  margin: 0;
+  font-size: 11pt;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+
+th,
+td {
+  padding: 5mm 3mm;
+  border-bottom: 0.25mm solid #d6dad6;
+  text-align: left;
+}
+
+thead th {
+  padding-top: 0;
+  color: #66716a;
+  font-size: 8pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+tbody th {
+  font-weight: 650;
+}
+
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-note {
+  margin-top: 5mm;
+  color: #758078;
+  font-size: 8pt;
+}
+
+@page {
+  size: A4 landscape;
+  margin: 0;
+}
+
+@media print {
+  :root {
+    background: white;
+  }
+
+  .report {
+    display: block;
+    padding: 0;
+  }
+
+  .page {
+    break-after: page;
+    box-shadow: none;
+  }
+
+  .page:last-child {
+    break-after: auto;
+  }
+}

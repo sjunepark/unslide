@@ -1,8 +1,8 @@
 # Plan
 
-Status: foundational documents complete; implementation not started.
+Status: rendering-loop spike complete; real-report trial next.
 
-Current next action: **Phase 1 — rendering-loop spike.**
+Current next action: **Phase 2 — real report trial.**
 
 This is the live plan. Update completed work, decisions, blockers, and the next
 action in place. Do not append session logs.
@@ -30,8 +30,8 @@ names.
 | Phase | State | Exit artifact |
 |---|---|---|
 | 0. Foundation | Complete | Product, design, architecture, decisions, and live plan |
-| 1. Rendering-loop spike | Next | Three-page data-driven HTML report plus agent-readable page captures |
-| 2. Real report trial | Pending | One credible report reproduced through the complete loop |
+| 1. Rendering-loop spike | Complete | Three-page data-driven HTML report plus agent-readable page captures |
+| 2. Real report trial | Next | One credible report reproduced through the complete loop |
 | 3. Minimum reuse extraction | Pending | Small interface justified by repeated real usage |
 | 4. V1 hardening | Pending | Fresh-clone workflow and documented v1 release |
 
@@ -122,6 +122,23 @@ A new agent can follow repository instructions to:
 
 The spike may be rewritten rather than preserved if using it reveals a simpler
 authoring shape.
+
+### Verified Outcome
+
+- React static server rendering provides familiar typed TSX without a client
+  application or development server.
+- A4 landscape (`297mm × 210mm`) is the initial fixed geometry.
+- Report-local composition supplies shared chrome and final page positions;
+  the cover suppresses chrome explicitly.
+- CSS is embedded in `artifacts/spike/report.html`, so the output has no runtime
+  or network dependency.
+- Isolated Chromium captures the actual HTML to one PNG per page under
+  `.tmp/captures/spike/` after document and font readiness.
+- An intentional table-row spacing increase visibly pushed content beyond the
+  page in capture. Restoring the authored spacing corrected the output; no
+  overflow detector or repair path was added.
+- Installation, render, capture, type-check, and local-open paths were run from
+  the repository root.
 
 ## Phase 2 — Real Report Trial
 
@@ -215,6 +232,7 @@ Consider only after v1 evidence:
 
 ## Next Action
 
-Begin Phase 1 with the smallest three-page fixture. Let that work choose the
-static rendering dependency and authoring syntax before adding any general
-interface.
+Begin Phase 2 by authoring one coherent six-to-ten-page operating report from
+ordinary typed data. Use Korean and English content, a table, and at least one
+locally embedded figure or image. Keep composition report-local and record the
+friction revealed by a content revision and a visual revision.

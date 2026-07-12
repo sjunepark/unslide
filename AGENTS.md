@@ -11,8 +11,16 @@
 
 ## Current Phase
 
-The repository is documentation-only. No setup, build, or validation commands
-exist yet. Add commands here only after Phase 1 creates and verifies them.
+Phase 1 proved the rendering loop. Phase 2 must exercise it with a credible
+six-to-ten-page report before any reusable authoring interface is extracted.
+
+## Commands
+
+- `npm install` — install pinned JavaScript dependencies.
+- `npx playwright install chromium` — install the isolated preview browser.
+- `npm run render:spike` — generate `artifacts/spike/report.html`.
+- `npm run capture:spike` — capture pages under `.tmp/captures/spike/`.
+- `npm run check` — type-check report and tooling source.
 
 ## Scope
 
@@ -43,9 +51,10 @@ decision before implementation.
 
 ## Validation
 
-During the documentation-only phase:
-
-- verify Markdown links and paths;
-- check that PRODUCT, DESIGN, ARCHITECTURE, decisions, and PLAN agree on v1
-  scope; and
-- remove implementation syntax that has not been proven by the current phase.
+- Run `npm run check` for source changes.
+- Generate and capture the affected report, then inspect every page image for
+  content fit and visual defects.
+- Verify Markdown links and paths.
+- Check that PRODUCT, DESIGN, ARCHITECTURE, decisions, and PLAN agree on v1
+  scope.
+- Remove implementation syntax that has not been proven by report work.

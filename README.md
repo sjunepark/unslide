@@ -8,7 +8,31 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **documentation-first; implementation has not started.**
+Status: **Phase 1 rendering loop proven; real-report trial next.**
+
+## Rendering Spike
+
+The first implementation uses React's static server renderer for familiar TSX
+semantics. It produces one self-contained HTML file; React and Playwright are
+not needed by a recipient opening that file.
+
+From the repository root:
+
+```sh
+npm install
+npx playwright install chromium
+npm run render:spike
+npm run capture:spike
+```
+
+Open `artifacts/spike/report.html` in an ordinary browser. Inspect the three
+page images under `.tmp/captures/spike/`. Generated HTML is kept under
+`artifacts/`; disposable inspection output is kept under `.tmp/captures/`.
+
+Change values in `src/spike/data.ts` or composition in
+`src/spike/report.tsx`, then repeat render, capture, and visual inspection.
+The author must correct overflow in source; the tooling does not detect or
+repair it.
 
 ## Start Here
 
@@ -39,10 +63,8 @@ file, and let a human or coding agent inspect real browser-rendered page images.
   Chromium for agent inspection.
 - Playwright is preview tooling only; generated reports do not depend on it.
 
-The exact authoring syntax, rendering library, CSS organization, and module
-layout will be decided while building the first working report. The documents
-record product behavior and constraints, not speculative implementation
-interfaces.
+The spike intentionally keeps report composition and styling local. The real
+report trial will determine which mechanics, if any, merit a reusable module.
 
 ## Working Principle
 
