@@ -1,8 +1,8 @@
 # Plan
 
-Status: rendering-loop spike complete; real-report trial next.
+Status: real-report trial complete; minimum reuse extraction next.
 
-Current next action: **Phase 2 — real report trial.**
+Current next action: **Phase 3 — minimum reuse extraction.**
 
 This is the live plan. Update completed work, decisions, blockers, and the next
 action in place. Do not append session logs.
@@ -31,8 +31,8 @@ names.
 |---|---|---|
 | 0. Foundation | Complete | Product, design, architecture, decisions, and live plan |
 | 1. Rendering-loop spike | Complete | Three-page data-driven HTML report plus agent-readable page captures |
-| 2. Real report trial | Next | One credible report reproduced through the complete loop |
-| 3. Minimum reuse extraction | Pending | Small interface justified by repeated real usage |
+| 2. Real report trial | Complete | One credible report reproduced through the complete loop |
+| 3. Minimum reuse extraction | Next | Small interface justified by repeated real usage |
 | 4. V1 hardening | Pending | Fresh-clone workflow and documented v1 release |
 
 ## Phase 0 — Foundation
@@ -165,6 +165,21 @@ as a reusable interface.
 A credible report that would be useful independently of framework development,
 plus a short list of proven authoring friction.
 
+### Verified Outcome
+
+- One typed data object drives an eight-page operating report with English and
+  Korean prose, formatted metrics, a regional table, and an inline SVG figure.
+- The report uses the same standalone HTML and isolated per-page capture loop
+  as the spike, with shared chrome and numbering on pages 2–8.
+- All eight final page images were inspected, and Chromium print output contains
+  exactly eight A4 landscape pages.
+- A content revision clarified the SMB spending decision. Rendered inspection
+  also exposed ambiguous commercial bars and undersized decision copy; labels
+  and typography were corrected in source and the affected pages recaptured.
+- Report-specific layouts remained direct TSX and CSS. The observed reusable
+  friction is limited to duplicated page geometry, chrome/numbering, document
+  shell, static render setup, and capture invocation.
+
 ## Phase 3 — Minimum Reuse Extraction
 
 ### Objective
@@ -232,7 +247,7 @@ Consider only after v1 evidence:
 
 ## Next Action
 
-Begin Phase 2 by authoring one coherent six-to-ten-page operating report from
-ordinary typed data. Use Korean and English content, a table, and at least one
-locally embedded figure or image. Keep composition report-local and record the
-friction revealed by a content revision and a visual revision.
+Begin Phase 3 by comparing the spike and operating report, then centralize only
+their repeated page foundation and static document output. Keep all
+report-specific composition and styling local; remove wrappers that merely
+rename ordinary TSX or CSS.

@@ -11,8 +11,8 @@
 
 ## Current Phase
 
-Phase 1 proved the rendering loop. Phase 2 must exercise it with a credible
-six-to-ten-page report before any reusable authoring interface is extracted.
+Phases 1 and 2 proved the rendering loop with a spike and a credible report.
+Phase 3 may extract only mechanics repeated by both reports.
 
 ## Commands
 
@@ -20,6 +20,9 @@ six-to-ten-page report before any reusable authoring interface is extracted.
 - `npx playwright install chromium` — install the isolated preview browser.
 - `npm run render:spike` — generate `artifacts/spike/report.html`.
 - `npm run capture:spike` — capture pages under `.tmp/captures/spike/`.
+- `npm run render:report` — generate the eight-page operating report.
+- `npm run capture:report` — capture its pages under
+  `.tmp/captures/operating-review/`.
 - `npm run check` — type-check report and tooling source.
 
 ## Scope

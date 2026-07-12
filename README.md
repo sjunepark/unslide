@@ -34,6 +34,17 @@ Change values in `src/spike/data.ts` or composition in
 The author must correct overflow in source; the tooling does not detect or
 repair it.
 
+The credible eight-page operating report uses the same loop:
+
+```sh
+npm run render:report
+npm run capture:report
+```
+
+Its standalone artifact is `artifacts/operating-review/report.html`; its page
+images are under `.tmp/captures/operating-review/`. The typed source and data
+live in `src/reports/operating-review/`.
+
 ## Start Here
 
 - [PRODUCT.md](PRODUCT.md) — problem, thesis, users, v1 scope, and success.

@@ -172,6 +172,23 @@ Extract it when at least one of these is observed:
 
 Small report-specific markup may remain in report source indefinitely.
 
+## Evidence from the First Reports
+
+The three-page spike and eight-page operating review established the same A4
+landscape geometry, screen and print treatment, optional chrome, final page
+numbering, embedded document shell, and isolated capture path. Those mechanics
+required synchronized report-local code and are candidates for the minimum
+reuse extraction.
+
+The real report did not demonstrate a common content vocabulary. Its
+trajectory figure, commercial mix, regional table, bilingual market page, and
+priority layout are clearer as direct report source. They should not become a
+component catalogue.
+
+Rendered inspection exposed ambiguous chart labeling and overly small decision
+copy. Both were corrected in report source and recaptured. This reinforces that
+visual judgment belongs in the authoring loop, not in an automated fit system.
+
 ## Questions Deliberately Deferred
 
 The following are decided during implementation, using the first report as

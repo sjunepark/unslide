@@ -1,8 +1,7 @@
 # Architecture
 
-Status: **pre-implementation**. This document fixes system responsibilities and
-invariants while leaving code-level interfaces to the first implementation
-spike.
+Status: **implemented through the real-report trial**. The spike and operating
+report now provide evidence for the minimum reuse extraction.
 
 ## Purpose and Boundary
 
@@ -133,15 +132,18 @@ Recipients still receive HTML.
 
 ## Current Code Map
 
-There is no implementation tree yet. Start with:
+- `src/spike/` contains the deliberately small three-page fixture.
+- `src/reports/operating-review/` contains the credible eight-page report and
+  its caller-owned typed data.
+- `scripts/capture.ts` loads either generated HTML artifact in isolated
+  Chromium and writes one image per explicit page.
+- `artifacts/` is generated standalone HTML; `.tmp/captures/` is disposable
+  visual evidence. Both are untracked.
 
-- [PRODUCT.md](PRODUCT.md) for scope and success criteria.
-- [docs/DESIGN.md](docs/DESIGN.md) for expected behavior.
-- [PLAN.md](PLAN.md) for the first implementation slice.
-
-The first spike will establish the smallest workable source and tool layout.
-Package boundaries, file names, framework choice, and public interfaces should
-not be documented before that evidence exists.
+The reports currently duplicate their document shell, page geometry, chrome,
+numbering context, and static-render setup. Phase 3 evaluates that demonstrated
+repetition. Report-specific composition, tables, figures, and styling remain
+owned by each report.
 
 ## Related Decisions
 

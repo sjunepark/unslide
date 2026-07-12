@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
+    "render:report": "tsx src/reports/operating-review/render.tsx",
+    "capture:report": "tsx scripts/capture.ts artifacts/operating-review/report.html .tmp/captures/operating-review",
     "render:spike": "tsx src/spike/render.tsx",
     "capture:spike": "tsx scripts/capture.ts artifacts/spike/report.html .tmp/captures/spike"
   },
