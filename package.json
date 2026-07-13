@@ -23,8 +23,8 @@
   "files": [
     "bin/unslide.mjs",
     "dist/**/*.js",
+    "dist/unslide/assets.d.ts",
     "dist/unslide/react.d.ts",
-    "dist/unslide/render.d.ts",
     "docs/PROTOCOL.md",
     "docs/SUPPORT.md",
     "schema/unslide.schema.json",
@@ -48,6 +48,7 @@
     "inspect-pdf:spike": "pnpm --silent run unslide inspect-pdf spike"
   },
   "dependencies": {
+    "@effect/platform-node-shared": "4.0.0-beta.97",
     "@napi-rs/canvas": "1.0.2",
     "@toon-format/toon": "2.3.0",
     "@types/react": "19.1.8",

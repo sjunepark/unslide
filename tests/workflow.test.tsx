@@ -5,13 +5,18 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { chromium } from "playwright";
-import { captureHtmlPages } from "../src/unslide/capture.js";
+import { captureHtmlPages as captureHtmlPagesEffect } from "../src/unslide/capture.js";
 import { validateArtifact } from "../src/unslide/protocol.js";
+import { inlineAsset, readTextAsset } from "../src/unslide/assets.js";
 import {
-  inlineAsset,
-  readTextAsset,
-  writeReportHtml,
+  writeReportHtml as writeReportHtmlEffect,
 } from "../src/unslide/render.js";
+import { runUnslide } from "./runtime.js";
+
+const captureHtmlPages = (input: string, output: string) =>
+  runUnslide(captureHtmlPagesEffect(input, output));
+const writeReportHtml = (options: Parameters<typeof writeReportHtmlEffect>[0]) =>
+  runUnslide(writeReportHtmlEffect(options));
 
 function TestDocument({ styles = "" }: { styles?: string }) {
   return (

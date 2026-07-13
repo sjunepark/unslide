@@ -3,7 +3,11 @@ import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:f
 import { resolve } from "node:path";
 import test from "node:test";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { exportHtmlPdf } from "../src/unslide/pdf.js";
+import { exportHtmlPdf as exportHtmlPdfEffect } from "../src/unslide/pdf.js";
+import { runUnslide, type RunOptions } from "./runtime.js";
+
+const exportHtmlPdf = (input: string, output: string, options: RunOptions = {}) =>
+  runUnslide(exportHtmlPdfEffect(input, output), options);
 
 const repositoryRoot = resolve(".");
 

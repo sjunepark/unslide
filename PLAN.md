@@ -1,7 +1,8 @@
 # Plan
 
 Status: **V1 and the accepted V2 scope are complete; Runtime Goals 1 and 2 of
-the Effect v4 internal migration are complete.**
+the Effect v4 internal migration are complete, and Runtime Goal 3 is in
+progress.**
 
 Current next action: **Execute Runtime Goal 3 from the Effect v4 internal
 runtime plan.** Do not resume a deferred product gate before that maintenance
@@ -82,7 +83,7 @@ Keep these outside V2 unless a later decision changes scope:
 | PDF | 3. Export hardening | Complete | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
 | Runtime | 1. Foundation and typed failures | Complete | Completed V2, D5 | Exact v4 foundation and unchanged CLI/package behavior |
 | Runtime | 2. Scoped browser and PDF lifecycles | Complete | Runtime 1 | Interruption-safe cleanup and readiness accounting |
-| Runtime | 3. Filesystem transactions and release hardening | Planned | Runtime 2 | Transaction invariants and packed-consumer workflow pass |
+| Runtime | 3. Filesystem transactions and release hardening | In progress | Runtime 2 | Transaction invariants and packed-consumer workflow pass |
 | Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
 
 ## Detailed Plans

@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { relative, resolve, sep } from "node:path";
 import { encode } from "@toon-format/toon";
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, FileSystem } from "effect";
 import { buildReport } from "./unslide/build.js";
 import { captureHtmlPages } from "./unslide/capture.js";
 import { getReport, loadProjectConfig, type ProjectConfig } from "./unslide/config.js";
-import { CommandFailure, type CliFailure } from "./unslide/failures.js";
+import { commandFailure, CommandFailure, type CliFailure } from "./unslide/failures.js";
 import { initializeProject } from "./unslide/init.js";
 import { inspectHtmlArtifact } from "./unslide/inspect.js";
+import { causeMessage } from "./unslide/lifecycle.js";
+import { applicationLayer } from "./unslide/runtime.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 const CLI_INVOCATION = process.env.UNSLIDE_INVOCATION ?? "pnpm --silent run unslide";
@@ -90,10 +91,6 @@ function usageError(message: string, help: JsonValue): number {
   return 2;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function defectError(error: unknown): number {
   const message = error instanceof Error ? error.message : String(error);
   writeOutput({ error: { code: "operation-failed", message } });
@@ -124,23 +121,12 @@ function formatCliFailure(error: CliFailure, invocation: "home" | "command"): nu
   }
 }
 
-function commandOperation<A>(
-  command: string,
-  operation: () => Promise<A>,
-  context: { path?: string; report?: string } = {},
-) {
-  // Goal 1 bridges each legacy Promise command here; later goals remove this
-  // transition as those implementations acquire their own typed channels.
-  return Effect.tryPromise({
-    try: operation,
-    catch: (cause) => new CommandFailure({
-      cause,
-      command,
-      message: errorMessage(cause),
-      path: context.path,
-      report: context.report,
-    }),
-  });
+function isCliFailure(error: unknown): error is CliFailure {
+  if (typeof error !== "object" || error === null || !("_tag" in error)) return false;
+  return error._tag === "ProjectNotFound"
+    || error._tag === "ProjectConfigFailure"
+    || error._tag === "ReportNotFound"
+    || error._tag === "CommandFailure";
 }
 
 function projectPath(config: ProjectConfig, absolutePath: string): string {
@@ -148,21 +134,17 @@ function projectPath(config: ProjectConfig, absolutePath: string): string {
 }
 
 const home = Effect.fn("cli.home")(function* () {
+  const fs = yield* FileSystem.FileSystem;
   const config = yield* loadProjectConfig();
-  const reports = yield* Effect.promise(() => Promise.all(Object.values(config.reports).map(async (report) => {
-    let status = "built";
-    try {
-      await access(report.htmlPath);
-    } catch {
-      status = "not-built";
-    }
-    return {
+  const reports = yield* Effect.all(Object.values(config.reports).map((report) => fs.exists(report.htmlPath).pipe(
+    Effect.map((exists) => ({
       name: report.name,
       source: projectPath(config, report.sourcePath),
       html: projectPath(config, report.htmlPath),
-      status,
-    };
-  })));
+      status: exists ? "built" : "not-built",
+    })),
+    Effect.mapError((cause) => commandFailure(cause, { command: "home", path: report.htmlPath, report: report.name })),
+  )));
   writeOutput({
     bin: displayExecutable(),
     description: "Build and inspect explicit-page HTML and PDF reports",
@@ -229,7 +211,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       return usageError(`Invalid report name "${reportName}"; use lower-kebab case.`, commandHelp("init"));
     }
 
-    const result = yield* commandOperation("init", () => initializeProject(process.cwd(), reportName, write), { report: reportName });
+    const result = yield* initializeProject(process.cwd(), reportName, write);
     const init = {
       root: result.projectRoot,
       report: result.reportName,
@@ -255,7 +237,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     if (argv.length !== 3 || !argv[2]) {
       return usageError("--artifact requires exactly one HTML path.", commandHelp("inspect"));
     }
-    const result = yield* commandOperation("inspect", () => inspectHtmlArtifact(argv[2] as string), { path: argv[2] });
+    const result = yield* inspectHtmlArtifact(argv[2] as string);
     writeOutput({
       artifact: { path: result.inputPath, pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
@@ -279,10 +261,11 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     ) {
       return usageError("Explicit PDF inspection requires --artifact <path> and --output <directory> exactly once.", commandHelp("inspect-pdf"));
     }
-    const result = yield* commandOperation("inspect-pdf", async () => {
-      const { inspectPdfPages } = await import("./unslide/pdf-inspection.js");
-      return inspectPdfPages(artifactPath, outputDirectory);
-    }, { path: artifactPath });
+    const { inspectPdfPages } = yield* Effect.tryPromise({
+      try: () => import("./unslide/pdf-inspection.js"),
+      catch: (cause) => commandFailure(cause, { command: "inspect-pdf", path: artifactPath }),
+    });
+    const result = yield* inspectPdfPages(artifactPath, outputDirectory);
     writeOutput({
       pdf: { path: result.inputPath, output: result.outputDirectory, pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, file: page.outputPath, width: page.width, height: page.height })),
@@ -297,12 +280,12 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   const config = yield* loadProjectConfig();
   const report = yield* getReport(config, argv[1]);
   if (command === "build") {
-    const result = yield* commandOperation(command, () => buildReport(report), { path: report.sourcePath, report: report.name });
+    const result = yield* buildReport(report);
     writeOutput({ report: { name: result.name, status: "built", html: projectPath(config, result.htmlPath) } });
     return 0;
   }
   if (command === "inspect") {
-    const result = yield* commandOperation(command, () => inspectHtmlArtifact(report.htmlPath), { path: report.htmlPath, report: report.name });
+    const result = yield* inspectHtmlArtifact(report.htmlPath);
     writeOutput({
       report: { name: report.name, status: "valid", html: projectPath(config, result.inputPath), pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
@@ -311,10 +294,11 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   }
 
   if (command === "export") {
-    const result = yield* commandOperation(command, async () => {
-      const { exportHtmlPdf } = await import("./unslide/pdf.js");
-      return exportHtmlPdf(report.htmlPath, report.pdfPath);
-    }, { path: report.htmlPath, report: report.name });
+    const { exportHtmlPdf } = yield* Effect.tryPromise({
+      try: () => import("./unslide/pdf.js"),
+      catch: (cause) => commandFailure(cause, { command, path: report.htmlPath, report: report.name }),
+    });
+    const result = yield* exportHtmlPdf(report.htmlPath, report.pdfPath);
     const firstPage = result.pages[0];
     writeOutput({
       report: {
@@ -330,10 +314,11 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   }
 
   if (command === "inspect-pdf") {
-    const result = yield* commandOperation(command, async () => {
-      const { inspectPdfPages } = await import("./unslide/pdf-inspection.js");
-      return inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory);
-    }, { path: report.pdfPath, report: report.name });
+    const { inspectPdfPages } = yield* Effect.tryPromise({
+      try: () => import("./unslide/pdf-inspection.js"),
+      catch: (cause) => commandFailure(cause, { command, path: report.pdfPath, report: report.name }),
+    });
+    const result = yield* inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory);
     writeOutput({
       report: {
         name: report.name,
@@ -352,7 +337,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     return 0;
   }
 
-  const result = yield* commandOperation(command, () => captureHtmlPages(report.htmlPath, report.captureDirectory), { path: report.htmlPath, report: report.name });
+  const result = yield* captureHtmlPages(report.htmlPath, report.captureDirectory);
   writeOutput({
     report: { name: report.name, status: "captured", pageCount: result.pages.length },
     pages: result.pages.map((page) => ({ id: page.id, file: projectPath(config, page.outputPath), width: page.width, height: page.height })),
@@ -362,9 +347,31 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
 
 const arguments_ = process.argv.slice(2);
 const exit = await Effect.runPromiseExit(
-  runCommand(arguments_).pipe(
-    Effect.catch((failure) => Effect.sync(() => formatCliFailure(failure, arguments_.length === 0 ? "home" : "command"))),
-  ),
+  runCommand(arguments_).pipe(Effect.provide(applicationLayer)),
 );
-const exitCode = Exit.isSuccess(exit) ? exit.value : defectError(Cause.squash(exit.cause));
+let exitCode: number;
+if (Exit.isSuccess(exit)) {
+  exitCode = exit.value;
+} else {
+  const failures = exit.cause.reasons.flatMap((reason) =>
+    reason._tag === "Fail" && isCliFailure(reason.error) ? [reason.error] : []);
+  const primary = failures[0];
+  const hasNonOperationalCause = exit.cause.reasons.some((reason) => reason._tag !== "Fail");
+  if (primary && !hasNonOperationalCause && exit.cause.reasons.length === 1) {
+    exitCode = formatCliFailure(primary, arguments_.length === 0 ? "home" : "command");
+  } else if (primary && !hasNonOperationalCause) {
+    const combined = primary._tag === "CommandFailure"
+      ? new CommandFailure({
+        cause: exit.cause,
+        command: primary.command,
+        message: causeMessage(exit.cause),
+        path: primary.path,
+        report: primary.report,
+      })
+      : primary;
+    exitCode = formatCliFailure(combined, arguments_.length === 0 ? "home" : "command");
+  } else {
+    exitCode = defectError(new Error(causeMessage(exit.cause), { cause: Cause.squash(exit.cause) }));
+  }
+}
 process.exitCode = exitCode;

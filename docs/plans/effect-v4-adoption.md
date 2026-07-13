@@ -1,6 +1,6 @@
 # Effect v4 Internal Runtime Plan
 
-Status: **Runtime Goals 1 and 2 complete; Runtime Goal 3 is next.**
+Status: **Runtime Goals 1 and 2 complete; Runtime Goal 3 is in progress.**
 
 This is an internal maintenance track governed by
 [D5](../decisions/0005-effect-v4-internal-runtime.md). It does not reopen
@@ -242,7 +242,7 @@ without changing the serializable artifact protocol or output artifacts.
 
 ## Runtime Goal 3 — Filesystem Transactions and Release Hardening
 
-Status: **next**
+Status: **in progress**
 
 Depends on: Runtime Goal 2
 

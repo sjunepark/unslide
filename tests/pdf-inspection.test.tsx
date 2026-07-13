@@ -5,8 +5,14 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { createCanvas } from "@napi-rs/canvas";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { inspectPdfPages } from "../src/unslide/pdf-inspection.js";
-import { exportHtmlPdf } from "../src/unslide/pdf.js";
+import { inspectPdfPages as inspectPdfPagesEffect } from "../src/unslide/pdf-inspection.js";
+import { exportHtmlPdf as exportHtmlPdfEffect } from "../src/unslide/pdf.js";
+import { runUnslide, type RunOptions } from "./runtime.js";
+
+const exportHtmlPdf = (input: string, output: string, options: RunOptions = {}) =>
+  runUnslide(exportHtmlPdfEffect(input, output), options);
+const inspectPdfPages = (input: string, output: string, options: RunOptions = {}) =>
+  runUnslide(inspectPdfPagesEffect(input, output), options);
 
 const repositoryRoot = resolve(".");
 

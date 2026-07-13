@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, resolve } from "node:path";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { Data, Effect } from "effect";
+import { Data, Effect, FileSystem, Path } from "effect";
 import { withLoadedArtifact } from "./browser.js";
+import { commandFailure, mapCommandFailure } from "./failures.js";
 import { onceAsync, runScoped, scoped, type LifecycleRunOptions } from "./lifecycle.js";
 import { PAGE_MARKER_SELECTOR } from "./protocol.js";
 
@@ -252,104 +251,118 @@ async function validatePdf(
  * Prints canonical HTML with report-owned paged CSS, validates the actual PDF,
  * and publishes it only after every delivery invariant passes.
  */
-export async function exportHtmlPdf(
+export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
   input: string,
   output: string,
-  options: LifecycleRunOptions = {},
-): Promise<PdfExportResult> {
-  const inputPath = resolve(input);
-  const outputPath = resolve(output);
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const inputPath = path.resolve(input);
+  const outputPath = path.resolve(output);
+  const context = { command: "export", path: inputPath } as const;
 
-  const printed = await withLoadedArtifact(inputPath, async ({ page, pages }) => {
-    await page.emulateMedia({ media: "print" });
-    const pageRules = await page.evaluate(() => {
-      const baseSizes: string[] = [];
-      const qualifiedSizes: string[] = [];
-      const pendingRules = Array.from(document.styleSheets)
-        .filter((sheet) => !sheet.disabled && (!sheet.media.mediaText || window.matchMedia(sheet.media.mediaText).matches))
-        .map((sheet) => sheet.cssRules);
-      while (pendingRules.length > 0) {
-        const rules = pendingRules.pop();
-        if (!rules) continue;
-        for (const rule of rules) {
-          if (rule instanceof CSSMediaRule) {
-            if (window.matchMedia(rule.conditionText).matches) pendingRules.push(rule.cssRules);
-            continue;
-          }
-          if (rule instanceof CSSSupportsRule) {
-            if (CSS.supports(rule.conditionText)) pendingRules.push(rule.cssRules);
-            continue;
-          }
-          if (rule instanceof CSSConditionRule) continue;
-          if (rule instanceof CSSPageRule) {
-            const size = rule.style.getPropertyValue("size").trim().toLocaleLowerCase();
-            if (!size) continue;
-            (rule.selectorText.trim() === "" ? baseSizes : qualifiedSizes).push(size);
-          } else if ("cssRules" in rule) {
-            pendingRules.push((rule as CSSGroupingRule).cssRules);
+  const printed = yield* Effect.tryPromise({
+    try: (signal) => withLoadedArtifact(inputPath, async ({ page, pages }) => {
+      await page.emulateMedia({ media: "print" });
+      const pageRules = await page.evaluate(() => {
+        const baseSizes: string[] = [];
+        const qualifiedSizes: string[] = [];
+        const pendingRules = Array.from(document.styleSheets)
+          .filter((sheet) => !sheet.disabled && (!sheet.media.mediaText || window.matchMedia(sheet.media.mediaText).matches))
+          .map((sheet) => sheet.cssRules);
+        while (pendingRules.length > 0) {
+          const rules = pendingRules.pop();
+          if (!rules) continue;
+          for (const rule of rules) {
+            if (rule instanceof CSSMediaRule) {
+              if (window.matchMedia(rule.conditionText).matches) pendingRules.push(rule.cssRules);
+              continue;
+            }
+            if (rule instanceof CSSSupportsRule) {
+              if (CSS.supports(rule.conditionText)) pendingRules.push(rule.cssRules);
+              continue;
+            }
+            if (rule instanceof CSSConditionRule) continue;
+            if (rule instanceof CSSPageRule) {
+              const size = rule.style.getPropertyValue("size").trim().toLocaleLowerCase();
+              if (!size) continue;
+              (rule.selectorText.trim() === "" ? baseSizes : qualifiedSizes).push(size);
+            } else if ("cssRules" in rule) {
+              pendingRules.push((rule as CSSGroupingRule).cssRules);
+            }
           }
         }
+        return {
+          baseSizes: [...new Set(baseSizes)],
+          qualifiedSizes: [...new Set(qualifiedSizes)],
+        };
+      });
+      if (pageRules.baseSizes.length === 0) {
+        throw new Error("Artifact print CSS must declare one active, unqualified @page rule with a concrete size; refusing Chromium's implicit Letter fallback.");
       }
-      return {
-        baseSizes: [...new Set(baseSizes)],
-        qualifiedSizes: [...new Set(qualifiedSizes)],
-      };
-    });
-    if (pageRules.baseSizes.length === 0) {
-      throw new Error("Artifact print CSS must declare one active, unqualified @page rule with a concrete size; refusing Chromium's implicit Letter fallback.");
-    }
-    const authoredSizes = [...new Set([...pageRules.baseSizes, ...pageRules.qualifiedSizes])];
-    const parsedSizes = authoredSizes.map((size) => ({ size, geometry: parsePageGeometry(size) }));
-    const invalidSize = parsedSizes.find(({ geometry }) => !geometry);
-    if (invalidSize) {
-      throw new Error(
-        `Artifact print CSS uses non-concrete @page size ${JSON.stringify(invalidSize.size)}. Use one named Chromium page format or one or two positive absolute lengths.`,
-      );
-    }
-    const geometries = parsedSizes.map(({ geometry }) => geometry as PageGeometry);
-    const expectedGeometry = geometries[0] as PageGeometry;
-    if (
-      geometries.some((geometry) =>
-        Math.abs(geometry.widthPoints - expectedGeometry.widthPoints) > GEOMETRY_TOLERANCE_POINTS
-        || Math.abs(geometry.heightPoints - expectedGeometry.heightPoints) > GEOMETRY_TOLERANCE_POINTS)
-    ) {
-      throw new Error(`Artifact print CSS declares ambiguous @page sizes (${authoredSizes.join(", ")}); initial PDF export supports one geometry per report.`);
-    }
+      const authoredSizes = [...new Set([...pageRules.baseSizes, ...pageRules.qualifiedSizes])];
+      const parsedSizes = authoredSizes.map((size) => ({ size, geometry: parsePageGeometry(size) }));
+      const invalidSize = parsedSizes.find(({ geometry }) => !geometry);
+      if (invalidSize) {
+        throw new Error(
+          `Artifact print CSS uses non-concrete @page size ${JSON.stringify(invalidSize.size)}. Use one named Chromium page format or one or two positive absolute lengths.`,
+        );
+      }
+      const geometries = parsedSizes.map(({ geometry }) => geometry as PageGeometry);
+      const expectedGeometry = geometries[0] as PageGeometry;
+      if (
+        geometries.some((geometry) =>
+          Math.abs(geometry.widthPoints - expectedGeometry.widthPoints) > GEOMETRY_TOLERANCE_POINTS
+          || Math.abs(geometry.heightPoints - expectedGeometry.heightPoints) > GEOMETRY_TOLERANCE_POINTS)
+      ) {
+        throw new Error(`Artifact print CSS declares ambiguous @page sizes (${authoredSizes.join(", ")}); initial PDF export supports one geometry per report.`);
+      }
 
-    const pageText = await page.locator(PAGE_MARKER_SELECTOR).allInnerTexts();
-    const expectedText = pageText.flatMap((text, index) => {
-      const tokens = textTokens(text).slice(0, 3);
-      return tokens.length === 0 ? [] : [{ index: index + 1, tokens }];
-    });
-    if (expectedText.length === 0) {
-      throw new Error("Artifact must contain extractable text in at least one marked page before PDF export.");
-    }
+      const pageText = await page.locator(PAGE_MARKER_SELECTOR).allInnerTexts();
+      const expectedText = pageText.flatMap((text, index) => {
+        const tokens = textTokens(text).slice(0, 3);
+        return tokens.length === 0 ? [] : [{ index: index + 1, tokens }];
+      });
+      if (expectedText.length === 0) {
+        throw new Error("Artifact must contain extractable text in at least one marked page before PDF export.");
+      }
 
-    const bytes = await page.pdf({
-      displayHeaderFooter: false,
-      outline: true,
-      preferCSSPageSize: true,
-      printBackground: true,
-      tagged: true,
-    });
-    return { bytes, expectedPageCount: pages.length, expectedGeometry, expectedText };
-  }, options);
+      const bytes = await page.pdf({
+        displayHeaderFooter: false,
+        outline: true,
+        preferCSSPageSize: true,
+        printBackground: true,
+        tagged: true,
+      });
+      return { bytes, expectedPageCount: pages.length, expectedGeometry, expectedText };
+    }, { signal }),
+    catch: (cause) => commandFailure(cause, context),
+  });
 
-  const pdfPages = await validatePdf(
-    new Uint8Array(printed.bytes),
-    printed.expectedPageCount,
-    printed.expectedGeometry,
-    printed.expectedText,
-    options,
-  );
-  await mkdir(dirname(outputPath), { recursive: true });
-  const stagingPath = resolve(dirname(outputPath), `.unslide-pdf-${randomUUID()}-${basename(outputPath)}`);
-  try {
-    await writeFile(stagingPath, printed.bytes, { flag: "wx" });
-    await rename(stagingPath, outputPath);
-  } finally {
-    await rm(stagingPath, { force: true });
-  }
+  const pdfPages = yield* Effect.tryPromise({
+    try: (signal) => validatePdf(
+      new Uint8Array(printed.bytes),
+      printed.expectedPageCount,
+      printed.expectedGeometry,
+      printed.expectedText,
+      { signal },
+    ),
+    catch: (cause) => commandFailure(cause, context),
+  });
+  const outputDirectory = path.dirname(outputPath);
+  const stagingPath = path.resolve(outputDirectory, `.unslide-pdf-${randomUUID()}-${path.basename(outputPath)}`);
+  yield* mapCommandFailure(scoped(Effect.gen(function* () {
+    yield* fs.makeDirectory(outputDirectory, { recursive: true });
+    const staging = yield* Effect.acquireRelease(
+      Effect.succeed({ cleanup: true }),
+      (state) => state.cleanup
+        ? fs.remove(stagingPath, { force: true }).pipe(Effect.orDie)
+        : Effect.void,
+    );
+    yield* fs.writeFile(stagingPath, printed.bytes, { flag: "wx" });
+    yield* fs.rename(stagingPath, outputPath);
+    staging.cleanup = false;
+  })), context);
 
   return { inputPath, outputPath, pages: pdfPages };
-}
+});
