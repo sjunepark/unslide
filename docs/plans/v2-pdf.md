@@ -1,6 +1,6 @@
 # V2 PDF Plan
 
-Status: **Goal 1 complete; Goal 2 ready; Goal 3 pending.**
+Status: **Goals 1–2 complete; Goal 3 ready.**
 
 PDF is a derived target of canonical HTML. This plan must not introduce a
 parallel layout model or require Unslide-owned print design.
@@ -96,7 +96,7 @@ invariant.
 
 ## PDF Goal 2 — PDF-Native Inspection
 
-Status: **ready**
+Status: **complete**
 
 Depends on: PDF Goal 1
 
@@ -142,6 +142,28 @@ delivery review.
 - HTML and PDF inspection evidence cannot be confused by path or command output.
 - `PLAN.md` points to PDF Goal 3.
 
+### Completion Evidence
+
+- `unslide inspect-pdf <name>` reads the configured existing PDF and writes a
+  distinct ordered PNG set; the explicit `--artifact <path> --output
+  <directory>` form works without project discovery.
+- PDF.js 6.1.200 renders at a fixed 96 DPI through the directly pinned
+  `@napi-rs/canvas` 1.0.2 dependency. The dependency was already PDF.js's Node
+  canvas implementation, so pinning it directly makes the runtime contract
+  explicit without adding another parser or an OS command.
+- The shared page-image publisher generates in isolation, removes stale managed
+  pages, preserves unrelated files, and restores prior images if generation or
+  publication fails.
+- Tests cover a two-page 4×3-inch PDF, exact repeat-run PNG hashes, stale-file
+  cleanup, unrelated-file preservation, corrupt input, named and standalone CLI
+  forms, configuration containment, and inspection after source HTML deletion.
+- The actual three-page portrait PDF rendered to 720×960 PNGs; the actual
+  eight-page A4-landscape PDF rendered to 1123×794 PNGs. Every generated page
+  was inspected without content, glyph, color, chart, or clipping defects.
+- Type checking, the 33-test suite, both proof inspection commands, dependency
+  audit, and the required implementation review passed with no remaining safe
+  findings.
+
 ### Suggested `/goal` Objective
 
 > Implement PDF Goal 2 from `docs/plans/v2-pdf.md`: add deterministic
@@ -151,7 +173,7 @@ delivery review.
 
 ## PDF Goal 3 — Export Hardening
 
-Status: **pending**
+Status: **ready**
 
 Depends on: PDF Goal 2 and Adoption Goal 3
 

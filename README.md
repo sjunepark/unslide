@@ -8,11 +8,11 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1, V2 Core, V2 Adoption, and PDF export are complete.** The
+Status: **V1, V2 Core, V2 Adoption, and PDF export/inspection are complete.** The
 CLI initializes schema-validated projects and builds, inspects, and captures
 named reports through installed, versioned tooling. Chromium exports validated
-PDFs; automated PDF-native inspection remains. Repository execution state is
-maintained in `PLAN.md`.
+PDFs, and the CLI renders those PDFs to target-native page images. Packaged
+delivery hardening remains; repository execution state is maintained in `PLAN.md`.
 
 ## Rendering Spike
 
@@ -28,12 +28,14 @@ pnpm exec playwright install chromium
 pnpm run render:spike
 pnpm run capture:spike
 pnpm run export:spike
+pnpm run inspect-pdf:spike
 ```
 
 Open `artifacts/spike/report.html` in an ordinary browser. Inspect the three
 page images under `.tmp/captures/spike/`. Generated HTML is kept under
-`artifacts/`; the validated PDF is `artifacts/spike/report.pdf`; disposable
-inspection output is kept under `.tmp/captures/`.
+`artifacts/`; the validated PDF is `artifacts/spike/report.pdf`; disposable HTML
+and PDF inspection output is kept under `.tmp/captures/` and
+`.tmp/pdf-captures/` respectively.
 
 Change values in `src/spike/data.ts` or composition in
 `src/spike/report.tsx`, then repeat render, capture, and visual inspection.
@@ -46,11 +48,13 @@ The credible eight-page operating report uses the same loop:
 pnpm run render:report
 pnpm run capture:report
 pnpm run export:report
+pnpm run inspect-pdf:report
 ```
 
 Its standalone artifact is `artifacts/operating-review/report.html`; its PDF is
-`artifacts/operating-review/report.pdf`; its page images are under
-`.tmp/captures/operating-review/`. The typed source and data live in
+`artifacts/operating-review/report.pdf`; its HTML and PDF-native page images are
+under `.tmp/captures/operating-review/` and
+`.tmp/pdf-captures/operating-review/`. The typed source and data live in
 `src/reports/operating-review/`. Northstar Goods and all report values,
 commentary, and decisions are fictional examples.
 
@@ -61,6 +65,7 @@ pnpm --silent run unslide build operating-review
 pnpm --silent run unslide inspect operating-review
 pnpm --silent run unslide capture operating-review
 pnpm --silent run unslide export operating-review
+pnpm --silent run unslide inspect-pdf operating-review
 ```
 
 With no command, `pnpm --silent run unslide` discovers the nearest
@@ -68,8 +73,8 @@ With no command, `pnpm --silent run unslide` discovers the nearest
 directory containing that file is the project root; every configured path is
 relative to it. The [versioned schema](schema/unslide.schema.json) rejects
 unknown fields and overlapping or escaping paths. Configuration contains only
-source and derived-artifact locations, including an optional PDF path; visual
-choices remain in report source.
+source and derived-artifact locations, including optional PDF and PDF-inspection
+paths; visual choices remain in report source.
 
 The `--silent` package-manager flag keeps CLI stdout as structured TOON for
 automation. Exit code 0 means success, 1 an operational failure, and 2 invalid
@@ -134,7 +139,8 @@ installed contract.
 
 Version 0.1.0 supports Node.js 24.x and pnpm 11.12 on the verified macOS arm64
 environment. HTML capture and PDF export use Playwright 1.61.1 and its managed
-Chromium; PDF validation uses PDF.js 6.1.200. Run
+Chromium; PDF validation and rasterization use PDF.js 6.1.200, with
+`@napi-rs/canvas` 1.0.2 providing the pinned Node canvas. Run
 `pnpm dlx playwright@1.61.1 install chromium` before the first capture or export.
 Other Node versions, package managers, operating systems, and browser engines
 are not yet claimed.
@@ -165,8 +171,8 @@ file, and let a human or coding agent inspect real browser-rendered page images.
 - Versioned tooling owns compilation, artifact validation, isolated capture,
   and validated Chromium PDF export instead of being copied into consuming
   repositories.
-- PDF is printed from canonical HTML; automated target-native PDF inspection is
-  the remaining delivery slice.
+- PDF is printed from canonical HTML and target-native inspection rasterizes
+  only the resulting PDF.
 - Optional visual recipes may generate editable source but will not be runtime
   requirements.
 

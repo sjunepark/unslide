@@ -100,6 +100,10 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
   assert.equal(exportHelp.exitCode, 0);
   assert.equal(exportHelp.value.command, "export");
 
+  const pdfInspectionHelp = await runCli(["inspect-pdf", "--help"]);
+  assert.equal(pdfInspectionHelp.exitCode, 0);
+  assert.equal(pdfInspectionHelp.value.command, "inspect-pdf");
+
   for (const result of [
     await runCli(["unknown"]),
     await runCli(["build"]),
@@ -107,6 +111,8 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
     await runCli(["build", "fixture", "--wat"]),
     await runCli(["build", "--artifact"]),
     await runCli(["capture", "--artifact", "report.html"]),
+    await runCli(["inspect-pdf", "--artifact", "report.pdf"]),
+    await runCli(["inspect-pdf", "--output", "pages"]),
   ]) {
     assert.equal(result.exitCode, 2);
     assert.equal(result.stderr, "");
@@ -199,6 +205,25 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     assert.equal((exported.value.report as Record<string, unknown>).pageCount, 1);
     assert.equal((exported.value.report as Record<string, unknown>).widthPoints, 240);
     assert.equal((await readFile(resolve(projectRoot, "generated output", "report file.pdf"))).subarray(0, 5).toString(), "%PDF-");
+
+    const pdfInspection = await runCli(["inspect-pdf", "fixture"], projectRoot);
+    assert.equal(pdfInspection.exitCode, 0, pdfInspection.stdout);
+    assert.equal((pdfInspection.value.report as Record<string, unknown>).pageCount, 1);
+    assert.equal((pdfInspection.value.report as Record<string, unknown>).status, "pdf-inspected");
+    const pdfPng = await readFile(resolve(projectRoot, "captured pages-pdf", "page-01.png"));
+    assert.deepEqual([pdfPng.readUInt32BE(16), pdfPng.readUInt32BE(20)], [320, 181]);
+
+    const explicitOutput = resolve(projectRoot, "standalone pdf pages");
+    const explicitInspection = await runCli([
+      "inspect-pdf",
+      "--artifact",
+      resolve(projectRoot, "generated output", "report file.pdf"),
+      "--output",
+      explicitOutput,
+    ], nestedDirectory);
+    assert.equal(explicitInspection.exitCode, 0, explicitInspection.stdout);
+    assert.equal((explicitInspection.value.pdf as Record<string, unknown>).pageCount, 1);
+    assert.equal((await readFile(resolve(explicitOutput, "page-01.png"))).subarray(1, 4).toString(), "PNG");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -282,6 +307,21 @@ test("CLI rejects missing reports, visual fields, and unsafe output paths", asyn
     const escapedPdf = await runCli([], projectRoot);
     assert.equal(escapedPdf.exitCode, 1);
     assert.match(JSON.stringify(escapedPdf.value), /field.*pdf.*must resolve inside the project root/);
+
+    await writeFile(configPath, JSON.stringify({
+      version: 1,
+      reports: {
+        fixture: {
+          source: "source files/report.tsx",
+          html: "generated/report.html",
+          captures: "captures",
+          pdfCaptures: "../outside/pdf-pages",
+        },
+      },
+    }));
+    const escapedPdfCaptures = await runCli([], projectRoot);
+    assert.equal(escapedPdfCaptures.exitCode, 1);
+    assert.match(JSON.stringify(escapedPdfCaptures.value), /field.*pdfCaptures.*must resolve inside the project root/);
 
     await symlink(outsideDirectory, resolve(projectRoot, "linked output"));
     await writeFile(configPath, JSON.stringify({

@@ -1,16 +1,16 @@
 # Plan
 
-Status: **V1, V2 Core, V2 Adoption, and PDF Goal 1 complete.**
+Status: **V1, V2 Core, V2 Adoption, and PDF Goals 1–2 complete.**
 
-Current next action: **Run PDF Goal 2 — inspect actual PDF pages through a
-pinned rasterizer.** See [`docs/plans/v2-pdf.md`](docs/plans/v2-pdf.md).
+Current next action: **Run PDF Goal 3 — harden the packaged HTML/PDF delivery
+workflow.** See [`docs/plans/v2-pdf.md`](docs/plans/v2-pdf.md).
 
 Suggested `/goal` objective:
 
-> Implement PDF Goal 2 from `docs/plans/v2-pdf.md`: add deterministic PDF-native
-> page inspection, prove it consumes only the generated PDF, inspect both proof
-> reports, update plan state, and complete all dependency, validation, and review
-> requirements.
+> Implement PDF Goal 3 from `docs/plans/v2-pdf.md`: harden and verify the packed
+> HTML/PDF delivery workflow, exercise semantic and multilingual content,
+> inspect every target-native page, align all current documentation, and finish
+> the required cross-module review.
 
 This file is the live execution state. Update statuses, decisions, blockers,
 validation, and the current next action in place. Do not append session logs.
@@ -71,8 +71,8 @@ Keep these outside V2 unless a later decision changes scope:
 | Adoption | 2. Project scaffolding and migration | Complete | Adoption 1 | Clean consumer uses installed tooling; both reports are source-owned |
 | Adoption | 3. Packaging hardening | Complete | Adoption 2 | Versioned package workflow passes from a clean consumer fixture |
 | PDF | 1. Chromium PDF export | Complete | Adoption 1 | Canonical HTML produces validated searchable PDF |
-| PDF | 2. PDF-native inspection | Ready | PDF 1 | Actual PDF pages render to inspection images |
-| PDF | 3. Export hardening | Pending | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
+| PDF | 2. PDF-native inspection | Complete | PDF 1 | Actual PDF pages render to inspection images |
+| PDF | 3. Export hardening | Ready | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
 | Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
 
 ## Detailed Plans
@@ -126,6 +126,6 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Begin PDF Goal 2. Select the smallest reliable PDF rasterizer through repeatable
-fixture evidence, expose PDF-only inspection through the CLI, and inspect every
-page of both proof PDFs.
+Begin PDF Goal 3. Prove build, HTML inspection, export, and PDF inspection from
+the packed consumer; verify semantic, multilingual, and repeated-run behavior;
+then align the final support contract and delivery evidence.

@@ -1,9 +1,9 @@
 # Product Design
 
-Status: **V1 behavior, V2 Core, V2 Adoption, and Chromium PDF export are proven.** Artifact
+Status: **V1 behavior, V2 Core, V2 Adoption, and PDF delivery inspection are proven.** Artifact
 protocol v1, full-document React authoring, installed project workflows, safe
 scaffolding, protocol-only canonical capture, and the hardened 0.1.0 package are
-implemented. Automated PDF-native inspection remains.
+implemented. Packaged PDF delivery hardening remains.
 
 This document describes the intended authoring experience and ownership model.
 Exact TypeScript names and command syntax remain implementation outcomes unless
@@ -177,9 +177,9 @@ Export succeeds only when:
 - PDF geometry matches the authored size, all pages share it, and expected text
   remains extractable.
 
-The exporter publishes only after those checks pass. Automated PDF-native page
-rasterization is the next implementation goal; manual target-native inspection
-has verified both proof PDFs.
+The exporter publishes only after those checks pass. PDF-native inspection then
+rasterizes only that PDF at a fixed 96 DPI into a separate ordered PNG set;
+both proof reports pass this target-native path.
 
 Initial V2 supports arbitrary report-wide page geometry but does not promise
 mixed page sizes or orientations in one PDF. Mixed geometry requires a separate

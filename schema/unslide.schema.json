@@ -40,6 +40,10 @@
           "captures": {
             "type": "string",
             "minLength": 1
+          },
+          "pdfCaptures": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

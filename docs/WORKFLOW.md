@@ -2,8 +2,8 @@
 
 This document records commands that work in the current implementation. The V2
 artifact protocol, headless full-document authoring, and canonical capture path
-are active in these commands. Chromium PDF export is also implemented; follow
-[`PLAN.md`](../PLAN.md) for the remaining PDF-native inspection work.
+are active in these commands. Chromium PDF export and PDF-native inspection are
+also implemented; follow [`PLAN.md`](../PLAN.md) for packaged hardening.
 
 ## Supported Development Environment
 
@@ -72,18 +72,23 @@ All repository report commands route through the schema-validated CLI and
 | Render fixture | `pnpm run render:spike` | `artifacts/spike/report.html` |
 | Capture fixture | `pnpm run capture:spike` | `.tmp/captures/spike/page-*.png` |
 | Export fixture PDF | `pnpm run export:spike` | `artifacts/spike/report.pdf` |
+| Inspect fixture PDF | `pnpm run inspect-pdf:spike` | `.tmp/pdf-captures/spike/page-*.png` |
 | Render real report | `pnpm run render:report` | `artifacts/operating-review/report.html` |
 | Capture real report | `pnpm run capture:report` | `.tmp/captures/operating-review/page-*.png` |
 | Export real-report PDF | `pnpm run export:report` | `artifacts/operating-review/report.pdf` |
-| Run all repository checks | `pnpm run validate` | Both HTML/PDF artifacts and HTML capture sets |
+| Inspect real-report PDF | `pnpm run inspect-pdf:report` | `.tmp/pdf-captures/operating-review/page-*.png` |
+| Run all repository checks | `pnpm run validate` | Both delivery artifacts and both target-native capture sets |
 
 The direct forms are `pnpm --silent run unslide build <name>`, `pnpm --silent
-run unslide inspect <name>`, `pnpm --silent run unslide capture <name>`, and
-`pnpm --silent run unslide export <name>`.
+run unslide inspect <name>`, `pnpm --silent run unslide capture <name>`, `pnpm
+--silent run unslide export <name>`, and `pnpm --silent run unslide inspect-pdf
+<name>`.
 Run `pnpm --silent run unslide` from the project root or any nested directory
 to see the live report list with machine-readable TOON stdout. The nearest
-`unslide.json` defines the project root, and its source, HTML, optional PDF, and
-capture paths resolve relative to that directory.
+`unslide.json` defines the project root, and its source, HTML, optional PDF,
+HTML-capture, and optional PDF-capture paths resolve relative to that directory.
+The standalone form is `unslide inspect-pdf --artifact <path> --output
+<directory>` and does not require project discovery.
 
 Open an artifact directly on macOS:
 
@@ -105,6 +110,8 @@ visual resources, and then captures marked elements in document order.
 - `artifacts/` contains generated standalone HTML and validated PDF delivery
   artifacts.
 - `.tmp/captures/` contains disposable browser-rendered inspection images.
+- `.tmp/pdf-captures/` contains disposable images rasterized from the actual
+  PDFs at 96 DPI.
 - Both directories are ignored by Git and can be regenerated from source.
 - Report data and domain conclusions stay in each report's typed caller-owned
   object. Unslide does not calculate them.
@@ -114,33 +121,35 @@ visual resources, and then captures marked elements in document order.
 The repository-local React writer serializes a complete author-owned document,
 provides explicit local-asset inlining, and injects no visual source. Each
 report owns page geometry, chrome or its absence, styles, and print behavior.
-The protocol-only capture module and canonical Chromium PDF exporter are
-implemented, and current repository commands delegate through the CLI.
+The protocol-only capture module, canonical Chromium PDF exporter, and
+PDF.js/Node-canvas rasterizer are implemented, and repository commands delegate
+through the CLI. PDF inspection reads no source HTML or browser state.
 
 The accepted V2 direction supersedes copy-in as the adoption model. Build,
 validation, and capture now run from the hardened locally packed 0.1.0 tooling;
-automated PDF-native inspection remains. See
+packaged end-to-end PDF proof remains. See
 [D3](decisions/0003-headless-artifact-protocol.md) and the
 [V2 adoption plan](plans/v2-adoption.md).
 
-## Clean-Checkout Evidence
+## Repository Evidence
 
-The complete workflow was verified on 13 July 2026 from a clean exported tree
-on macOS 26.5.1 arm64 with Node.js 24.11.0, pnpm 11.12.0, Playwright 1.61.1,
+The workflow was verified on 13 July 2026 on macOS 26.5.1 arm64 with Node.js
+24.11.0, pnpm 11.12.0, Playwright 1.61.1,
 and its managed Chromium build:
 
 - `pnpm install --frozen-lockfile` completed from the committed lockfile;
 - `pnpm exec playwright install chromium` completed successfully;
-- `pnpm run validate` passed all 31 focused protocol, authoring, CLI, PDF, and
-  clean-consumer tests and generated both HTML capture sets plus both PDFs;
+- `pnpm run validate` passed all 33 focused protocol, authoring, CLI, PDF, and
+  clean-consumer tests and generated both delivery artifacts plus their HTML and
+  PDF-native capture sets;
 - every generated page image was visually inspected;
 - both HTML artifacts contained no external URLs, scripts, or linked styles;
 - direct local opening required no server or Playwright runtime;
 - the contrasting fixture captured as three 900×1200 portrait pages while the
   operating review retained eight A4 landscape pages;
 - canonical Chromium exported three 540×720-point portrait PDF pages and eight
-  841.92×594.96-point A4-landscape PDF pages; every actual PDF page was visually
-  inspected through native rendering;
+  841.92×594.96-point A4-landscape PDF pages; PDF.js rasterized them to three
+  720×960 and eight 1123×794 PNGs, all visually inspected;
 - a packed tarball initialized, built, inspected, and captured a standalone
   960×540 consumer report outside the repository; and
 - every repository-local Markdown link resolved.

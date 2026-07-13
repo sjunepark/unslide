@@ -10,6 +10,7 @@ interface ReportConfigJson {
   html: string;
   pdf?: string;
   captures: string;
+  pdfCaptures?: string;
 }
 
 interface ProjectConfigJson {
@@ -24,6 +25,7 @@ export interface ReportConfig {
   htmlPath: string;
   pdfPath: string;
   captureDirectory: string;
+  pdfCaptureDirectory: string;
 }
 
 export interface ProjectConfig {
@@ -140,19 +142,21 @@ export async function loadProjectConfig(startDirectory = process.cwd()): Promise
     const htmlPath = resolveProjectPath(projectRoot, report.html, "html", name);
     const pdfPath = resolveProjectPath(projectRoot, report.pdf ?? report.html.replace(/\.html$/, ".pdf"), "pdf", name);
     const captureDirectory = resolveProjectPath(projectRoot, report.captures, "captures", name);
+    const pdfCaptureDirectory = resolveProjectPath(projectRoot, report.pdfCaptures ?? `${report.captures}-pdf`, "pdfCaptures", name);
 
     try {
       await access(sourcePath);
     } catch {
       throw new Error(`Report "${name}" source does not exist: ${sourcePath}`);
     }
-    reports[name] = { name, sourcePath, htmlPath, pdfPath, captureDirectory };
+    reports[name] = { name, sourcePath, htmlPath, pdfPath, captureDirectory, pdfCaptureDirectory };
     canonicalReports[name] = {
       name,
       sourcePath: await canonicalProjectPath(projectRoot, sourcePath, "source", name),
       htmlPath: await canonicalProjectPath(projectRoot, htmlPath, "html", name),
       pdfPath: await canonicalProjectPath(projectRoot, pdfPath, "pdf", name),
       captureDirectory: await canonicalProjectPath(projectRoot, captureDirectory, "captures", name),
+      pdfCaptureDirectory: await canonicalProjectPath(projectRoot, pdfCaptureDirectory, "pdfCaptures", name),
     };
   }
 
@@ -164,6 +168,7 @@ export async function loadProjectConfig(startDirectory = process.cwd()): Promise
     { reportName: report.name, field: "html", path: report.htmlPath },
     { reportName: report.name, field: "pdf", path: report.pdfPath },
     { reportName: report.name, field: "captures", path: report.captureDirectory },
+    { reportName: report.name, field: "pdfCaptures", path: report.pdfCaptureDirectory },
   ]);
 
   for (const output of outputs) {

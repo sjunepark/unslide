@@ -25,7 +25,7 @@ function displayExecutable(): string {
 function topHelp(): JsonValue {
   return {
     bin: displayExecutable(),
-    description: "Build, inspect, capture, and export explicit-page HTML reports",
+    description: "Build and inspect explicit-page HTML and PDF reports",
     usage: `${CLI_INVOCATION} <command>`,
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
@@ -33,13 +33,15 @@ function topHelp(): JsonValue {
       { command: "inspect --artifact <path>", description: "Validate any existing HTML artifact" },
       { command: "capture <name>", description: "Capture a named report's HTML pages" },
       { command: "export <name>", description: "Export a named report's existing HTML artifact to PDF" },
+      { command: "inspect-pdf <name>", description: "Render a named report's existing PDF to page images" },
+      { command: "inspect-pdf --artifact <path> --output <directory>", description: "Render any existing PDF to page images" },
       { command: "init", description: "Plan or create a minimal report project" },
     ],
     help: [`Run ${CLI_INVOCATION} <command> --help for command details`],
   };
 }
 
-function commandHelp(command: "build" | "inspect" | "capture" | "export" | "init"): JsonValue {
+function commandHelp(command: "build" | "inspect" | "capture" | "export" | "inspect-pdf" | "init"): JsonValue {
   if (command === "init") {
     return {
       command: "init",
@@ -57,6 +59,20 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "init
       usage: `${CLI_INVOCATION} inspect <name> | ${CLI_INVOCATION} inspect --artifact <path>`,
       flags: [{ flag: "--artifact <path>", description: "Inspect an explicit HTML path instead of a configured report" }],
       examples: [`${CLI_INVOCATION} inspect operating-review`, `${CLI_INVOCATION} inspect --artifact artifacts/report.html`],
+    };
+  }
+  if (command === "inspect-pdf") {
+    return {
+      command: "inspect-pdf",
+      usage: `${CLI_INVOCATION} inspect-pdf <name> | ${CLI_INVOCATION} inspect-pdf --artifact <path> --output <directory>`,
+      flags: [
+        { flag: "--artifact <path>", description: "Inspect an explicit PDF path instead of a configured report" },
+        { flag: "--output <directory>", description: "Write explicit-artifact page images to this directory" },
+      ],
+      examples: [
+        `${CLI_INVOCATION} inspect-pdf operating-review`,
+        `${CLI_INVOCATION} inspect-pdf --artifact artifacts/report.pdf --output .tmp/pdf-captures/report`,
+      ],
     };
   }
   return {
@@ -112,10 +128,10 @@ async function home(): Promise<number> {
   }));
   writeOutput({
     bin: displayExecutable(),
-    description: "Build, inspect, capture, and export explicit-page HTML reports",
+    description: "Build and inspect explicit-page HTML and PDF reports",
     project: config.projectRoot,
     reports,
-    help: [`Run ${CLI_INVOCATION} build <name>`, `Run ${CLI_INVOCATION} inspect <name>`, `Run ${CLI_INVOCATION} capture <name>`, `Run ${CLI_INVOCATION} export <name>`],
+    help: [`Run ${CLI_INVOCATION} build <name>`, `Run ${CLI_INVOCATION} inspect <name>`, `Run ${CLI_INVOCATION} capture <name>`, `Run ${CLI_INVOCATION} export <name>`, `Run ${CLI_INVOCATION} inspect-pdf <name>`],
   });
   return 0;
 }
@@ -128,7 +144,7 @@ async function runCommand(argv: string[]): Promise<number> {
   }
 
   const command = argv[0];
-  if (command !== "build" && command !== "inspect" && command !== "capture" && command !== "export" && command !== "init") {
+  if (command !== "build" && command !== "inspect" && command !== "capture" && command !== "export" && command !== "inspect-pdf" && command !== "init") {
     return usageError(`Unknown command "${command}".`, topHelp());
   }
   if (argv.includes("--help")) {
@@ -138,6 +154,8 @@ async function runCommand(argv: string[]): Promise<number> {
 
   const allowedFlags = command === "inspect"
     ? new Set(["--artifact"])
+    : command === "inspect-pdf"
+      ? new Set(["--artifact", "--output"])
     : command === "init"
       ? new Set(["--name", "--yes"])
       : new Set<string>();
@@ -208,6 +226,31 @@ async function runCommand(argv: string[]): Promise<number> {
     return 0;
   }
 
+  if (command === "inspect-pdf" && argv.includes("--artifact")) {
+    const artifactIndex = argv.indexOf("--artifact");
+    const outputIndex = argv.indexOf("--output");
+    const artifactPath = argv[artifactIndex + 1];
+    const outputDirectory = argv[outputIndex + 1];
+    if (
+      argv.length !== 5
+      || artifactIndex < 1
+      || outputIndex < 1
+      || !artifactPath
+      || artifactPath.startsWith("-")
+      || !outputDirectory
+      || outputDirectory.startsWith("-")
+    ) {
+      return usageError("Explicit PDF inspection requires --artifact <path> and --output <directory> exactly once.", commandHelp("inspect-pdf"));
+    }
+    const { inspectPdfPages } = await import("./unslide/pdf-inspection.js");
+    const result = await inspectPdfPages(artifactPath, outputDirectory);
+    writeOutput({
+      pdf: { path: result.inputPath, output: result.outputDirectory, pageCount: result.pages.length },
+      pages: result.pages.map((page) => ({ index: page.index, file: page.outputPath, width: page.width, height: page.height })),
+    });
+    return 0;
+  }
+
   if (argv.length !== 2 || !argv[1]) {
     return usageError(`${command} requires exactly one report name.`, commandHelp(command));
   }
@@ -241,6 +284,27 @@ async function runCommand(argv: string[]): Promise<number> {
         widthPoints: firstPage?.widthPoints ?? 0,
         heightPoints: firstPage?.heightPoints ?? 0,
       },
+    });
+    return 0;
+  }
+
+  if (command === "inspect-pdf") {
+    const { inspectPdfPages } = await import("./unslide/pdf-inspection.js");
+    const result = await inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory);
+    writeOutput({
+      report: {
+        name: report.name,
+        status: "pdf-inspected",
+        pdf: projectPath(config, result.inputPath),
+        output: projectPath(config, result.outputDirectory),
+        pageCount: result.pages.length,
+      },
+      pages: result.pages.map((page) => ({
+        index: page.index,
+        file: projectPath(config, page.outputPath),
+        width: page.width,
+        height: page.height,
+      })),
     });
     return 0;
   }

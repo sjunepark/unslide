@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@napi-rs/canvas':
+        specifier: 1.0.2
+        version: 1.0.2
       '@toon-format/toon':
         specifier: 2.3.0
         version: 2.3.0
@@ -495,7 +498,6 @@ snapshots:
       '@napi-rs/canvas-linux-x64-musl': 1.0.2
       '@napi-rs/canvas-win32-arm64-msvc': 1.0.2
       '@napi-rs/canvas-win32-x64-msvc': 1.0.2
-    optional: true
 
   '@toon-format/toon@2.3.0': {}
 

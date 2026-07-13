@@ -85,6 +85,7 @@ function scaffoldFiles(projectRoot: string, reportName: string): Array<{ relativ
             html: `artifacts/${reportName}.html`,
             pdf: `artifacts/${reportName}.pdf`,
             captures: `.tmp/captures/${reportName}`,
+            pdfCaptures: `.tmp/pdf-captures/${reportName}`,
           },
         },
       }, null, 2)}\n`,

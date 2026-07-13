@@ -1,10 +1,9 @@
 # Architecture
 
-Status: **V1, V2 Core, V2 Adoption, and Chromium PDF export are verified.**
+Status: **V1, V2 Core, V2 Adoption, and PDF export/inspection are verified.**
 Artifact protocol v1, headless full-document React authoring, installed CLI and
 scaffolding, canonical HTML capture, and the minimal 0.1.0 package are current;
-automated PDF-native inspection remains planned. See `PLAN.md` for the current
-migration step.
+packaged end-to-end PDF hardening remains. See `PLAN.md` for the current step.
 
 ## Purpose and Boundaries
 
@@ -76,7 +75,7 @@ renderer plugin seam until a second real source adapter exists.
 ### CLI
 
 The CLI is the normal user and agent interface for project initialization,
-build, artifact inspection, HTML capture, and PDF export. It reads
+build, artifact inspection, HTML capture, PDF export, and PDF inspection. It reads
 schema-validated operational configuration and delegates to internal modules.
 
 Configuration may select entries, outputs, inspection locations, and supported
@@ -95,9 +94,9 @@ validates the produced file.
 
 ### PDF inspection
 
-PDF inspection rasterizes the actual generated PDF into one image per page. It
-must not substitute HTML screenshots for PDF evidence. The implementation also
-checks page count and geometry that can be observed reliably from the file.
+PDF inspection uses PDF.js and its pinned Node canvas to rasterize the actual
+generated PDF into one ordered image per page at 96 DPI. It never loads source
+HTML or substitutes HTML screenshots for PDF evidence.
 
 ### Optional scaffolds and recipes
 
@@ -162,25 +161,30 @@ documentation are insufficient.
   readiness, and browser/resource diagnostics without importing React.
 - `src/unslide/capture.ts` captures authored page bounds through that browser
   seam and returns deterministic structured results.
+- `src/unslide/page-images.ts` atomically replaces managed page PNG sets while
+  preserving unrelated files and prior evidence on failure.
 - `src/unslide/config.ts` discovers the nearest `unslide.json`, validates its
   versioned operational schema, and resolves safe project-relative paths.
 - `src/unslide/pdf.ts` prints canonical HTML through the shared browser seam,
   requires authored page geometry, validates page count, common geometry, and
   extractable text with PDF.js, and publishes the PDF atomically.
+- `src/unslide/pdf-inspection.ts` reads only an existing PDF and rasterizes each
+  page through PDF.js and `@napi-rs/canvas` into deterministic 96-DPI PNGs.
 - `src/unslide/build.ts` and `src/unslide/inspect.ts` provide the named React
   build and canonical artifact-inspection operations used by the CLI.
-- `src/cli.ts` exposes initialization, build, inspect, and capture with TOON
-  output and stable exit codes. Repository scripts delegate through it.
+- `src/cli.ts` exposes initialization, HTML build/inspection/capture, PDF export,
+  and PDF inspection with TOON output and stable exit codes.
 - `src/unslide/init.ts` plans and safely writes the minimal user-owned project
   scaffold; `src/unslide/react.ts` is the narrow installed authoring entry.
 - `src/spike/` and `src/reports/operating-review/` own their full documents,
   page composition, unrelated portrait and A4 landscape geometries, optional
   repeated material, and print rules.
-- `tests/workflow.test.tsx` is the current end-to-end test surface.
+- `tests/*.test.tsx` exercises the public CLI and the protocol, HTML capture,
+  PDF export, PDF inspection, authoring, and clean-consumer seams.
 
-Generated HTML stays under `artifacts/`; disposable captures stay under
-`.tmp/captures/`. These locations are explicit report entries in the root
-`unslide.json`, not runtime visual policy.
+Generated HTML and PDF stay under `artifacts/`; disposable HTML and PDF-native
+captures stay under `.tmp/captures/` and `.tmp/pdf-captures/`. These locations
+are explicit report entries in the root `unslide.json`, not visual policy.
 
 ## Related Decisions and Plans
 
