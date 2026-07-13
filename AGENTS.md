@@ -23,9 +23,12 @@ goal from `PLAN.md` at a time and keep both the root and detailed plan current.
 - `pnpm exec playwright install chromium` — install the isolated preview browser.
 - `pnpm run render:spike` — generate `artifacts/spike/report.html`.
 - `pnpm run capture:spike` — capture pages under `.tmp/captures/spike/`.
+- `pnpm run export:spike` — export `artifacts/spike/report.pdf`.
 - `pnpm run render:report` — generate the eight-page operating report.
 - `pnpm run capture:report` — capture its pages under
   `.tmp/captures/operating-review/`.
+- `pnpm run export:report` — export
+  `artifacts/operating-review/report.pdf`.
 - `pnpm run check` — type-check report and tooling source.
 - `pnpm test` — run focused generation and Chromium capture health checks.
 - `pnpm run validate` — run all v1 checks and regenerate both reports.

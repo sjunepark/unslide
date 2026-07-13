@@ -25,20 +25,21 @@ function displayExecutable(): string {
 function topHelp(): JsonValue {
   return {
     bin: displayExecutable(),
-    description: "Initialize, build, and inspect explicit-page HTML report projects",
+    description: "Build, inspect, capture, and export explicit-page HTML reports",
     usage: `${CLI_INVOCATION} <command>`,
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
       { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
       { command: "inspect --artifact <path>", description: "Validate any existing HTML artifact" },
       { command: "capture <name>", description: "Capture a named report's HTML pages" },
+      { command: "export <name>", description: "Export a named report's existing HTML artifact to PDF" },
       { command: "init", description: "Plan or create a minimal report project" },
     ],
     help: [`Run ${CLI_INVOCATION} <command> --help for command details`],
   };
 }
 
-function commandHelp(command: "build" | "inspect" | "capture" | "init"): JsonValue {
+function commandHelp(command: "build" | "inspect" | "capture" | "export" | "init"): JsonValue {
   if (command === "init") {
     return {
       command: "init",
@@ -111,10 +112,10 @@ async function home(): Promise<number> {
   }));
   writeOutput({
     bin: displayExecutable(),
-    description: "Initialize, build, and inspect explicit-page HTML report projects",
+    description: "Build, inspect, capture, and export explicit-page HTML reports",
     project: config.projectRoot,
     reports,
-    help: [`Run ${CLI_INVOCATION} build <name>`, `Run ${CLI_INVOCATION} inspect <name>`, `Run ${CLI_INVOCATION} capture <name>`],
+    help: [`Run ${CLI_INVOCATION} build <name>`, `Run ${CLI_INVOCATION} inspect <name>`, `Run ${CLI_INVOCATION} capture <name>`, `Run ${CLI_INVOCATION} export <name>`],
   });
   return 0;
 }
@@ -127,7 +128,7 @@ async function runCommand(argv: string[]): Promise<number> {
   }
 
   const command = argv[0];
-  if (command !== "build" && command !== "inspect" && command !== "capture" && command !== "init") {
+  if (command !== "build" && command !== "inspect" && command !== "capture" && command !== "export" && command !== "init") {
     return usageError(`Unknown command "${command}".`, topHelp());
   }
   if (argv.includes("--help")) {
@@ -223,6 +224,23 @@ async function runCommand(argv: string[]): Promise<number> {
     writeOutput({
       report: { name: report.name, status: "valid", html: projectPath(config, result.inputPath), pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
+    });
+    return 0;
+  }
+
+  if (command === "export") {
+    const { exportHtmlPdf } = await import("./unslide/pdf.js");
+    const result = await exportHtmlPdf(report.htmlPath, report.pdfPath);
+    const firstPage = result.pages[0];
+    writeOutput({
+      report: {
+        name: report.name,
+        status: "exported",
+        pdf: projectPath(config, result.outputPath),
+        pageCount: result.pages.length,
+        widthPoints: firstPage?.widthPoints ?? 0,
+        heightPoints: firstPage?.heightPoints ?? 0,
+      },
     });
     return 0;
   }

@@ -32,6 +32,11 @@
             "minLength": 1,
             "pattern": "\\.html$"
           },
+          "pdf": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\.pdf$"
+          },
           "captures": {
             "type": "string",
             "minLength": 1

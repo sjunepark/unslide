@@ -65,7 +65,7 @@ async function createProject(prefix = "unslide cli project "): Promise<string> {
     export default (
       <html lang="en">
         <head><meta name="unslide-protocol" content="1" /><title>CLI fixture</title><style>{
-          "body{margin:0}[data-unslide-page]{width:320px;height:180px;background:white}"
+          "@page{size:320px 180px;margin:0}body{margin:0}[data-unslide-page]{width:320px;height:180px;background:white}"
         }</style></head>
         <body><main data-unslide-page="fixture">CLI fixture</main></body>
       </html>
@@ -95,6 +95,10 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
   assert.equal(commandHelp.exitCode, 0);
   assert.equal(commandHelp.stderr, "");
   assert.equal(commandHelp.value.command, "capture");
+
+  const exportHelp = await runCli(["export", "--help"]);
+  assert.equal(exportHelp.exitCode, 0);
+  assert.equal(exportHelp.value.command, "export");
 
   for (const result of [
     await runCli(["unknown"]),
@@ -189,6 +193,12 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     assert.equal(capture.stderr, "");
     const png = await readFile(resolve(projectRoot, "captured pages", "page-01.png"));
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [320, 180]);
+
+    const exported = await runCli(["export", "fixture"], projectRoot);
+    assert.equal(exported.exitCode, 0, exported.stdout);
+    assert.equal((exported.value.report as Record<string, unknown>).pageCount, 1);
+    assert.equal((exported.value.report as Record<string, unknown>).widthPoints, 240);
+    assert.equal((await readFile(resolve(projectRoot, "generated output", "report file.pdf"))).subarray(0, 5).toString(), "%PDF-");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -257,6 +267,21 @@ test("CLI rejects missing reports, visual fields, and unsafe output paths", asyn
     const escapedOutput = await runCli([], projectRoot);
     assert.equal(escapedOutput.exitCode, 1);
     assert.match(JSON.stringify(escapedOutput.value), /must resolve inside the project root/);
+
+    await writeFile(configPath, JSON.stringify({
+      version: 1,
+      reports: {
+        fixture: {
+          source: "source files/report.tsx",
+          html: "generated/report.html",
+          pdf: "../outside/report.pdf",
+          captures: "captures",
+        },
+      },
+    }));
+    const escapedPdf = await runCli([], projectRoot);
+    assert.equal(escapedPdf.exitCode, 1);
+    assert.match(JSON.stringify(escapedPdf.value), /field.*pdf.*must resolve inside the project root/);
 
     await symlink(outsideDirectory, resolve(projectRoot, "linked output"));
     await writeFile(configPath, JSON.stringify({

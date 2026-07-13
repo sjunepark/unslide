@@ -1,9 +1,9 @@
 # Product Design
 
-Status: **V1 behavior, V2 Core, and V2 Adoption are proven.** Artifact
+Status: **V1 behavior, V2 Core, V2 Adoption, and Chromium PDF export are proven.** Artifact
 protocol v1, full-document React authoring, installed project workflows, safe
 scaffolding, protocol-only canonical capture, and the hardened 0.1.0 package are
-implemented. HTML-first PDF export remains.
+implemented. Automated PDF-native inspection remains.
 
 This document describes the intended authoring experience and ownership model.
 Exact TypeScript names and command syntax remain implementation outcomes unless
@@ -162,9 +162,11 @@ artifacts are disposable and do not become authoring source.
 
 PDF export prints the canonical HTML with Chromium print media. Report CSS owns
 paper geometry, page breaks, color adjustment, and print-specific presentation.
-The initial exporter should prefer CSS page size, include report backgrounds,
-and support tagged output and a document outline without exposing the raw
-browser option surface as Unslide's interface.
+The exporter requires an active, unqualified base `@page` rule with a concrete
+named size or positive absolute dimensions, includes report backgrounds, and
+requests tagged output and a document outline without exposing the raw browser
+option surface as Unslide's interface. Missing, non-concrete, or ambiguous
+`@page` sizing fails instead of falling back to browser Letter geometry.
 
 Export succeeds only when:
 
@@ -172,7 +174,12 @@ Export succeeds only when:
 - required resources are ready;
 - the browser produces a readable PDF;
 - the number of PDF pages equals the number of marked HTML pages; and
-- the resulting PDF can be inspected page by page.
+- PDF geometry matches the authored size, all pages share it, and expected text
+  remains extractable.
+
+The exporter publishes only after those checks pass. Automated PDF-native page
+rasterization is the next implementation goal; manual target-native inspection
+has verified both proof PDFs.
 
 Initial V2 supports arbitrary report-wide page geometry but does not promise
 mixed page sizes or orientations in one PDF. Mixed geometry requires a separate

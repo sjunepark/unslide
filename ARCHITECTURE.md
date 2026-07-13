@@ -1,9 +1,10 @@
 # Architecture
 
-Status: **V1, V2 Core, and V2 Adoption are implemented and verified.**
+Status: **V1, V2 Core, V2 Adoption, and Chromium PDF export are verified.**
 Artifact protocol v1, headless full-document React authoring, installed CLI and
 scaffolding, canonical HTML capture, and the minimal 0.1.0 package are current;
-PDF delivery remains planned. See `PLAN.md` for the current migration step.
+automated PDF-native inspection remains planned. See `PLAN.md` for the current
+migration step.
 
 ## Purpose and Boundaries
 
@@ -163,6 +164,9 @@ documentation are insufficient.
   seam and returns deterministic structured results.
 - `src/unslide/config.ts` discovers the nearest `unslide.json`, validates its
   versioned operational schema, and resolves safe project-relative paths.
+- `src/unslide/pdf.ts` prints canonical HTML through the shared browser seam,
+  requires authored page geometry, validates page count, common geometry, and
+  extractable text with PDF.js, and publishes the PDF atomically.
 - `src/unslide/build.ts` and `src/unslide/inspect.ts` provide the named React
   build and canonical artifact-inspection operations used by the CLI.
 - `src/cli.ts` exposes initialization, build, inspect, and capture with TOON

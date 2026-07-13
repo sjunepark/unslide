@@ -1,9 +1,9 @@
 # Product
 
-Status: **V1, V2 Core, and V2 Adoption are implemented.** The headless
+Status: **V1, V2 Core, V2 Adoption, and Chromium PDF export are implemented.** The headless
 HTML protocol, report-owned React authoring, installed CLI, safe scaffold, and
-canonical capture path are proven through the hardened 0.1.0 package.
-HTML-first PDF delivery remains.
+canonical capture path are proven through the hardened 0.1.0 package. Validated
+HTML-first PDF export is proven; automated PDF-native inspection remains.
 
 ## Product Idea
 

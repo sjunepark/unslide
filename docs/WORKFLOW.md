@@ -2,8 +2,8 @@
 
 This document records commands that work in the current implementation. The V2
 artifact protocol, headless full-document authoring, and canonical capture path
-are active in these commands; follow [`PLAN.md`](../PLAN.md) for the remaining
-migration state.
+are active in these commands. Chromium PDF export is also implemented; follow
+[`PLAN.md`](../PLAN.md) for the remaining PDF-native inspection work.
 
 ## Supported Development Environment
 
@@ -71,21 +71,25 @@ All repository report commands route through the schema-validated CLI and
 |---|---|---|
 | Render fixture | `pnpm run render:spike` | `artifacts/spike/report.html` |
 | Capture fixture | `pnpm run capture:spike` | `.tmp/captures/spike/page-*.png` |
+| Export fixture PDF | `pnpm run export:spike` | `artifacts/spike/report.pdf` |
 | Render real report | `pnpm run render:report` | `artifacts/operating-review/report.html` |
 | Capture real report | `pnpm run capture:report` | `.tmp/captures/operating-review/page-*.png` |
-| Run all repository checks | `pnpm run validate` | Both HTML artifacts and capture sets |
+| Export real-report PDF | `pnpm run export:report` | `artifacts/operating-review/report.pdf` |
+| Run all repository checks | `pnpm run validate` | Both HTML/PDF artifacts and HTML capture sets |
 
 The direct forms are `pnpm --silent run unslide build <name>`, `pnpm --silent
-run unslide inspect <name>`, and `pnpm --silent run unslide capture <name>`.
+run unslide inspect <name>`, `pnpm --silent run unslide capture <name>`, and
+`pnpm --silent run unslide export <name>`.
 Run `pnpm --silent run unslide` from the project root or any nested directory
 to see the live report list with machine-readable TOON stdout. The nearest
-`unslide.json` defines the project root, and its source, HTML, and capture paths
-resolve relative to that directory.
+`unslide.json` defines the project root, and its source, HTML, optional PDF, and
+capture paths resolve relative to that directory.
 
 Open an artifact directly on macOS:
 
 ```sh
 open artifacts/operating-review/report.html
+open artifacts/operating-review/report.pdf
 ```
 
 The authoring loop is intentionally manual: change typed data or report TSX,
@@ -98,7 +102,8 @@ visual resources, and then captures marked elements in document order.
 
 ## Artifact Ownership
 
-- `artifacts/` contains generated standalone HTML delivery artifacts.
+- `artifacts/` contains generated standalone HTML and validated PDF delivery
+  artifacts.
 - `.tmp/captures/` contains disposable browser-rendered inspection images.
 - Both directories are ignored by Git and can be regenerated from source.
 - Report data and domain conclusions stay in each report's typed caller-owned
@@ -109,12 +114,12 @@ visual resources, and then captures marked elements in document order.
 The repository-local React writer serializes a complete author-owned document,
 provides explicit local-asset inlining, and injects no visual source. Each
 report owns page geometry, chrome or its absence, styles, and print behavior.
-The protocol-only capture module is implemented, and current repository render
-and capture commands delegate through the CLI.
+The protocol-only capture module and canonical Chromium PDF exporter are
+implemented, and current repository commands delegate through the CLI.
 
 The accepted V2 direction supersedes copy-in as the adoption model. Build,
 validation, and capture now run from the hardened locally packed 0.1.0 tooling;
-PDF export remains. See
+automated PDF-native inspection remains. See
 [D3](decisions/0003-headless-artifact-protocol.md) and the
 [V2 adoption plan](plans/v2-adoption.md).
 
@@ -126,13 +131,16 @@ and its managed Chromium build:
 
 - `pnpm install --frozen-lockfile` completed from the committed lockfile;
 - `pnpm exec playwright install chromium` completed successfully;
-- `pnpm run validate` passed focused protocol, authoring, CLI, and clean-consumer
-  tests and generated 3 fixture pages plus 8 operating-report pages;
+- `pnpm run validate` passed all 31 focused protocol, authoring, CLI, PDF, and
+  clean-consumer tests and generated both HTML capture sets plus both PDFs;
 - every generated page image was visually inspected;
 - both HTML artifacts contained no external URLs, scripts, or linked styles;
 - direct local opening required no server or Playwright runtime;
 - the contrasting fixture captured as three 900×1200 portrait pages while the
   operating review retained eight A4 landscape pages;
+- canonical Chromium exported three 540×720-point portrait PDF pages and eight
+  841.92×594.96-point A4-landscape PDF pages; every actual PDF page was visually
+  inspected through native rendering;
 - a packed tarball initialized, built, inspected, and captured a standalone
   960×540 consumer report outside the repository; and
 - every repository-local Markdown link resolved.

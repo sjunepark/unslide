@@ -8,6 +8,7 @@ export const CONFIG_FILE_NAME = "unslide.json";
 interface ReportConfigJson {
   source: string;
   html: string;
+  pdf?: string;
   captures: string;
 }
 
@@ -21,6 +22,7 @@ export interface ReportConfig {
   name: string;
   sourcePath: string;
   htmlPath: string;
+  pdfPath: string;
   captureDirectory: string;
 }
 
@@ -136,6 +138,7 @@ export async function loadProjectConfig(startDirectory = process.cwd()): Promise
   for (const [name, report] of Object.entries(configJson.reports)) {
     const sourcePath = resolveProjectPath(projectRoot, report.source, "source", name);
     const htmlPath = resolveProjectPath(projectRoot, report.html, "html", name);
+    const pdfPath = resolveProjectPath(projectRoot, report.pdf ?? report.html.replace(/\.html$/, ".pdf"), "pdf", name);
     const captureDirectory = resolveProjectPath(projectRoot, report.captures, "captures", name);
 
     try {
@@ -143,11 +146,12 @@ export async function loadProjectConfig(startDirectory = process.cwd()): Promise
     } catch {
       throw new Error(`Report "${name}" source does not exist: ${sourcePath}`);
     }
-    reports[name] = { name, sourcePath, htmlPath, captureDirectory };
+    reports[name] = { name, sourcePath, htmlPath, pdfPath, captureDirectory };
     canonicalReports[name] = {
       name,
       sourcePath: await canonicalProjectPath(projectRoot, sourcePath, "source", name),
       htmlPath: await canonicalProjectPath(projectRoot, htmlPath, "html", name),
+      pdfPath: await canonicalProjectPath(projectRoot, pdfPath, "pdf", name),
       captureDirectory: await canonicalProjectPath(projectRoot, captureDirectory, "captures", name),
     };
   }
@@ -158,6 +162,7 @@ export async function loadProjectConfig(startDirectory = process.cwd()): Promise
   }));
   const outputs = Object.values(canonicalReports).flatMap((report) => [
     { reportName: report.name, field: "html", path: report.htmlPath },
+    { reportName: report.name, field: "pdf", path: report.pdfPath },
     { reportName: report.name, field: "captures", path: report.captureDirectory },
   ]);
 

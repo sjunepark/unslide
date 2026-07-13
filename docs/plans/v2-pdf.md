@@ -1,13 +1,13 @@
 # V2 PDF Plan
 
-Status: **Goal 1 ready; Goals 2–3 pending.**
+Status: **Goal 1 complete; Goal 2 ready; Goal 3 pending.**
 
 PDF is a derived target of canonical HTML. This plan must not introduce a
 parallel layout model or require Unslide-owned print design.
 
 ## PDF Goal 1 — Chromium PDF Export
 
-Status: **ready**
+Status: **complete**
 
 Depends on: Adoption Goal 1
 
@@ -60,6 +60,33 @@ invariant.
 - Both proof reports produce readable PDFs with their authored designs.
 - `PLAN.md` points to PDF Goal 2.
 
+### Completion Evidence
+
+- `unslide export <name>` consumes the configured canonical HTML and writes the
+  configured or backward-compatible derived PDF path without exposing raw
+  Playwright options.
+- The shared browser seam applies print media and resource readiness. Export
+  requires an active unqualified base `@page` rule with a concrete named size
+  or positive absolute dimensions, prefers that CSS size, includes backgrounds,
+  disables browser chrome, and requests tagged output plus an outline.
+- PDF.js 6.1.200 validates the in-memory Chromium result before publication:
+  the file parses, page count matches HTML markers, geometry matches the
+  authored size, all pages share it, and expected text remains extractable.
+  Publication uses a same-directory atomic rename and preserves prior output on
+  every validation failure.
+- Focused tests cover successful text/geometry validation, missing and ambiguous
+  page sizes, an extra unmarked printed sheet, failed fonts and images, invalid
+  targets, safe staging cleanup, CLI output, and configuration containment.
+- The portrait report exported as three 540×720-point pages; the operating
+  review exported as eight 841.92×594.96-point A4-landscape pages. PDF structure,
+  page counts, geometry, tagged status, and text extraction were checked, and
+  every page was visually inspected from the actual PDFs without defects.
+- Poppler and native macOS rasterization were exercised during manual review;
+  Goal 2 must turn that exploration into a pinned, repeatable renderer contract
+  rather than relying on an ad hoc inspection command.
+- Type checking, the focused PDF/CLI suite, both proof exports, and the required
+  implementation review passed with no remaining safe findings.
+
 ### Suggested `/goal` Objective
 
 > Implement PDF Goal 1 from `docs/plans/v2-pdf.md`: add semantic Chromium PDF
@@ -69,7 +96,7 @@ invariant.
 
 ## PDF Goal 2 — PDF-Native Inspection
 
-Status: **pending**
+Status: **ready**
 
 Depends on: PDF Goal 1
 

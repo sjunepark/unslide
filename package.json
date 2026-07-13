@@ -35,16 +35,19 @@
     "unslide": "pnpm --silent run build:package && ./bin/unslide.mjs",
     "check": "tsc --noEmit",
     "test": "tsx --test tests/*.test.tsx",
-    "validate": "pnpm run check && pnpm test && pnpm run render:spike && pnpm run capture:spike && pnpm run render:report && pnpm run capture:report",
+    "validate": "pnpm run check && pnpm test && pnpm run render:spike && pnpm run capture:spike && pnpm run export:spike && pnpm run render:report && pnpm run capture:report && pnpm run export:report",
     "render:report": "pnpm --silent run unslide build operating-review",
     "capture:report": "pnpm --silent run unslide capture operating-review",
+    "export:report": "pnpm --silent run unslide export operating-review",
     "render:spike": "pnpm --silent run unslide build spike",
-    "capture:spike": "pnpm --silent run unslide capture spike"
+    "capture:spike": "pnpm --silent run unslide capture spike",
+    "export:spike": "pnpm --silent run unslide export spike"
   },
   "dependencies": {
     "@toon-format/toon": "2.3.0",
     "@types/react": "19.1.8",
     "ajv": "8.20.0",
+    "pdfjs-dist": "6.1.200",
     "playwright": "1.61.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",

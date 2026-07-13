@@ -8,10 +8,11 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1, V2 Core, and V2 Adoption are complete.** The
+Status: **V1, V2 Core, V2 Adoption, and PDF export are complete.** The
 CLI initializes schema-validated projects and builds, inspects, and captures
-named reports through installed, versioned tooling. HTML-first PDF export
-remains. Repository execution state is maintained in `PLAN.md`.
+named reports through installed, versioned tooling. Chromium exports validated
+PDFs; automated PDF-native inspection remains. Repository execution state is
+maintained in `PLAN.md`.
 
 ## Rendering Spike
 
@@ -26,11 +27,13 @@ pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
 pnpm run render:spike
 pnpm run capture:spike
+pnpm run export:spike
 ```
 
 Open `artifacts/spike/report.html` in an ordinary browser. Inspect the three
 page images under `.tmp/captures/spike/`. Generated HTML is kept under
-`artifacts/`; disposable inspection output is kept under `.tmp/captures/`.
+`artifacts/`; the validated PDF is `artifacts/spike/report.pdf`; disposable
+inspection output is kept under `.tmp/captures/`.
 
 Change values in `src/spike/data.ts` or composition in
 `src/spike/report.tsx`, then repeat render, capture, and visual inspection.
@@ -42,13 +45,14 @@ The credible eight-page operating report uses the same loop:
 ```sh
 pnpm run render:report
 pnpm run capture:report
+pnpm run export:report
 ```
 
-Its standalone artifact is `artifacts/operating-review/report.html`; its page
-images are under `.tmp/captures/operating-review/`. The typed source and data
-live in `src/reports/operating-review/`. Northstar Goods and all report values,
-commentary, and decisions are fictional examples created solely to demonstrate
-the authoring workflow.
+Its standalone artifact is `artifacts/operating-review/report.html`; its PDF is
+`artifacts/operating-review/report.pdf`; its page images are under
+`.tmp/captures/operating-review/`. The typed source and data live in
+`src/reports/operating-review/`. Northstar Goods and all report values,
+commentary, and decisions are fictional examples.
 
 The repository aliases above use the same CLI that can be called directly:
 
@@ -56,6 +60,7 @@ The repository aliases above use the same CLI that can be called directly:
 pnpm --silent run unslide build operating-review
 pnpm --silent run unslide inspect operating-review
 pnpm --silent run unslide capture operating-review
+pnpm --silent run unslide export operating-review
 ```
 
 With no command, `pnpm --silent run unslide` discovers the nearest
@@ -63,7 +68,8 @@ With no command, `pnpm --silent run unslide` discovers the nearest
 directory containing that file is the project root; every configured path is
 relative to it. The [versioned schema](schema/unslide.schema.json) rejects
 unknown fields and overlapping or escaping paths. Configuration contains only
-source and derived-artifact locations—visual choices remain in report source.
+source and derived-artifact locations, including an optional PDF path; visual
+choices remain in report source.
 
 The `--silent` package-manager flag keeps CLI stdout as structured TOON for
 automation. Exit code 0 means success, 1 an operational failure, and 2 invalid
@@ -127,10 +133,11 @@ installed contract.
 ## Supported Environment and Compatibility
 
 Version 0.1.0 supports Node.js 24.x and pnpm 11.12 on the verified macOS arm64
-environment. HTML capture uses Playwright 1.61.1 and its managed Chromium; run
-`pnpm dlx playwright@1.61.1 install chromium` before the first capture. Other
-Node versions, package managers, operating systems, and browser engines are not
-yet claimed.
+environment. HTML capture and PDF export use Playwright 1.61.1 and its managed
+Chromium; PDF validation uses PDF.js 6.1.200. Run
+`pnpm dlx playwright@1.61.1 install chromium` before the first capture or export.
+Other Node versions, package managers, operating systems, and browser engines
+are not yet claimed.
 
 `unslide.json` version 1 and artifact protocol v1 are the current persisted
 contracts. Explicit unsupported versions fail with manual migration guidance;
@@ -155,11 +162,11 @@ file, and let a human or coding agent inspect real browser-rendered page images.
 - Data reaches report source through ordinary language values and props.
 - Reports own their complete document, geometry, padding, fonts, repeated
   material, print rules, and every other design choice.
-- Versioned tooling owns compilation, artifact validation, and isolated capture
-  instead of being copied into consuming repositories; PDF export remains the
-  next delivery track.
-- PDF will be printed from canonical HTML and visually inspected from the
-  produced PDF.
+- Versioned tooling owns compilation, artifact validation, isolated capture,
+  and validated Chromium PDF export instead of being copied into consuming
+  repositories.
+- PDF is printed from canonical HTML; automated target-native PDF inspection is
+  the remaining delivery slice.
 - Optional visual recipes may generate editable source but will not be runtime
   requirements.
 
