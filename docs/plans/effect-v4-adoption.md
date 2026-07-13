@@ -1,6 +1,6 @@
 # Effect v4 Internal Runtime Plan
 
-Status: **Runtime Goals 1 and 2 complete; Runtime Goal 3 is in progress.**
+Status: **Runtime Goals 1–3 complete.**
 
 This is an internal maintenance track governed by
 [D5](../decisions/0005-effect-v4-internal-runtime.md). It does not reopen
@@ -222,8 +222,8 @@ without changing the serializable artifact protocol or output artifacts.
 - Every HTML and PDF-native page image was inspected without overflow,
   clipping, missing glyphs, blank pages, or target drift. Their hashes remained
   identical after the review fix and final validation. No Chromium process,
-  PDF task, page-image staging directory, PDF staging file, or recovery
-  temporary resource survived the completed or failed workflows.
+  PDF task, or ordinary temporary resource survived the completed or
+  interrupted Goal 2 lifecycle workflows.
 - Package build and dry-run packing retained the established package surface
   and intended public declarations; no Effect type escaped through a package
   export. No unstable Effect import, service, Layer, adapter, new
@@ -242,7 +242,7 @@ without changing the serializable artifact protocol or output artifacts.
 
 ## Runtime Goal 3 — Filesystem Transactions and Release Hardening
 
-Status: **in progress**
+Status: **complete**
 
 Depends on: Runtime Goal 2
 
@@ -304,6 +304,37 @@ work, remove transition scaffolding, and prove the packaged consumer contract.
   inspected, and current documentation matches the implementation.
 - Root `PLAN.md` returns to the consumer-evidence product gate unless new
   evidence has justified another accepted scope decision.
+
+### Completion Evidence
+
+- Build, initialization, capture, PDF inspection, and HTML/PDF/page-image
+  publication now use one typed Effect pipeline with one Node filesystem/path
+  Layer provided at the executable boundary. Direct `lstat` and Dirent reads
+  remain only where portable metadata would follow symlinks and weaken file
+  identity boundaries.
+- Canonical HTML and PDF publish through same-directory staging and atomic
+  rename. Failure injection proves prior deliveries survive rename failure,
+  page-image rollback restores prior managed files when possible, incomplete
+  rollback retains exact recovery staging, and primary plus cleanup failures
+  remain jointly diagnosable.
+- Defects and interruption remain distinct from typed operational failures
+  through initialization, publication rollback, and the CLI boundary. Goal 1's
+  Promise command wrapper and obsolete broad catches are removed.
+- `unslide/react` keeps Promise-based asset helpers in the packed declarations;
+  no Effect type or internal test seam is exported. The exact shared Node
+  platform package avoids unused Redis, HTTP, and MIME runtime dependencies.
+- Frozen installation, type-checking, the full test suite, both proof-report
+  delivery workflows, package build/dry-run contents, and the clean
+  packed-consumer workflow passed. Every generated HTML and PDF-native page
+  image was inspected without clipping, overflow, missing glyphs, blank pages,
+  or target drift.
+- The production audit found no known vulnerabilities. Production licenses are
+  limited to MIT, Apache-2.0, BSD-3-Clause, and ISC. Markdown paths and current
+  product, design, architecture, decisions, support, workflow, and plan guidance
+  agree.
+- The required subagent implementation review and bounded recheck found no
+  remaining correctness, validation, or diet issue. Root `PLAN.md` has returned
+  to the unchanged consumer-evidence gates.
 
 ### Suggested `/goal` Objective
 

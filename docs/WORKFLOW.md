@@ -128,6 +128,13 @@ The protocol-only capture module, canonical Chromium PDF exporter, and
 PDF.js/Node-canvas rasterizer are implemented, and repository commands delegate
 through the CLI. PDF inspection reads no source HTML or browser state.
 
+Internally, one Effect v4 program owns CLI execution and receives one Node
+filesystem/path Layer at the executable boundary. HTML and PDF publish through
+atomic same-directory replacement. Page-image publication preserves unrelated
+files, restores prior managed images when possible, and retains recovery
+staging if rollback is incomplete. The public `unslide/react` asset helpers
+remain Promise-based, and packed declarations expose no Effect types.
+
 The accepted V2 direction supersedes copy-in as the adoption model. Build,
 validation, capture, export, and PDF inspection run from the hardened locally
 packed 0.1.0 tooling. See
@@ -136,7 +143,7 @@ packed 0.1.0 tooling. See
 
 ## Repository Evidence
 
-The workflow was verified on 13 July 2026 on macOS 26.5.1 arm64 with Node.js
+The workflow was verified on 14 July 2026 on macOS 26.5.1 arm64 with Node.js
 24.15.0, pnpm 11.12.0, Playwright 1.61.1,
 and its managed Chromium build:
 
@@ -162,7 +169,7 @@ and its managed Chromium build:
 - every repository-local Markdown link resolved.
 
 The production dependency audit reported no known vulnerabilities. Shipped
-dependencies use permissive MIT, Apache-2.0, or BSD-3-Clause licenses; no
+dependencies use permissive MIT, Apache-2.0, BSD-3-Clause, or ISC licenses; no
 copyleft dependency is present. Version 0.1.0 remains a private 0.x contract
 rather than a stable public release.
 

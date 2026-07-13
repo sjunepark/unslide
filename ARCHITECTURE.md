@@ -1,6 +1,7 @@
 # Architecture
 
-Status: **V1 and the accepted V2 delivery architecture are verified.**
+Status: **V1, the accepted V2 delivery architecture, and the internal Effect v4
+runtime migration are verified.**
 Artifact protocol v1, headless full-document React authoring, installed CLI and
 scaffolding, canonical HTML capture, and the minimal 0.1.0 package are current;
 the packaged HTML/PDF workflow passes end to end. See `PLAN.md` for the current
@@ -79,6 +80,11 @@ The CLI is the normal user and agent interface for project initialization,
 build, artifact inspection, HTML capture, PDF export, and PDF inspection. It reads
 schema-validated operational configuration and delegates to internal modules.
 
+One Effect program owns execution. The executable provides one internal Node
+filesystem/path Layer, and the outer boundary translates typed operational
+failures to the stable CLI payload and exit-code contract. Effect remains an
+implementation detail and does not appear in published authoring declarations.
+
 Configuration may select entries, outputs, inspection locations, and supported
 export behavior. It must not define page geometry, typography, padding, chrome,
 or other visual policy.
@@ -98,6 +104,15 @@ validates the produced file.
 PDF inspection uses PDF.js and its pinned Node canvas to rasterize the actual
 generated PDF into one ordered image per page at 96 DPI. It never loads source
 HTML or substitutes HTML screenshots for PDF evidence.
+
+### Publication transactions
+
+Canonical HTML and PDF use same-directory staging followed by atomic rename,
+so a failed build or export cannot replace a prior delivery. HTML and PDF page
+images are generated as complete staged sets. Publishing a set first preserves
+managed prior images, restores them when replacement fails, and retains exact
+recovery staging when rollback cannot finish. Unrelated output files never
+enter the transaction.
 
 ### Optional scaffolds and recipes
 
@@ -147,15 +162,21 @@ documentation are insufficient.
 - Project configuration is operational and never becomes a design schema.
 - Stable behavior is upgraded through versioned tooling; optional visual recipes
   remain user-owned source.
+- Canonical HTML and PDF replace prior deliveries only through atomic rename.
+- Managed page-image replacement restores prior files on failure when possible
+  and never deletes recovery evidence after incomplete rollback.
+- Effect services, Layers, failures, and scopes remain internal to executable
+  tooling; public React helpers remain Promise-based.
 - New public adapter or plugin seams require at least two proven
   implementations.
 
 ## Current Code Map
 
+- `src/unslide/assets.ts` implements the Promise-based local-asset helpers
+  exported by `unslide/react`.
 - `src/unslide/render.tsx` serializes a report-owned complete React document,
-  inlines explicitly selected local assets, rejects unresolved resource
-  dependencies, and writes standalone HTML atomically. It injects no shell or
-  visual source.
+  rejects unresolved resource dependencies, and publishes standalone HTML
+  atomically. It injects no shell or visual source.
 - `src/unslide/protocol.ts` defines protocol v1 metadata, validation, and static
   readiness independently of React.
 - `src/unslide/browser.ts` owns canonical Chromium loading, shared protocol
@@ -163,8 +184,9 @@ documentation are insufficient.
   release without importing React.
 - `src/unslide/capture.ts` captures authored page bounds through that browser
   seam and returns deterministic structured results.
-- `src/unslide/page-images.ts` atomically replaces managed page PNG sets while
-  preserving unrelated files and prior evidence on failure.
+- `src/unslide/page-images.ts` transactionally replaces managed page PNG sets,
+  restores prior files when possible, preserves unrelated files, and retains
+  recovery staging after incomplete rollback.
 - `src/unslide/config.ts` discovers the nearest `unslide.json`, validates its
   versioned operational schema, and resolves safe project-relative paths.
 - `src/unslide/pdf.ts` prints canonical HTML through the shared browser seam,
@@ -176,6 +198,9 @@ documentation are insufficient.
   into deterministic 96-DPI PNGs.
 - `src/unslide/build.ts` and `src/unslide/inspect.ts` provide the named React
   build and canonical artifact-inspection operations used by the CLI.
+- `src/unslide/runtime.ts` provides the one internal Node filesystem/path Layer;
+  `src/unslide/failures.ts` and `src/unslide/lifecycle.ts` preserve typed failure,
+  interruption, and cleanup evidence across operational scopes.
 - `src/cli.ts` exposes initialization, HTML build/inspection/capture, PDF export,
   and PDF inspection with TOON output and stable exit codes.
 - `src/unslide/init.ts` plans and safely writes the minimal user-owned project
@@ -196,7 +221,9 @@ are explicit report entries in the root `unslide.json`, not visual policy.
 - [D2 — Repository-owned rendered preview](docs/decisions/0002-rendered-preview.md)
 - [D3 — Headless artifact protocol and author-owned design](docs/decisions/0003-headless-artifact-protocol.md)
 - [D4 — HTML-first PDF export](docs/decisions/0004-html-first-pdf-export.md)
+- [D5 — Effect v4 for the internal runtime](docs/decisions/0005-effect-v4-internal-runtime.md)
 - [Supported delivery contract](docs/SUPPORT.md)
 - [V2 core plan](docs/plans/v2-core.md)
 - [V2 adoption plan](docs/plans/v2-adoption.md)
 - [V2 PDF plan](docs/plans/v2-pdf.md)
+- [Effect v4 internal runtime plan](docs/plans/effect-v4-adoption.md)

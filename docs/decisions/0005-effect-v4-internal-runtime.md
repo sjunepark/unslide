@@ -2,7 +2,7 @@
 
 Date: 2026-07-13
 
-Status: accepted for staged implementation
+Status: accepted and implemented
 
 ## Context
 
@@ -20,8 +20,9 @@ we expect to keep.
 
 ## Decision
 
-Adopt Effect v4 for Unslide's internal operational runtime. Start with the
-exact version `effect@4.0.0-beta.97`; do not use Effect v3 as a bridge.
+Adopt Effect v4 for Unslide's internal operational runtime. Use the exact
+versions `effect@4.0.0-beta.97` and
+`@effect/platform-node-shared@4.0.0-beta.97`; do not use Effect v3 as a bridge.
 
 The adoption follows these constraints:
 

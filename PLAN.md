@@ -1,20 +1,18 @@
 # Plan
 
-Status: **V1 and the accepted V2 scope are complete; Runtime Goals 1 and 2 of
-the Effect v4 internal migration are complete, and Runtime Goal 3 is in
-progress.**
+Status: **V1, the accepted V2 scope, and Runtime Goals 1–3 of the Effect v4
+internal migration are complete.**
 
-Current next action: **Execute Runtime Goal 3 from the Effect v4 internal
-runtime plan.** Do not resume a deferred product gate before that maintenance
-goal completes.
+Current next action: **Remain at the consumer-evidence product gates.** Collect
+real report evidence before accepting a recipe registry, another source
+adapter, or mixed PDF geometry; do not implement those deferred capabilities
+without a later explicit scope decision.
 
 Suggested `/goal` objective:
 
-> Implement Runtime Goal 3 from `docs/plans/effect-v4-adoption.md`: complete the
-> filesystem and publication migration without weakening transaction recovery,
-> remove transition scaffolding, harden the package and consumer workflow,
-> update current architecture and plans, and complete full validation and
-> review.
+> Gather evidence from real consumer reports for one deferred product gate in
+> `PLAN.md`, then propose an explicit scope decision only if that evidence meets
+> the gate's stated threshold.
 
 This file is the live execution state. Update statuses, decisions, blockers,
 validation, and the current next action in place. Do not append session logs.
@@ -83,7 +81,7 @@ Keep these outside V2 unless a later decision changes scope:
 | PDF | 3. Export hardening | Complete | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
 | Runtime | 1. Foundation and typed failures | Complete | Completed V2, D5 | Exact v4 foundation and unchanged CLI/package behavior |
 | Runtime | 2. Scoped browser and PDF lifecycles | Complete | Runtime 1 | Interruption-safe cleanup and readiness accounting |
-| Runtime | 3. Filesystem transactions and release hardening | In progress | Runtime 2 | Transaction invariants and packed-consumer workflow pass |
+| Runtime | 3. Filesystem transactions and release hardening | Complete | Runtime 2 | Transaction invariants and packed-consumer workflow pass |
 | Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
 
 ## Detailed Plans
@@ -141,8 +139,6 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Execute Runtime Goal 3 from
-[`docs/plans/effect-v4-adoption.md`](docs/plans/effect-v4-adoption.md). This is an
-internal maintenance goal, not new product scope. The consumer-evidence gates
-for recipes, additional source adapters, and mixed PDF geometry remain unchanged
-and resume as the default next action after Runtime Goal 3.
+Remain at the consumer-evidence gates for recipes, additional source adapters,
+and mixed PDF geometry. Record evidence from real reports, but do not implement
+new product scope until a later explicit decision accepts one of those gates.
