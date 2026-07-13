@@ -6,7 +6,9 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
+import type { Browser } from "playwright";
 import { chromium } from "playwright";
+import { withLoadedArtifact } from "../src/unslide/browser.js";
 import { captureHtmlPages } from "../src/unslide/capture.js";
 import {
   PAGE_MARKER_ATTRIBUTE,
@@ -351,6 +353,64 @@ test("capture tracks concurrent requests to the same URL independently", async (
     await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("loaded artifacts release Chromium after success and operational failure", async () => {
+  const inputPath = resolve(fixtureDirectory, "protocol-valid.html");
+  let successfulBrowser: Browser | undefined;
+  await withLoadedArtifact(inputPath, async ({ page }) => {
+    successfulBrowser = page.context().browser() ?? undefined;
+  });
+  assert.equal(successfulBrowser?.isConnected(), false);
+
+  let failedBrowser: Browser | undefined;
+  await assert.rejects(
+    withLoadedArtifact(inputPath, async ({ page }) => {
+      failedBrowser = page.context().browser() ?? undefined;
+      throw new Error("fixture operation failed");
+    }),
+    /fixture operation failed/,
+  );
+  assert.equal(failedBrowser?.isConnected(), false);
+});
+
+test("interrupting a loaded artifact closes the underlying Chromium work", async () => {
+  const controller = new AbortController();
+  let markStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolveStarted) => {
+    markStarted = resolveStarted;
+  });
+  let browser: Browser | undefined;
+  const pending = withLoadedArtifact(
+    resolve(fixtureDirectory, "protocol-valid.html"),
+    async ({ page }) => {
+      browser = page.context().browser() ?? undefined;
+      markStarted?.();
+      return new Promise<never>(() => {});
+    },
+    { signal: controller.signal },
+  );
+
+  await started;
+  controller.abort();
+  await assert.rejects(pending, /Operation interrupted/);
+  assert.equal(browser?.isConnected(), false);
+});
+
+test("loaded artifacts retain primary and Chromium cleanup failures together", async () => {
+  await assert.rejects(
+    withLoadedArtifact(resolve(fixtureDirectory, "protocol-valid.html"), async ({ page }) => {
+      const browser = page.context().browser();
+      assert.ok(browser);
+      const close = browser.close.bind(browser);
+      browser.close = async (options) => {
+        await close(options);
+        throw new Error("fixture browser cleanup failed");
+      };
+      throw new Error("fixture primary operation failed");
+    }),
+    /fixture primary operation failed[\s\S]*Cleanup failed: fixture browser cleanup failed/,
+  );
 });
 
 test("capture implementation is independent of React authoring", async () => {

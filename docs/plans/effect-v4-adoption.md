@@ -1,6 +1,6 @@
 # Effect v4 Internal Runtime Plan
 
-Status: **Runtime Goal 1 complete; Runtime Goal 2 is next.**
+Status: **Runtime Goal 1 complete; Runtime Goal 2 is in progress.**
 
 This is an internal maintenance track governed by
 [D5](../decisions/0005-effect-v4-internal-runtime.md). It does not reopen
@@ -144,7 +144,7 @@ preserving every observable CLI and package behavior.
 
 ## Runtime Goal 2 — Scoped Browser and PDF Lifecycles
 
-Status: **next**
+Status: **in progress**
 
 Depends on: Runtime Goal 1
 
@@ -200,6 +200,18 @@ without changing the serializable artifact protocol or output artifacts.
 - Same-URL concurrent resources cannot make readiness complete early.
 - Browser protocol and generated HTML, PNG, and PDF behavior remain unchanged.
 - `PLAN.md` points to Runtime Goal 3.
+
+### Current Progress
+
+- Chromium browser, context, and page ownership now uses one sequential Effect
+  scope. The existing 5-second navigation policy is an interrupting Effect
+  deadline; real-browser tests prove release after success, operation failure,
+  interruption, and cleanup failure.
+- A small internal scope runner retains primary and cleanup causes together at
+  the Promise boundary. The existing `Set<Request>` identity accounting and
+  its same-URL regression test remain unchanged and pass.
+- `pnpm run check` and all 18 protocol tests pass on Node 24.15.0. Scoped PDF.js
+  loading, page, render-task, and canvas ownership is the next slice.
 
 ### Suggested `/goal` Objective
 

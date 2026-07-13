@@ -1,10 +1,10 @@
 # Plan
 
-Status: **V1 and the accepted V2 scope are complete; Runtime Goal 1 of the
-Effect v4 internal migration is complete.**
+Status: **V1 and the accepted V2 scope are complete; Runtime Goal 2 of the
+Effect v4 internal migration is in progress.**
 
-Current next action: **Execute Runtime Goal 2 from the Effect v4 internal
-runtime plan.** No V2 product implementation goal remains.
+Current next action: **Complete Runtime Goal 2's scoped PDF.js, page, render,
+and canvas lifecycles.** No V2 product implementation goal remains.
 
 Suggested `/goal` objective:
 
@@ -80,7 +80,7 @@ Keep these outside V2 unless a later decision changes scope:
 | PDF | 2. PDF-native inspection | Complete | PDF 1 | Actual PDF pages render to inspection images |
 | PDF | 3. Export hardening | Complete | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
 | Runtime | 1. Foundation and typed failures | Complete | Completed V2, D5 | Exact v4 foundation and unchanged CLI/package behavior |
-| Runtime | 2. Scoped browser and PDF lifecycles | Planned | Runtime 1 | Interruption-safe cleanup and readiness accounting |
+| Runtime | 2. Scoped browser and PDF lifecycles | In progress | Runtime 1 | Browser lifecycle complete; PDF lifecycle and full evidence remain |
 | Runtime | 3. Filesystem transactions and release hardening | Pending | Runtime 2 | Transaction invariants and packed-consumer workflow pass |
 | Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
 
@@ -139,7 +139,7 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Execute Runtime Goal 2 from
+Complete Runtime Goal 2 from
 [`docs/plans/effect-v4-adoption.md`](docs/plans/effect-v4-adoption.md). This is an
 internal maintenance goal, not new product scope. The consumer-evidence gates
 for recipes, additional source adapters, and mixed PDF geometry remain unchanged
