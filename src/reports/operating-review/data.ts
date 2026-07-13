@@ -68,6 +68,7 @@ export interface OperatingReviewData {
   notes: Array<{ label: string; text: string }>;
 }
 
+// Fictional example data for demonstrating the report-authoring workflow.
 export const operatingReviewData: OperatingReviewData = {
   company: "Northstar Goods",
   period: "Q2 2026",

@@ -24,6 +24,7 @@ export interface SpikeReportData {
   regions: RegionRow[];
 }
 
+// Fictional example data for demonstrating the report-authoring workflow.
 export const spikeReportData: SpikeReportData = {
   company: "Northstar Goods",
   period: "Q2 2026",

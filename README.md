@@ -45,7 +45,9 @@ npm run capture:report
 
 Its standalone artifact is `artifacts/operating-review/report.html`; its page
 images are under `.tmp/captures/operating-review/`. The typed source and data
-live in `src/reports/operating-review/`.
+live in `src/reports/operating-review/`. Northstar Goods and all report values,
+commentary, and decisions are fictional examples created solely to demonstrate
+the authoring workflow.
 
 ## Proven Foundation
 
@@ -92,3 +94,7 @@ report trial will determine which mechanics, if any, merit a reusable module.
 
 If a proposed feature does not make explicit fixed-page HTML reports easier to
 author, render, or inspect, it does not belong in v1.
+
+## License
+
+Unslide is available under the [MIT License](LICENSE).

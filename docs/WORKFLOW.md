@@ -1,5 +1,8 @@
 # V1 Workflow
 
+For an interactive overview, authoring guide, and copy-in recipe for other
+repositories, open [`docs/index.html`](index.html) directly in a browser.
+
 ## Supported Development Environment
 
 V1 is verified on macOS with Apple silicon, Node.js 24, npm 11, and the
