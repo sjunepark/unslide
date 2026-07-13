@@ -6,6 +6,12 @@ foundation.
 
 ## Page contract
 
+New artifacts declare `<meta name="unslide-protocol" content="1">` in the
+document head. Artifacts produced before package version 0.1.0 may omit the
+metadata and are treated as protocol v1. An explicit unknown, empty, or
+duplicate version declaration fails with manual migration guidance; Unslide
+does not rewrite report source automatically.
+
 Every capturable page has a `data-unslide-page="<id>"` attribute.
 
 - The ID must be nonempty and unique within the document.
@@ -48,15 +54,11 @@ design.
 
 ## Current implementation
 
-- [`src/unslide/protocol.ts`](../src/unslide/protocol.ts) defines protocol
-  metadata, validation, readiness, and diagnostics.
-- [`src/unslide/browser.ts`](../src/unslide/browser.ts) owns canonical browser
-  loading, readiness, and browser/resource diagnostics.
-- [`src/unslide/capture.ts`](../src/unslide/capture.ts) captures marked elements
-  at their authored bounds and returns structured deterministic results.
-- [`tests/fixtures/protocol-valid.html`](../tests/fixtures/protocol-valid.html)
-  proves the contract with unrelated semantic elements, non-A4 geometry, no
-  V1 foundation, and no repeated chrome.
+The packaged CLI keeps validation, browser loading, and capture internal. The
+only public protocol surface is this document and the HTML contract it defines;
+there is no public Playwright or validator API. Repository source keeps the
+implementation under `src/unslide/` and independent fixtures under
+`tests/fixtures/`.
 
 The former `data-page` marker was removed rather than retained as a second
 contract.

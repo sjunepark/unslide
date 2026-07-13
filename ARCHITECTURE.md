@@ -1,9 +1,9 @@
 # Architecture
 
-Status: **V1, V2 Core, and Adoption Goals 1–2 are implemented and verified.**
+Status: **V1, V2 Core, and V2 Adoption are implemented and verified.**
 Artifact protocol v1, headless full-document React authoring, installed CLI and
-scaffolding, and canonical HTML capture are current; package hardening and PDF
-delivery remain planned. See `PLAN.md` for the current migration step.
+scaffolding, canonical HTML capture, and the minimal 0.1.0 package are current;
+PDF delivery remains planned. See `PLAN.md` for the current migration step.
 
 ## Purpose and Boundaries
 

@@ -10,6 +10,7 @@ import { chromium } from "playwright";
 import { captureHtmlPages } from "../src/unslide/capture.js";
 import {
   PAGE_MARKER_ATTRIBUTE,
+  PROTOCOL_META_NAME,
   UNSLIDE_PROTOCOL_VERSION,
   validateArtifact,
 } from "../src/unslide/protocol.js";
@@ -32,6 +33,7 @@ async function validateFixture(fileName: string) {
 
 test("protocol v1 preserves ordered metadata for arbitrary marked elements", async () => {
   assert.equal(UNSLIDE_PROTOCOL_VERSION, 1);
+  assert.equal(PROTOCOL_META_NAME, "unslide-protocol");
   assert.equal(PAGE_MARKER_ATTRIBUTE, "data-unslide-page");
 
   const result = await validateFixture("protocol-valid.html");
@@ -43,6 +45,15 @@ test("protocol v1 preserves ordered metadata for arbitrary marked elements", asy
       { id: "observation", index: 1, tagName: "figure" },
     ],
   });
+});
+
+test("protocol validation rejects unsupported artifact versions with migration guidance", async () => {
+  const result = await validateFixture("protocol-unsupported-version.html");
+
+  assert.equal(result.ok, false);
+  if (result.ok) assert.fail("Unsupported protocol fixture unexpectedly passed validation");
+  assert.equal(result.issues[0]?.code, "protocol-version");
+  assert.match(result.issues[0]?.message ?? "", /supports version 1.*automatic migration is not available/);
 });
 
 test("protocol validation identifies missing, empty, and duplicate page IDs", async () => {

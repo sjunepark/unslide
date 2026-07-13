@@ -1,6 +1,6 @@
 # V2 Adoption Plan
 
-Status: **Goals 1–2 complete; Goal 3 ready.**
+Status: **Goals 1–3 complete.**
 
 This plan replaces manual source copying with installed, versioned tooling while
 keeping report design in user-owned source. Use the `axi` skill when implementing
@@ -159,7 +159,7 @@ tooling while owning all report design source.
 
 ## Adoption Goal 3 — Packaging and Upgrade Hardening
 
-Status: **ready**
+Status: **complete**
 
 Depends on: Adoption Goal 2
 
@@ -204,6 +204,29 @@ exports, errors, and upgrade behavior are credible outside this repository.
 - Protocol and config incompatibilities fail clearly.
 - The documented clean-consumer workflow passes.
 - `PLAN.md` records the release state and next unblocked PDF goal.
+
+### Completion Evidence
+
+- Version 0.1.0 compiles the executable and React authoring entry before pack;
+  the tarball includes only runtime JavaScript, the React declaration entry and
+  its referenced helper declarations, the executable, schema, protocol, README,
+  license, and manifest.
+- The package exposes only `unslide/react`, `unslide/schema/unslide.json`, and
+  `unslide/protocol.md`; browser, validator, capture, and adapter internals have
+  no public export.
+- A clean OS-temporary consumer installed the tarball and ran help, init, repeat
+  init, build, inspect, and capture. It produced standalone 960×540 HTML and a
+  matching PNG without workspace source or copied runtime files.
+- Config and artifact protocol v1 compatibility are explicit. Unsupported
+  versions fail with manual-migration guidance, while pre-0.1.0 artifacts with
+  absent protocol metadata remain readable as v1.
+- Node.js 24.x, pnpm 11.12, Playwright 1.61.1, managed Chromium, and the verified
+  macOS arm64 environment are documented without broader support claims. The
+  first release remains private 0.x pending PDF evidence and a later stable
+  release decision.
+- Type checking, all 26 focused tests, package build and file inspection,
+  production dependency audit, permissive-license review, and the clean packed
+  consumer passed. The required diet review found no remaining safe findings.
 
 ### Suggested `/goal` Objective
 

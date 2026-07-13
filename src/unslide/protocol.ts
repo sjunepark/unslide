@@ -1,4 +1,5 @@
 export const UNSLIDE_PROTOCOL_VERSION = 1;
+export const PROTOCOL_META_NAME = "unslide-protocol";
 export const PAGE_MARKER_ATTRIBUTE = "data-unslide-page";
 export const PAGE_MARKER_SELECTOR = `[${PAGE_MARKER_ATTRIBUTE}]`;
 
@@ -11,6 +12,7 @@ export interface ArtifactPage {
 export interface ArtifactValidationIssue {
   code:
     | "document-readiness"
+    | "protocol-version"
     | "missing-pages"
     | "empty-page-id"
     | "duplicate-page-id"
@@ -41,6 +43,22 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
       window.setTimeout(() => resolve("timeout"), resourceTimeoutMs);
     }),
   ]);
+
+  const protocolMetadata = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="unslide-protocol"]'));
+  if (protocolMetadata.length > 1) {
+    issues.push({
+      code: "protocol-version",
+      message: "Artifact declares the Unslide protocol version more than once; keep exactly one version metadata element.",
+    });
+  } else if (protocolMetadata.length === 1) {
+    const version = protocolMetadata[0]?.content.trim() ?? "";
+    if (version !== "1") {
+      issues.push({
+        code: "protocol-version",
+        message: `Unsupported artifact protocol version "${version}". This release supports version 1; regenerate or migrate the report source manually because automatic migration is not available.`,
+      });
+    }
+  }
 
   if (document.readyState !== "complete") {
     const documentReadiness = await Promise.race([

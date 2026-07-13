@@ -1,9 +1,9 @@
 # Product Design
 
-Status: **V1 behavior, V2 Core, and Adoption Goals 1–2 are proven.** Artifact
+Status: **V1 behavior, V2 Core, and V2 Adoption are proven.** Artifact
 protocol v1, full-document React authoring, installed project workflows, safe
-scaffolding, and protocol-only canonical capture are implemented. Package
-hardening and HTML-first PDF export remain.
+scaffolding, protocol-only canonical capture, and the hardened 0.1.0 package are
+implemented. HTML-first PDF export remains.
 
 This document describes the intended authoring experience and ownership model.
 Exact TypeScript names and command syntax remain implementation outcomes unless

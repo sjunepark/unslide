@@ -18,6 +18,7 @@ function TestDocument({ styles = "" }: { styles?: string }) {
     <html lang="ko">
       <head>
         <meta charSet="utf-8" />
+        <meta name="unslide-protocol" content="1" />
         <meta name="author" content="Report owner" />
         <title>Test &lt;/title&gt; report</title>
         <style>{styles}</style>

@@ -115,6 +115,15 @@ export async function loadProjectConfig(startDirectory = process.cwd()): Promise
     throw new Error(`Cannot parse ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
   }
 
+  if (typeof configJson === "object" && configJson !== null && Object.hasOwn(configJson, "version")) {
+    const version = (configJson as { version?: unknown }).version;
+    if (version !== 1) {
+      throw new Error(
+        `Unsupported ${CONFIG_FILE_NAME} version ${JSON.stringify(version)}. This release supports version 1; update the configuration manually because automatic migration is not available.`,
+      );
+    }
+  }
+
   const schema = JSON.parse(await readFile(schemaPath, "utf8")) as object;
   const ajv = new Ajv({ allErrors: true, strict: true });
   const validate = ajv.compile<ProjectConfigJson>(schema);

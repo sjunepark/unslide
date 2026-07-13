@@ -21,7 +21,10 @@ V2 separates stable behavior from visual source.
 
 The canonical seam is a small HTML artifact protocol. A valid artifact is
 standalone HTML whose explicit pages carry ordered unique nonvisual markers and
-whose visual resources have a reliable readiness path.
+whose visual resources have a reliable readiness path. New artifacts declare
+their protocol version in nonvisual document metadata. Missing metadata remains
+a v1 compatibility case for artifacts created before the packaged contract;
+explicit unsupported versions fail without automatic source rewriting.
 
 Report source owns the complete document and all design decisions, including
 DOM structure, elements, page geometry, margins, padding, fonts, assets,

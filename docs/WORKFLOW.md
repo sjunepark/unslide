@@ -15,6 +15,11 @@ Node.js, Playwright, a server, or a running application.
 The repository does not claim cross-browser pixel parity or support multiple
 capture engines.
 
+The packaged 0.1.0 contract supports Node.js 24.x, pnpm 11.12, and the pinned
+Playwright 1.61.1 Chromium on the verified macOS arm64 environment. Other Node
+versions, package managers, operating systems, and browser engines are not yet
+claimed.
+
 ## Install
 
 From the repository root:
@@ -40,7 +45,7 @@ In an existing pnpm project, configure `allowBuilds.esbuild: true` in
 `pnpm-workspace.yaml`, install the resulting tarball, and run:
 
 ```sh
-pnpm add /path/to/unslide-0.0.0.tgz
+pnpm add /path/to/unslide-0.1.0.tgz
 pnpm dlx playwright@1.61.1 install chromium
 pnpm exec unslide init
 pnpm exec unslide init --yes
@@ -108,8 +113,8 @@ The protocol-only capture module is implemented, and current repository render
 and capture commands delegate through the CLI.
 
 The accepted V2 direction supersedes copy-in as the adoption model. Build,
-validation, and capture now run from locally packed tooling; package hardening
-and export remain. See
+validation, and capture now run from the hardened locally packed 0.1.0 tooling;
+PDF export remains. See
 [D3](decisions/0003-headless-artifact-protocol.md) and the
 [V2 adoption plan](plans/v2-adoption.md).
 
@@ -131,3 +136,8 @@ and its managed Chromium build:
 - a packed tarball initialized, built, inspected, and captured a standalone
   960×540 consumer report outside the repository; and
 - every repository-local Markdown link resolved.
+
+The production dependency audit reported no known vulnerabilities. Shipped
+dependencies use permissive MIT, Apache-2.0, or BSD-3-Clause licenses; no
+copyleft dependency is present. Version 0.1.0 remains a private 0.x contract
+rather than a stable public release.

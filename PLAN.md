@@ -1,17 +1,16 @@
 # Plan
 
-Status: **V1, V2 Core, and Adoption Goals 1–2 complete.**
+Status: **V1, V2 Core, and V2 Adoption complete.**
 
-Current next action: **Run Adoption Goal 3 — harden the package and upgrade
-contract through the packed consumer.** See
-[`docs/plans/v2-adoption.md`](docs/plans/v2-adoption.md).
+Current next action: **Run PDF Goal 1 — export and validate canonical HTML
+through Chromium.** See [`docs/plans/v2-pdf.md`](docs/plans/v2-pdf.md).
 
 Suggested `/goal` objective:
 
-> Implement Adoption Goal 3 from `docs/plans/v2-adoption.md`: harden the minimal
-> package and upgrade contract, validate the packed artifact in a clean
-> consumer, update current docs and plan state, and complete all review and
-> release checks.
+> Implement PDF Goal 1 from `docs/plans/v2-pdf.md`: add semantic Chromium PDF
+> export from canonical HTML, enforce report-owned print geometry and page-count
+> validation, prove both reports, update plan state, and satisfy every test and
+> review criterion.
 
 This file is the live execution state. Update statuses, decisions, blockers,
 validation, and the current next action in place. Do not append session logs.
@@ -70,7 +69,7 @@ Keep these outside V2 unless a later decision changes scope:
 | Core | 3. Canonical HTML capture | Complete | Core 2 | Unrelated geometries capture through the protocol |
 | Adoption | 1. CLI and project configuration | Complete | Core 3 | Named reports build, inspect, and capture through one CLI |
 | Adoption | 2. Project scaffolding and migration | Complete | Adoption 1 | Clean consumer uses installed tooling; both reports are source-owned |
-| Adoption | 3. Packaging hardening | Ready | Adoption 2 | Versioned package workflow passes from a clean consumer fixture |
+| Adoption | 3. Packaging hardening | Complete | Adoption 2 | Versioned package workflow passes from a clean consumer fixture |
 | PDF | 1. Chromium PDF export | Ready | Adoption 1 | Canonical HTML produces validated searchable PDF |
 | PDF | 2. PDF-native inspection | Pending | PDF 1 | Actual PDF pages render to inspection images |
 | PDF | 3. Export hardening | Pending | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
@@ -127,6 +126,6 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Begin Adoption Goal 3. Narrow and harden the package surface, prove protocol and
-configuration compatibility failures, and rerun the complete packed-consumer
-workflow from the supported environment.
+Begin PDF Goal 1. Add Chromium PDF export from canonical HTML, preserve
+report-owned print geometry, validate the produced PDF atomically, and prove
+both contrasting reports through the supported environment.

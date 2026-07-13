@@ -64,7 +64,7 @@ async function createProject(prefix = "unslide cli project "): Promise<string> {
 
     export default (
       <html lang="en">
-        <head><title>CLI fixture</title><style>{
+        <head><meta name="unslide-protocol" content="1" /><title>CLI fixture</title><style>{
           "body{margin:0}[data-unslide-page]{width:320px;height:180px;background:white}"
         }</style></head>
         <body><main data-unslide-page="fixture">CLI fixture</main></body>
@@ -223,6 +223,11 @@ test("CLI rejects missing reports, visual fields, and unsafe output paths", asyn
     const inheritedName = await runCli(["build", "constructor"], projectRoot);
     assert.equal(inheritedName.exitCode, 1);
     assert.match(JSON.stringify(inheritedName.value), /Unknown report.*fixture/);
+
+    await writeFile(configPath, JSON.stringify({ version: 2, reports: {} }));
+    const unsupportedVersion = await runCli([], projectRoot);
+    assert.equal(unsupportedVersion.exitCode, 1);
+    assert.match(JSON.stringify(unsupportedVersion.value), /Unsupported unslide\.json version 2.*automatic migration is not available/);
 
     await writeFile(configPath, JSON.stringify({
       version: 1,

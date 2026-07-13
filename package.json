@@ -1,19 +1,38 @@
 {
   "name": "unslide",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.12.0+sha512.820a6fbd0d9f04c226638002aead1e45340a9139dd5dc077c1d83ef44aa2481c8eb6637b4c9aa696a3c7e35ba818e49cf27213e5f2b91138d09b7a3e26e898ba",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "bin": {
     "unslide": "bin/unslide.mjs"
   },
   "exports": {
-    "./react": "./src/unslide/react.ts",
-    "./schema/unslide.json": "./schema/unslide.schema.json"
+    "./react": {
+      "types": "./dist/unslide/react.d.ts",
+      "default": "./dist/unslide/react.js"
+    },
+    "./schema/unslide.json": "./schema/unslide.schema.json",
+    "./protocol.md": "./docs/PROTOCOL.md"
   },
+  "files": [
+    "bin/unslide.mjs",
+    "dist/**/*.js",
+    "dist/unslide/react.d.ts",
+    "dist/unslide/render.d.ts",
+    "docs/PROTOCOL.md",
+    "schema/unslide.schema.json",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
-    "unslide": "./bin/unslide.mjs",
+    "build:package": "node scripts/clean-package.mjs && tsc -p tsconfig.build.json",
+    "prepack": "pnpm run build:package",
+    "unslide": "pnpm --silent run build:package && ./bin/unslide.mjs",
     "check": "tsc --noEmit",
     "test": "tsx --test tests/*.test.tsx",
     "validate": "pnpm run check && pnpm test && pnpm run render:spike && pnpm run capture:spike && pnpm run render:report && pnpm run capture:report",
@@ -24,6 +43,7 @@
   },
   "dependencies": {
     "@toon-format/toon": "2.3.0",
+    "@types/react": "19.1.8",
     "ajv": "8.20.0",
     "playwright": "1.61.1",
     "react": "19.1.0",
@@ -32,7 +52,6 @@
   },
   "devDependencies": {
     "@types/node": "24.0.13",
-    "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "typescript": "5.8.3"
   }

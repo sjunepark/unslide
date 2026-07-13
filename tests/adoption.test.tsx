@@ -18,6 +18,18 @@ async function runConsumerCli(consumerRoot: string, arguments_: string[]) {
   return decode(stdout) as Record<string, unknown>;
 }
 
+async function runConsumerCliFailure(consumerRoot: string, arguments_: string[]) {
+  try {
+    await execFileAsync("pnpm", ["exec", "unslide", ...arguments_], { cwd: consumerRoot });
+    assert.fail(`Expected unslide ${arguments_.join(" ")} to fail`);
+  } catch (error) {
+    const failure = error as Error & { code?: number; stderr?: string; stdout?: string };
+    assert.equal(failure.code, 1);
+    assert.equal(failure.stderr, "");
+    return decode(failure.stdout ?? "") as Record<string, unknown>;
+  }
+}
+
 test("packed tooling initializes and runs from a clean external consumer", { timeout: 60_000 }, async () => {
   const packageDirectory = await mkdtemp(resolve(tmpdir(), "unslide-adoption-package-"));
   const consumerRoot = await mkdtemp(resolve(tmpdir(), "unslide-adoption-consumer-"));
@@ -26,7 +38,26 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
     await execFileAsync("pnpm", ["pack", "--pack-destination", packageDirectory], {
       cwd: repositoryRoot,
     });
-    const tarballPath = resolve(packageDirectory, "unslide-0.0.0.tgz");
+    const tarballPath = resolve(packageDirectory, "unslide-0.1.0.tgz");
+    const { stdout: tarListing } = await execFileAsync("tar", ["-tzf", tarballPath]);
+    const packedFiles = tarListing.trim().split("\n");
+    for (const required of [
+      "package/bin/unslide.mjs",
+      "package/dist/cli.js",
+      "package/dist/unslide/react.js",
+      "package/dist/unslide/react.d.ts",
+      "package/docs/PROTOCOL.md",
+      "package/schema/unslide.schema.json",
+      "package/LICENSE",
+      "package/README.md",
+      "package/package.json",
+    ]) {
+      assert.ok(packedFiles.includes(required), `Missing packed file: ${required}`);
+    }
+    assert.equal(
+      packedFiles.some((path) => /^package\/(?:src|tests|scripts|\.vscode)\//.test(path) || /^package\/(?:AGENTS|PLAN|PRODUCT|ARCHITECTURE|tsconfig)/.test(path)),
+      false,
+    );
     await writeFile(resolve(consumerRoot, "package.json"), `${JSON.stringify({
       name: "unslide-clean-consumer",
       private: true,
@@ -41,6 +72,16 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
     const installedPackage = await realpath(resolve(consumerRoot, "node_modules", "unslide"));
     assert.ok(installedPackage.startsWith(await realpath(consumerRoot)));
     await access(resolve(installedPackage, "schema", "unslide.schema.json"));
+    await access(resolve(installedPackage, "dist", "cli.js"));
+    await assert.rejects(access(resolve(installedPackage, "src")), /ENOENT/);
+    const installedManifest = JSON.parse(await readFile(resolve(installedPackage, "package.json"), "utf8")) as {
+      version: string;
+      engines: { node: string };
+      exports: Record<string, unknown>;
+    };
+    assert.equal(installedManifest.version, "0.1.0");
+    assert.equal(installedManifest.engines.node, ">=24 <25");
+    assert.deepEqual(Object.keys(installedManifest.exports).sort(), ["./protocol.md", "./react", "./schema/unslide.json"]);
 
     const help = await runConsumerCli(consumerRoot, ["--help"]);
     assert.match(String(help.bin), /\/bin\/unslide\.mjs$/);
@@ -76,6 +117,15 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
     assert.doesNotMatch(html, /<script|<link[^>]+stylesheet|https?:\/\//);
     const png = await readFile(resolve(consumerRoot, ".tmp", "captures", "report", "page-01.png"));
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [960, 540]);
+
+    await writeFile(resolve(consumerRoot, "artifacts", "report.html"), html.replace('name="unslide-protocol" content="1"', 'name="unslide-protocol" content="2"'));
+    const artifactVersion = await runConsumerCliFailure(consumerRoot, ["inspect", "report"]);
+    assert.match(JSON.stringify(artifactVersion), /Unsupported artifact protocol version.*automatic migration is not available/);
+
+    const configPath = resolve(consumerRoot, "unslide.json");
+    await writeFile(configPath, (await readFile(configPath, "utf8")).replace('"version": 1', '"version": 2'));
+    const configVersion = await runConsumerCliFailure(consumerRoot, []);
+    assert.match(JSON.stringify(configVersion), /Unsupported unslide\.json version 2.*automatic migration is not available/);
   } finally {
     await rm(packageDirectory, { recursive: true, force: true });
     await rm(consumerRoot, { recursive: true, force: true });

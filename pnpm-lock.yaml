@@ -11,6 +11,9 @@ importers:
       '@toon-format/toon':
         specifier: 2.3.0
         version: 2.3.0
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       ajv:
         specifier: 8.20.0
         version: 8.20.0
@@ -30,9 +33,6 @@ importers:
       '@types/node':
         specifier: 24.0.13
         version: 24.0.13
-      '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
       '@types/react-dom':
         specifier: 19.1.6
         version: 19.1.6(@types/react@19.1.8)

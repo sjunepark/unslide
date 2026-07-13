@@ -8,10 +8,10 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1, V2 Core, and the first two V2 adoption slices are complete.** The
+Status: **V1, V2 Core, and V2 Adoption are complete.** The
 CLI initializes schema-validated projects and builds, inspects, and captures
-named reports through installed tooling. Package hardening and HTML-first PDF
-export remain. See [`PLAN.md`](PLAN.md) before starting work.
+named reports through installed, versioned tooling. HTML-first PDF export
+remains. Repository execution state is maintained in `PLAN.md`.
 
 ## Rendering Spike
 
@@ -86,7 +86,7 @@ allowBuilds:
 ```
 
 ```sh
-pnpm add /path/to/unslide/.tmp/package/unslide-0.0.0.tgz
+pnpm add /path/to/unslide/.tmp/package/unslide-0.1.0.tgz
 pnpm dlx playwright@1.61.1 install chromium
 pnpm exec unslide init
 pnpm exec unslide init --yes
@@ -107,32 +107,39 @@ writes standalone HTML. It supplies explicit local-asset helpers and rejects
 unresolved resource dependencies, but injects no document shell, stylesheet,
 page wrapper, geometry, chrome, or typography. Each proof report owns those
 choices beside its source. Local tarball installation is proven; the package's
-final file list, compatibility contract, and public release state remain the
-next adoption goal.
+minimal file list, compatibility contract, and private 0.x release state are
+verified through a clean external consumer.
 
-## Start Here
+## Package Contract
 
-- [PRODUCT.md](PRODUCT.md) — product thesis, proven V1 scope, and accepted V2
-  direction.
-- [docs/DESIGN.md](docs/DESIGN.md) — desired authoring and viewing behavior,
-  expressed without committing to syntax.
-- [ARCHITECTURE.md](ARCHITECTURE.md) — system shape, flows, and invariants.
-- [PLAN.md](PLAN.md) — current progress and the next implementation slice.
-- [docs/WORKFLOW.md](docs/WORKFLOW.md) — verified install, render, capture,
-  validation, and artifact paths.
-- [docs/PROTOCOL.md](docs/PROTOCOL.md) — implemented HTML page-marker and static
-  readiness contract.
-- [Explicit pages decision](docs/decisions/0001-explicit-pages.md) — why v1
-  deliberately avoids automatic pagination.
-- [Rendered preview decision](docs/decisions/0002-rendered-preview.md) — why
-  browser capture is development tooling rather than part of the report
-  runtime.
-- [Headless artifact decision](docs/decisions/0003-headless-artifact-protocol.md)
-  — why reports own all DOM and visual design.
-- [HTML-first PDF decision](docs/decisions/0004-html-first-pdf-export.md) — why
-  PDF derives from canonical HTML and receives target-native inspection.
-- [V2 detailed plans](docs/plans/v2-core.md) — the first `/goal`-ready execution
-  track; adoption and PDF plans are linked from `PLAN.md`.
+The 0.1.0 tarball intentionally exposes only:
+
+- the `unslide` executable;
+- `unslide/react` for React plus local-asset helpers;
+- the [project JSON Schema](schema/unslide.schema.json); and
+- the [HTML artifact protocol](docs/PROTOCOL.md).
+
+Playwright, browser sessions, validators, capture internals, and speculative
+adapter seams are package implementation details. Repository-only product,
+architecture, decision, workflow, and execution documents are not part of the
+installed contract.
+
+## Supported Environment and Compatibility
+
+Version 0.1.0 supports Node.js 24.x and pnpm 11.12 on the verified macOS arm64
+environment. HTML capture uses Playwright 1.61.1 and its managed Chromium; run
+`pnpm dlx playwright@1.61.1 install chromium` before the first capture. Other
+Node versions, package managers, operating systems, and browser engines are not
+yet claimed.
+
+`unslide.json` version 1 and artifact protocol v1 are the current persisted
+contracts. Explicit unsupported versions fail with manual migration guidance;
+the CLI does not rewrite user-owned configuration or report source. Artifacts
+created before 0.1.0 without protocol metadata remain compatible as v1.
+
+The first release remains private and 0.x while packed-consumer and PDF evidence
+accumulates. A stable public release requires an explicit later decision; 0.1.0
+does not promise automated upgrades or semantic-version stability.
 
 ## V1 in One Sentence
 
@@ -148,8 +155,9 @@ file, and let a human or coding agent inspect real browser-rendered page images.
 - Data reaches report source through ordinary language values and props.
 - Reports own their complete document, geometry, padding, fonts, repeated
   material, print rules, and every other design choice.
-- Versioned tooling will own compilation, artifact validation, isolated capture,
-  and PDF export instead of being copied into consuming repositories.
+- Versioned tooling owns compilation, artifact validation, and isolated capture
+  instead of being copied into consuming repositories; PDF export remains the
+  next delivery track.
 - PDF will be printed from canonical HTML and visually inspected from the
   produced PDF.
 - Optional visual recipes may generate editable source but will not be runtime
