@@ -1,6 +1,6 @@
 # V2 Adoption Plan
 
-Status: **Goal 1 ready; Goals 2–3 pending.**
+Status: **Goal 1 complete; Goal 2 ready; Goal 3 pending.**
 
 This plan replaces manual source copying with installed, versioned tooling while
 keeping report design in user-owned source. Use the `axi` skill when implementing
@@ -8,7 +8,7 @@ the CLI.
 
 ## Adoption Goal 1 — CLI and Project Configuration
 
-Status: **ready**
+Status: **complete**
 
 Depends on: Core Goal 3
 
@@ -58,6 +58,22 @@ HTML capture, backed by deterministic schema-validated JSON configuration.
   removed after documented replacements pass.
 - `PLAN.md` points to Adoption Goal 2; PDF Goal 1 becomes unblocked.
 
+### Completion Evidence
+
+- `unslide.json` and its strict versioned schema define only report source,
+  HTML, and capture paths relative to the discovered project root.
+- The TOON CLI builds, inspects, and captures named reports with stable 0/1/2
+  exit codes and clean stdout through the documented silent package command.
+- CLI tests cover help, invalid input, nested discovery, spaces, standalone
+  artifacts, missing entries, inherited names, path overlap and escape, and
+  symlink containment.
+- Type checking and all 21 focused tests passed; both proof reports were built,
+  inspected, and captured through the CLI, and all 11 page images were visually
+  inspected without defects.
+- The required implementation review applied the command-flag, package-output,
+  symlink-containment, and inherited-name fixes; the bounded recheck found no
+  remaining safe findings.
+
 ### Suggested `/goal` Objective
 
 > Implement Adoption Goal 1 from `docs/plans/v2-adoption.md` using the `axi`
@@ -67,7 +83,7 @@ HTML capture, backed by deterministic schema-validated JSON configuration.
 
 ## Adoption Goal 2 — Scaffolding and Report Migration
 
-Status: **pending**
+Status: **ready**
 
 Depends on: Adoption Goal 1
 

@@ -1,13 +1,13 @@
 # V2 PDF Plan
 
-Status: **pending on Adoption Goal 1.**
+Status: **Goal 1 ready; Goals 2–3 pending.**
 
 PDF is a derived target of canonical HTML. This plan must not introduce a
 parallel layout model or require Unslide-owned print design.
 
 ## PDF Goal 1 — Chromium PDF Export
 
-Status: **pending**
+Status: **ready**
 
 Depends on: Adoption Goal 1
 

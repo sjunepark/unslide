@@ -1,16 +1,17 @@
 # Plan
 
-Status: **V1 and V2 Core complete.**
+Status: **V1, V2 Core, and Adoption Goal 1 complete.**
 
-Current next action: **Run Adoption Goal 1 — implement the CLI and project
-configuration.** See [`docs/plans/v2-adoption.md`](docs/plans/v2-adoption.md).
+Current next action: **Run Adoption Goal 2 — implement safe project scaffolding
+and prove clean-consumer report migration.** See
+[`docs/plans/v2-adoption.md`](docs/plans/v2-adoption.md).
 
 Suggested `/goal` objective:
 
-> Implement Adoption Goal 1 from `docs/plans/v2-adoption.md` using the `axi`
-> skill: add schema-validated operational configuration and the agent-friendly
-> CLI, route both proof reports through it, keep plans current, and complete all
-> validation and review criteria.
+> Implement Adoption Goal 2 from `docs/plans/v2-adoption.md`: add safe minimal
+> scaffolding, migrate both proof reports to fully source-owned design, prove a
+> clean consumer without copied runtime files, update documentation and plan
+> state, and satisfy all validation and review criteria.
 
 This file is the live execution state. Update statuses, decisions, blockers,
 validation, and the current next action in place. Do not append session logs.
@@ -67,10 +68,10 @@ Keep these outside V2 unless a later decision changes scope:
 | Core | 1. Artifact protocol and validator | Complete | V2 planning | Protocol v1, shared validator, independent fixtures, and unchanged V1 captures |
 | Core | 2. Headless React authoring | Complete | Core 1 | Full-document rendering injects no visual policy |
 | Core | 3. Canonical HTML capture | Complete | Core 2 | Unrelated geometries capture through the protocol |
-| Adoption | 1. CLI and project configuration | Ready | Core 3 | Named reports build, inspect, and capture through one CLI |
-| Adoption | 2. Project scaffolding and migration | Pending | Adoption 1 | Clean consumer uses installed tooling; both reports are source-owned |
+| Adoption | 1. CLI and project configuration | Complete | Core 3 | Named reports build, inspect, and capture through one CLI |
+| Adoption | 2. Project scaffolding and migration | Ready | Adoption 1 | Clean consumer uses installed tooling; both reports are source-owned |
 | Adoption | 3. Packaging hardening | Pending | Adoption 2 | Versioned package workflow passes from a clean consumer fixture |
-| PDF | 1. Chromium PDF export | Pending | Adoption 1 | Canonical HTML produces validated searchable PDF |
+| PDF | 1. Chromium PDF export | Ready | Adoption 1 | Canonical HTML produces validated searchable PDF |
 | PDF | 2. PDF-native inspection | Pending | PDF 1 | Actual PDF pages render to inspection images |
 | PDF | 3. Export hardening | Pending | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
 | Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
@@ -126,5 +127,6 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Begin Adoption Goal 1. Add the operational JSON configuration and one coherent
-CLI for named build, artifact inspection, and HTML capture.
+Begin Adoption Goal 2. Add safe minimal scaffolding, complete the two proof
+report migration, and prove the workflow from a clean consumer without copied
+runtime files.

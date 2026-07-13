@@ -160,15 +160,21 @@ documentation are insufficient.
 - `src/unslide/browser.ts` owns canonical Chromium loading, shared protocol
   readiness, and browser/resource diagnostics without importing React.
 - `src/unslide/capture.ts` captures authored page bounds through that browser
-  seam and returns deterministic structured results. `scripts/capture.ts` is a
-  temporary repository command wrapper until the CLI replaces it.
+  seam and returns deterministic structured results.
+- `src/unslide/config.ts` discovers the nearest `unslide.json`, validates its
+  versioned operational schema, and resolves safe project-relative paths.
+- `src/unslide/build.ts` and `src/unslide/inspect.ts` provide the named React
+  build and canonical artifact-inspection operations used by the CLI.
+- `src/cli.ts` exposes build, inspect, and capture with TOON output and stable
+  exit codes. Repository scripts delegate through it; `scripts/capture.ts`
+  remains only as a temporary V1 wrapper over the same capture module.
 - `src/spike/` and `src/reports/operating-review/` own their full documents,
   page composition, A4 geometry, repeated material, and print rules.
 - `tests/workflow.test.tsx` is the current end-to-end test surface.
 
-Generated HTML stays under `artifacts/`; disposable V1 captures stay under
-`.tmp/captures/`. V2 output locations are finalized only after the CLI and
-configuration phases prove them.
+Generated HTML stays under `artifacts/`; disposable captures stay under
+`.tmp/captures/`. These locations are explicit report entries in the root
+`unslide.json`, not runtime visual policy.
 
 ## Related Decisions and Plans
 

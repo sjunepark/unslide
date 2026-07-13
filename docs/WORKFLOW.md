@@ -1,4 +1,4 @@
-# V1 Workflow
+# Repository Workflow
 
 This document records commands that work in the current implementation. The V2
 artifact protocol, headless full-document authoring, and canonical capture path
@@ -37,13 +37,23 @@ anything to generated reports.
 The small fixture lives under `src/spike/`; the credible report lives under
 `src/reports/operating-review/`.
 
+All repository report commands route through the schema-validated CLI and
+[`unslide.json`](../unslide.json).
+
 | Task | Command | Output |
 |---|---|---|
 | Render fixture | `pnpm run render:spike` | `artifacts/spike/report.html` |
 | Capture fixture | `pnpm run capture:spike` | `.tmp/captures/spike/page-*.png` |
 | Render real report | `pnpm run render:report` | `artifacts/operating-review/report.html` |
 | Capture real report | `pnpm run capture:report` | `.tmp/captures/operating-review/page-*.png` |
-| Run all v1 checks | `pnpm run validate` | Both HTML artifacts and capture sets |
+| Run all repository checks | `pnpm run validate` | Both HTML artifacts and capture sets |
+
+The direct forms are `pnpm --silent run unslide build <name>`, `pnpm --silent
+run unslide inspect <name>`, and `pnpm --silent run unslide capture <name>`.
+Run `pnpm --silent run unslide` from the project root or any nested directory
+to see the live report list with machine-readable TOON stdout. The nearest
+`unslide.json` defines the project root, and its source, HTML, and capture paths
+resolve relative to that directory.
 
 Open an artifact directly on macOS:
 
@@ -72,8 +82,9 @@ visual resources, and then captures marked elements in document order.
 The repository-local React writer serializes a complete author-owned document,
 provides explicit local-asset inlining, and injects no visual source. Each
 report owns page geometry, chrome or its absence, styles, and print behavior.
-The protocol-only capture module is implemented; the script remains a thin
-repository wrapper until the CLI replaces it.
+The protocol-only capture module is implemented, and current repository render
+and capture commands delegate through the CLI. The older capture script remains
+only as a temporary V1 compatibility wrapper around the same module.
 
 The accepted V2 direction supersedes copy-in as the adoption model. Stable
 build, validation, capture, and export behavior will move to versioned tooling;

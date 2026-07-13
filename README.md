@@ -8,12 +8,10 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1 and V2 Core complete.** The repository now verifies explicit pages
-through a headless HTML artifact protocol, renders report-owned complete React
-documents without visual policy, and captures arbitrary authored page bounds
-through a protocol-only browser path. The remaining V2 work packages stable
-tooling and adds HTML-first PDF export. See [`PLAN.md`](PLAN.md) before starting
-work.
+Status: **V1, V2 Core, and the first V2 adoption slice are complete.** The
+repository CLI discovers schema-validated projects and builds, inspects, and
+captures named reports. Scaffolding, package hardening, and HTML-first PDF
+export remain. See [`PLAN.md`](PLAN.md) before starting work.
 
 ## Rendering Spike
 
@@ -52,13 +50,34 @@ live in `src/reports/operating-review/`. Northstar Goods and all report values,
 commentary, and decisions are fictional examples created solely to demonstrate
 the authoring workflow.
 
+The repository aliases above use the same CLI that can be called directly:
+
+```sh
+pnpm --silent run unslide build operating-review
+pnpm --silent run unslide inspect operating-review
+pnpm --silent run unslide capture operating-review
+```
+
+With no command, `pnpm --silent run unslide` discovers the nearest
+`unslide.json` from the current directory or its parents and lists configured reports. The
+directory containing that file is the project root; every configured path is
+relative to it. The [versioned schema](schema/unslide.schema.json) rejects
+unknown fields and overlapping or escaping paths. Configuration contains only
+source and derived-artifact locations—visual choices remain in report source.
+
+The `--silent` package-manager flag keeps CLI stdout as structured TOON for
+automation. Exit code 0 means success, 1 an
+operational failure, and 2 invalid command usage. `unslide --help` and each
+command's `--help` form are noninteractive.
+
 ## Current Authoring Path
 
 `src/unslide/render.tsx` accepts a complete report-owned React document and
 writes standalone HTML. It supplies explicit local-asset helpers and rejects
 unresolved resource dependencies, but injects no document shell, stylesheet,
 page wrapper, geometry, chrome, or typography. Each proof report owns those
-choices beside its source. There is not yet a published package interface.
+choices beside its source. The repository CLI is implemented; a packed public
+package remains a later adoption goal.
 
 ## Start Here
 

@@ -6,15 +6,18 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "unslide": "tsx src/cli.ts",
     "check": "tsc --noEmit",
     "test": "tsx --test tests/*.test.tsx",
     "validate": "pnpm run check && pnpm test && pnpm run render:spike && pnpm run capture:spike && pnpm run render:report && pnpm run capture:report",
-    "render:report": "tsx src/reports/operating-review/render.tsx",
-    "capture:report": "tsx scripts/capture.ts artifacts/operating-review/report.html .tmp/captures/operating-review",
-    "render:spike": "tsx src/spike/render.tsx",
-    "capture:spike": "tsx scripts/capture.ts artifacts/spike/report.html .tmp/captures/spike"
+    "render:report": "pnpm --silent run unslide build operating-review",
+    "capture:report": "pnpm --silent run unslide capture operating-review",
+    "render:spike": "pnpm --silent run unslide build spike",
+    "capture:spike": "pnpm --silent run unslide capture spike"
   },
   "dependencies": {
+    "@toon-format/toon": "2.3.0",
+    "ajv": "8.20.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

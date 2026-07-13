@@ -1,0 +1,16 @@
+{
+  "$schema": "./schema/unslide.schema.json",
+  "version": 1,
+  "reports": {
+    "spike": {
+      "source": "src/spike/render.tsx",
+      "html": "artifacts/spike/report.html",
+      "captures": ".tmp/captures/spike"
+    },
+    "operating-review": {
+      "source": "src/reports/operating-review/render.tsx",
+      "html": "artifacts/operating-review/report.html",
+      "captures": ".tmp/captures/operating-review"
+    }
+  }
+}
