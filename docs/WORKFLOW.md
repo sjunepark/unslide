@@ -5,7 +5,7 @@ repositories, open [`docs/index.html`](index.html) directly in a browser.
 
 ## Supported Development Environment
 
-V1 is verified on macOS with Apple silicon, Node.js 24, npm 11, and the
+V1 is verified on macOS with Apple silicon, Node.js 24, pnpm 11, and the
 Playwright-managed Chromium build. Chromium is the canonical preview and print
 engine. The delivered HTML needs only a modern local browser; it does not need
 Node.js, Playwright, a server, or a running application.
@@ -18,12 +18,13 @@ capture engines in v1.
 From the repository root:
 
 ```sh
-npm ci
-npx playwright install chromium
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
 ```
 
-`npm ci` uses the committed lockfile. Browser installation is development-only
-and does not add anything to generated reports.
+The frozen install uses the committed lockfile, and pnpm is pinned through
+`package.json`. Browser installation is development-only and does not add
+anything to generated reports.
 
 ## Author, Render, and Inspect
 
@@ -32,11 +33,11 @@ The small fixture lives under `src/spike/`; the credible report lives under
 
 | Task | Command | Output |
 |---|---|---|
-| Render fixture | `npm run render:spike` | `artifacts/spike/report.html` |
-| Capture fixture | `npm run capture:spike` | `.tmp/captures/spike/page-*.png` |
-| Render real report | `npm run render:report` | `artifacts/operating-review/report.html` |
-| Capture real report | `npm run capture:report` | `.tmp/captures/operating-review/page-*.png` |
-| Run all v1 checks | `npm run validate` | Both HTML artifacts and capture sets |
+| Render fixture | `pnpm run render:spike` | `artifacts/spike/report.html` |
+| Capture fixture | `pnpm run capture:spike` | `.tmp/captures/spike/page-*.png` |
+| Render real report | `pnpm run render:report` | `artifacts/operating-review/report.html` |
+| Capture real report | `pnpm run capture:report` | `.tmp/captures/operating-review/page-*.png` |
+| Run all v1 checks | `pnpm run validate` | Both HTML artifacts and capture sets |
 
 Open an artifact directly on macOS:
 
@@ -65,13 +66,13 @@ system, component catalogue, or stable public API.
 
 ## Clean-Checkout Evidence
 
-The complete workflow was verified on 13 July 2026 from a fresh clone of
-committed `main` on macOS 26.5.1 arm64 with Node.js 24.11.0, npm 11.6.1,
-Playwright 1.61.1, and its managed Chromium build:
+The complete workflow was verified on 13 July 2026 from a clean exported tree
+on macOS 26.5.1 arm64 with Node.js 24.11.0, pnpm 11.12.0, Playwright 1.61.1,
+and its managed Chromium build:
 
-- `npm ci` completed with zero audit vulnerabilities;
-- `npx playwright install chromium` completed successfully;
-- `npm run validate` passed both focused tests and generated 3 fixture pages
+- `pnpm install --frozen-lockfile` completed from the committed lockfile;
+- `pnpm exec playwright install chromium` completed successfully;
+- `pnpm run validate` passed both focused tests and generated 3 fixture pages
   plus 8 operating-report pages;
 - every generated page image was visually inspected;
 - both HTML artifacts contained no external URLs, scripts, or linked styles;

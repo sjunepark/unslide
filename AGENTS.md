@@ -17,16 +17,16 @@ work begins only from real report evidence or an explicit scope decision.
 
 ## Commands
 
-- `npm install` — install pinned JavaScript dependencies.
-- `npx playwright install chromium` — install the isolated preview browser.
-- `npm run render:spike` — generate `artifacts/spike/report.html`.
-- `npm run capture:spike` — capture pages under `.tmp/captures/spike/`.
-- `npm run render:report` — generate the eight-page operating report.
-- `npm run capture:report` — capture its pages under
+- `pnpm install --frozen-lockfile` — install pinned JavaScript dependencies.
+- `pnpm exec playwright install chromium` — install the isolated preview browser.
+- `pnpm run render:spike` — generate `artifacts/spike/report.html`.
+- `pnpm run capture:spike` — capture pages under `.tmp/captures/spike/`.
+- `pnpm run render:report` — generate the eight-page operating report.
+- `pnpm run capture:report` — capture its pages under
   `.tmp/captures/operating-review/`.
-- `npm run check` — type-check report and tooling source.
-- `npm test` — run focused generation and Chromium capture health checks.
-- `npm run validate` — run all v1 checks and regenerate both reports.
+- `pnpm run check` — type-check report and tooling source.
+- `pnpm test` — run focused generation and Chromium capture health checks.
+- `pnpm run validate` — run all v1 checks and regenerate both reports.
 
 ## Scope
 
@@ -57,8 +57,8 @@ decision before implementation.
 
 ## Validation
 
-- Run `npm run check` for source changes.
-- Run `npm test` for page-foundation, rendering, or capture changes.
+- Run `pnpm run check` for source changes.
+- Run `pnpm test` for page-foundation, rendering, or capture changes.
 - Generate and capture the affected report, then inspect every page image for
   content fit and visual defects.
 - Verify Markdown links and paths.

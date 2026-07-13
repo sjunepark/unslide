@@ -286,10 +286,10 @@
         <section class="doc-section" id="quick-start" data-search="quick start install render capture validate example spike operating review commands">
           <h2>Run the project</h2>
           <p class="section-intro">The shortest path from a clean checkout to a browser-rendered report.</p>
-          <div class="code-block"><div class="code-head">Terminal <button class="copy-button" type="button">Copy</button></div><pre><code>npm ci
-npx playwright install chromium
-npm run render:spike
-npm run capture:spike
+          <div class="code-block"><div class="code-head">Terminal <button class="copy-button" type="button">Copy</button></div><pre><code>pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
+pnpm run render:spike
+pnpm run capture:spike
 open artifacts/spike/report.html</code></pre></div>
           <p>The render command writes a standalone three-page report to <code>artifacts/spike/report.html</code>. Capture writes one PNG per explicit page under <code>.tmp/captures/spike/</code>.</p>
           <h3>Available workflows</h3>
@@ -299,11 +299,11 @@ open artifacts/spike/report.html</code></pre></div>
               <button class="tab" role="tab" aria-selected="false" aria-controls="tab-report" id="tab-report-button" tabindex="-1">Operating report</button>
               <button class="tab" role="tab" aria-selected="false" aria-controls="tab-all" id="tab-all-button" tabindex="-1">Full validation</button>
             </div>
-            <div class="tab-panel" role="tabpanel" id="tab-spike" aria-labelledby="tab-spike-button"><div class="code-block"><div class="code-head">3-page fixture <button class="copy-button" type="button">Copy</button></div><pre><code>npm run render:spike
-npm run capture:spike</code></pre></div></div>
-            <div class="tab-panel" role="tabpanel" id="tab-report" aria-labelledby="tab-report-button" hidden><div class="code-block"><div class="code-head">8-page operating review <button class="copy-button" type="button">Copy</button></div><pre><code>npm run render:report
-npm run capture:report</code></pre></div></div>
-            <div class="tab-panel" role="tabpanel" id="tab-all" aria-labelledby="tab-all-button" hidden><div class="code-block"><div class="code-head">Checks + both reports <button class="copy-button" type="button">Copy</button></div><pre><code>npm run validate</code></pre></div></div>
+            <div class="tab-panel" role="tabpanel" id="tab-spike" aria-labelledby="tab-spike-button"><div class="code-block"><div class="code-head">3-page fixture <button class="copy-button" type="button">Copy</button></div><pre><code>pnpm run render:spike
+pnpm run capture:spike</code></pre></div></div>
+            <div class="tab-panel" role="tabpanel" id="tab-report" aria-labelledby="tab-report-button" hidden><div class="code-block"><div class="code-head">8-page operating review <button class="copy-button" type="button">Copy</button></div><pre><code>pnpm run render:report
+pnpm run capture:report</code></pre></div></div>
+            <div class="tab-panel" role="tabpanel" id="tab-all" aria-labelledby="tab-all-button" hidden><div class="code-block"><div class="code-head">Checks + both reports <button class="copy-button" type="button">Copy</button></div><pre><code>pnpm run validate</code></pre></div></div>
           </div>
         </section>
 
@@ -353,11 +353,11 @@ cp /path/to/unslide/scripts/capture.ts scripts/</code></pre></div>
             </li>
             <li>
               <h3>Install the runtime and authoring tools</h3>
-              <div class="code-block"><div class="code-head">Dependencies <button class="copy-button" type="button">Copy</button></div><pre><code>npm install react@19.1.0 react-dom@19.1.0
-npm install --save-dev typescript@5.8.3 tsx@4.20.3 \
+              <div class="code-block"><div class="code-head">Dependencies <button class="copy-button" type="button">Copy</button></div><pre><code>pnpm add -E react@19.1.0 react-dom@19.1.0
+pnpm add -DE typescript@5.8.3 tsx@4.20.3 \
   @types/node@24.0.13 @types/react@19.1.8 \
   @types/react-dom@19.1.6 playwright@1.61.1
-npx playwright install chromium</code></pre></div>
+pnpm exec playwright install chromium</code></pre></div>
               <p>These are the versions verified in this repository. Align them with existing compatible versions if the consuming repo already uses React or TypeScript.</p>
             </li>
             <li>
@@ -475,7 +475,7 @@ await writeReportHtml({
         <section class="doc-section" id="troubleshooting" data-search="troubleshooting no pages capture missing Chromium overflow imports NodeNext styles output">
           <h2>Troubleshooting</h2>
           <div class="api-row"><div><h3>No report pages found</h3></div><div><p>The capture script looks for <code>[data-page]</code>. Render pages with the shared <code>Page</code> component and wrap them in <code>&lt;main className="report"&gt;</code>.</p></div></div>
-          <div class="api-row"><div><h3>Chromium is missing</h3></div><div><p>Run <code>npx playwright install chromium</code>. Playwright is needed only for capture, not to open the generated artifact.</p></div></div>
+          <div class="api-row"><div><h3>Chromium is missing</h3></div><div><p>Run <code>pnpm exec playwright install chromium</code>. Playwright is needed only for capture, not to open the generated artifact.</p></div></div>
           <div class="api-row"><div><h3>TSX imports fail</h3></div><div><p>Use the committed NodeNext settings and keep <code>.js</code> extensions in relative TypeScript imports, as shown by the working reports.</p></div></div>
           <div class="api-row"><div><h3>Content leaves the page</h3></div><div><p>This is visible by design. Change report content, page allocation, or report CSS. Do not hide overflow or add automatic shrinking.</p></div></div>
           <div class="api-row"><div><h3>Output needs a server</h3></div><div><p>Assets or styles were probably linked externally. Keep required CSS and assets local or embedded so the generated report remains standalone.</p></div></div>

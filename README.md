@@ -21,10 +21,10 @@ not needed by a recipient opening that file.
 From the repository root:
 
 ```sh
-npm install
-npx playwright install chromium
-npm run render:spike
-npm run capture:spike
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
+pnpm run render:spike
+pnpm run capture:spike
 ```
 
 Open `artifacts/spike/report.html` in an ordinary browser. Inspect the three
@@ -39,8 +39,8 @@ repair it.
 The credible eight-page operating report uses the same loop:
 
 ```sh
-npm run render:report
-npm run capture:report
+pnpm run render:report
+pnpm run capture:report
 ```
 
 Its standalone artifact is `artifacts/operating-review/report.html`; its page

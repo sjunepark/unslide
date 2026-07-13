@@ -249,14 +249,17 @@ Make the proven workflow repeatable from a clean checkout.
 
 ### Verified Outcome
 
-- Dependencies and the Chromium toolchain are pinned by `package-lock.json`.
+- Dependencies are pinned by `pnpm-lock.yaml`, pnpm is pinned in
+  `package.json`, and dependency build scripts are explicitly approved in
+  `pnpm-workspace.yaml`.
 - Focused tests cover standalone HTML generation, title escaping, page
   structure, real Chromium capture, PNG health, and safe capture cleanup.
 - `docs/WORKFLOW.md` records installation, authoring, rendering, capture,
   validation, platform support, artifact ownership, and the decision to keep
   the foundation repository-local.
-- A fresh clone of committed `main` passed `npm ci`, Chromium installation, and
-  `npm run validate` on macOS 26.5.1 arm64 with Node.js 24.11.0 and npm 11.6.1.
+- A clean exported tree passed a frozen pnpm install, Chromium installation,
+  and `pnpm run validate` on macOS 26.5.1 arm64 with Node.js 24.11.0 and pnpm
+  11.12.0.
 - The clean run produced three fixture captures and eight operating-report
   captures. Every image was inspected and remained readable without overflow.
 - Both generated HTML files opened directly, contained no external runtime
