@@ -4,6 +4,9 @@ Unslide is a code-first way to create fixed-page HTML reports. Authors write
 plain-text report source, pass ordinary data into it, and receive a static HTML
 document made of explicitly composed pages.
 
+New to the codebase? Open the [interactive project guide](docs/PROJECT-GUIDE.html)
+for the product mental model, runtime flow, code map, tests, and review focus.
+
 The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.

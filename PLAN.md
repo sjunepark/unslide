@@ -1,15 +1,17 @@
 # Plan
 
-Status: **V1 and the accepted V2 scope are complete.**
+Status: **V1 and the accepted V2 scope are complete; the Effect v4 internal
+runtime migration is planned.**
 
-Current next action: **Collect consumer evidence before opening another product
-scope.** No V2 implementation goal remains.
+Current next action: **Execute Runtime Goal 1 from the Effect v4 internal
+runtime plan.** No V2 product implementation goal remains.
 
 Suggested `/goal` objective:
 
-> Exercise Unslide in a second real consumer report, record repeated source or
-> adapter needs, and revisit the recipe or source-adapter decision gate only if
-> that evidence justifies new scope.
+> Implement Runtime Goal 1 from `docs/plans/effect-v4-adoption.md`: add the
+> exactly pinned Effect v4 foundation and language-service checks, migrate the
+> CLI/config vertical slice to a minimal tagged failure boundary, preserve all
+> public behavior, update both plans, and complete validation and review.
 
 This file is the live execution state. Update statuses, decisions, blockers,
 validation, and the current next action in place. Do not append session logs.
@@ -32,6 +34,10 @@ repository-copy adoption model:
 
 See [D3](docs/decisions/0003-headless-artifact-protocol.md) and
 [D4](docs/decisions/0004-html-first-pdf-export.md).
+
+An accepted internal maintenance decision adopts exactly pinned Effect v4 for
+operational orchestration without changing these product boundaries or public
+contracts. See [D5](docs/decisions/0005-effect-v4-internal-runtime.md).
 
 ## Guardrails
 
@@ -72,6 +78,9 @@ Keep these outside V2 unless a later decision changes scope:
 | PDF | 1. Chromium PDF export | Complete | Adoption 1 | Canonical HTML produces validated searchable PDF |
 | PDF | 2. PDF-native inspection | Complete | PDF 1 | Actual PDF pages render to inspection images |
 | PDF | 3. Export hardening | Complete | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
+| Runtime | 1. Foundation and typed failures | Planned | Completed V2, D5 | Exact v4 foundation and unchanged CLI/package behavior |
+| Runtime | 2. Scoped browser and PDF lifecycles | Pending | Runtime 1 | Interruption-safe cleanup and readiness accounting |
+| Runtime | 3. Filesystem transactions and release hardening | Pending | Runtime 2 | Transaction invariants and packed-consumer workflow pass |
 | Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
 
 ## Detailed Plans
@@ -82,6 +91,9 @@ Keep these outside V2 unless a later decision changes scope:
   configuration, scaffolding, report migration, and package hardening.
 - [`docs/plans/v2-pdf.md`](docs/plans/v2-pdf.md) — browser PDF export,
   artifact validation, PDF-native inspection, and release hardening.
+- [`docs/plans/effect-v4-adoption.md`](docs/plans/effect-v4-adoption.md) — exact
+  v4 foundation, typed failures, scoped resources, and internal runtime
+  migration.
 
 The tracks are ordered by dependency, not by file ownership. PDF Goal 1 may
 start after Adoption Goal 1 because it needs the CLI and report lookup, while
@@ -98,8 +110,9 @@ V1 is the regression baseline, not the target public interface:
 - Both reports open locally and print as the expected A4 landscape page count.
 - A frozen pnpm install and `pnpm run validate` pass from a clean exported tree.
 
-The current V1 foundation still injects A4 geometry and chrome. V2 goals remove
-that requirement without discarding the proven authoring and inspection loop.
+The original V1 foundation injected A4 geometry and chrome. Completed V2 work
+removed that requirement without discarding the proven authoring and inspection
+loop.
 
 ## Decision Gates
 
@@ -125,7 +138,8 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-No numbered V2 goal remains. Use the implemented package in additional real
-reports and preserve evidence about repeated visual source, source adapters, or
-mixed PDF geometry. Reopen a deferred decision only when that evidence satisfies
-its gate.
+Execute Runtime Goal 1 from
+[`docs/plans/effect-v4-adoption.md`](docs/plans/effect-v4-adoption.md). This is an
+internal maintenance goal, not new product scope. The consumer-evidence gates
+for recipes, additional source adapters, and mixed PDF geometry remain unchanged
+and resume as the default next action after Runtime Goal 3.
