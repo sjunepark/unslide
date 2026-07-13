@@ -31,6 +31,7 @@ body {
 }
 
 @page {
+  /* The 3:4 screen canvas scales proportionally to this smaller delivery sheet. */
   size: 7.5in 10in;
   margin: 0;
 }

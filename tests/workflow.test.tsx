@@ -154,6 +154,43 @@ test("rejects unresolved local and network resource dependencies", async () => {
   }
 });
 
+test("checks dependencies only in resource-bearing HTML and CSS contexts", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-css-dependencies-"));
+  try {
+    await writeReportHtml({
+      document: (
+        <html>
+          <body>
+            <code>{'url("example.png") and @import "example.css"'}</code>
+            <script>{'URL.createObjectURL(blob); new URL("example.png", location.href);'}</script>
+            <main data-unslide-page="one">Standalone prose</main>
+          </body>
+        </html>
+      ),
+      outputPath: resolve(directory, "prose.html"),
+    });
+
+    await writeReportHtml({
+      document: <html><head><style>{'.hero { background: image-set("data:image/png;base64,AA==" type("image/png") 1x); }'}</style></head><body><main data-unslide-page="one" /></body></html>,
+      outputPath: resolve(directory, "inline-image-set.html"),
+    });
+
+    for (const document of [
+      <html><head><style>{'.hero { background: url("hero.png"); }'}</style></head><body><main data-unslide-page="one" /></body></html>,
+      <html><body><main data-unslide-page="one" style={{ backgroundImage: 'url("hero.png")' }} /></body></html>,
+      <html><head><style>{'.hero { background: image-set("hero.png" 1x, "hero@2x.png" 2x); }'}</style></head><body><main data-unslide-page="one" /></body></html>,
+      <html><head><style>{'.hero { background: image-set("data:image/png;base64,AA==" 1x, "hero@2x.png" type("image/png") 2x); }'}</style></head><body><main data-unslide-page="one" /></body></html>,
+    ]) {
+      await assert.rejects(
+        writeReportHtml({ document, outputPath: resolve(directory, "invalid.html") }),
+        /hero(?:@2x)?\.png/,
+      );
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("captures one PNG per page without deleting unrelated output", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "unslide-capture-"));
   const outputDirectory = resolve(directory, "captures");

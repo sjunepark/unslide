@@ -184,7 +184,9 @@ export async function exportHtmlPdf(input: string, output: string): Promise<PdfE
     const pageRules = await page.evaluate(() => {
       const baseSizes: string[] = [];
       const qualifiedSizes: string[] = [];
-      const pendingRules = Array.from(document.styleSheets, (sheet) => sheet.cssRules);
+      const pendingRules = Array.from(document.styleSheets)
+        .filter((sheet) => !sheet.disabled && (!sheet.media.mediaText || window.matchMedia(sheet.media.mediaText).matches))
+        .map((sheet) => sheet.cssRules);
       while (pendingRules.length > 0) {
         const rules = pendingRules.pop();
         if (!rules) continue;

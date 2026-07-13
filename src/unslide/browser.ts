@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { Browser, Page } from "playwright";
+import type { Browser, Page, Request } from "playwright";
 import { chromium } from "playwright";
 import {
   formatArtifactIssues,
@@ -50,7 +50,7 @@ export async function withLoadedArtifact<T>(
   }
 
   const browserIssues: string[] = [];
-  const pendingResources = new Set<string>();
+  const pendingResources = new Set<Request>();
   try {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
@@ -58,15 +58,15 @@ export async function withLoadedArtifact<T>(
     });
     const page = await context.newPage();
     page.on("request", (request) => {
-      if (request.resourceType() !== "document") pendingResources.add(request.url());
+      if (request.resourceType() !== "document") pendingResources.add(request);
     });
-    page.on("requestfinished", (request) => pendingResources.delete(request.url()));
+    page.on("requestfinished", (request) => pendingResources.delete(request));
     page.on("console", (message) => {
       if (message.type() === "error") browserIssues.push(`Console error: ${message.text()}`);
     });
     page.on("pageerror", (error) => browserIssues.push(`Page error: ${error.message}`));
     page.on("requestfailed", (request) => {
-      pendingResources.delete(request.url());
+      pendingResources.delete(request);
       browserIssues.push(
         `Resource failed: ${displayResource(request.url())} (${request.failure()?.errorText ?? "unknown error"})`,
       );
@@ -75,7 +75,7 @@ export async function withLoadedArtifact<T>(
     try {
       await page.goto(pathToFileURL(inputPath).href, { waitUntil: "domcontentloaded", timeout: 5_000 });
     } catch (error) {
-      const pending = [...pendingResources].map(displayResource);
+      const pending = [...pendingResources].map((request) => displayResource(request.url()));
       throw new Error(
         `Cannot load HTML artifact ${inputPath}${pending.length === 0 ? "" : `. Pending resources: ${pending.join(", ")}`}: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -85,7 +85,7 @@ export async function withLoadedArtifact<T>(
     const issues = [
       ...(validation.ok ? [] : [formatArtifactIssues(validation.issues)]),
       ...browserIssues,
-      ...[...pendingResources].map((url) => `Resource still pending: ${displayResource(url)}`),
+      ...[...pendingResources].map((request) => `Resource still pending: ${displayResource(request.url())}`),
     ];
     if (issues.length > 0) {
       throw new Error(`Artifact readiness failed:\n${issues.join("\n")}`);
@@ -94,7 +94,7 @@ export async function withLoadedArtifact<T>(
     const result = await operation({ page, pages: validation.pages });
     const operationIssues = [
       ...browserIssues,
-      ...[...pendingResources].map((url) => `Resource still pending: ${displayResource(url)}`),
+      ...[...pendingResources].map((request) => `Resource still pending: ${displayResource(request.url())}`),
     ];
     if (operationIssues.length > 0) {
       throw new Error(`Artifact browser errors:\n${operationIssues.join("\n")}`);

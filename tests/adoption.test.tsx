@@ -239,7 +239,7 @@ export default (
     assert.match(html, /data:font\/woff2;base64,/);
     assert.match(html, /<svg[^>]+aria-label="Inline SVG"/);
     assert.match(html, /href="https:\/\/example\.com\/delivery"/);
-    assert.doesNotMatch(html, /<script|<link[^>]+stylesheet|(?:src|url\()=["']?https?:\/\//);
+    assert.doesNotMatch(html, /<script|<link[^>]+stylesheet|(?:src=["']?|url\(["']?)https?:\/\//);
     const png = await readFile(resolve(consumerRoot, ".tmp", "captures", "report", "page-01.png"));
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [960, 540]);
 

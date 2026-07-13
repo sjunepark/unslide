@@ -94,6 +94,29 @@ test("rejects implicit or ambiguous authored page geometry without replacing pri
     await assert.rejects(exportHtmlPdf(inputPath, outputPath), /active, unqualified @page rule/);
 
     await writeFile(inputPath, artifact(
+      "body{margin:0}",
+      '<style media="screen">@page{size:letter}</style><main data-unslide-page="one">Screen-only geometry</main>',
+    ));
+    await assert.rejects(exportHtmlPdf(inputPath, outputPath), /active, unqualified @page rule/);
+
+    await writeFile(inputPath, artifact(
+      "@page{size:4in 3in;margin:0}body{margin:0}",
+      '<style media="screen">@page{size:letter}</style><main data-unslide-page="one">Print geometry wins</main>',
+    ));
+    const activePrintGeometry = await exportHtmlPdf(inputPath, outputPath);
+    assert.equal(activePrintGeometry.pages[0]?.widthPoints, 288);
+    assert.equal(activePrintGeometry.pages[0]?.heightPoints, 216);
+
+    await writeFile(inputPath, artifact(
+      "@page{size:4in 3in;margin:0}body{margin:0}",
+      '<style>@page{size:letter}</style><script>document.currentScript.previousElementSibling.sheet.disabled = true</script><main data-unslide-page="one">Disabled geometry ignored</main>',
+    ));
+    const disabledGeometry = await exportHtmlPdf(inputPath, outputPath);
+    assert.equal(disabledGeometry.pages[0]?.widthPoints, 288);
+    assert.equal(disabledGeometry.pages[0]?.heightPoints, 216);
+    await writeFile(outputPath, "prior delivery");
+
+    await writeFile(inputPath, artifact(
       "@page:first{size:4in 3in}body{margin:0}",
       '<main data-unslide-page="one">Qualified geometry</main>',
     ));

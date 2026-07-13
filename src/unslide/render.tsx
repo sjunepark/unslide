@@ -114,12 +114,26 @@ function assertCompleteStandaloneDocument(html: string): void {
     collectSrcsetDependencies(match[1] ?? match[2] ?? "");
   }
 
-  for (const match of html.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)'"\s]+))\s*\)/gi)) {
-    collectDependency(match[1] ?? match[2] ?? match[3] ?? "");
-  }
+  const cssContexts = [
+    ...Array.from(html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi), (match) => match[1] ?? ""),
+    ...Array.from(html.matchAll(/\sstyle=(?:"([^"]*)"|'([^']*)')/gi), (match) => match[1] ?? match[2] ?? ""),
+  ];
 
-  for (const match of html.matchAll(/@import\s+(?:url\()?\s*(?:"([^"]*)"|'([^']*)')/gi)) {
-    collectDependency(match[1] ?? match[2] ?? "");
+  for (const css of cssContexts) {
+    for (const match of css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)'"\s]+))\s*\)/gi)) {
+      collectDependency(match[1] ?? match[2] ?? match[3] ?? "");
+    }
+
+    for (const match of css.matchAll(/@import\s+(?:url\()?\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+      collectDependency(match[1] ?? match[2] ?? "");
+    }
+
+    for (const imageSet of css.matchAll(/(?:-webkit-)?image-set\((?:[^()]|\([^()]*\))*\)/gi)) {
+      const candidates = imageSet[0].slice(imageSet[0].indexOf("(") + 1, -1);
+      for (const candidate of candidates.matchAll(/(?:^|,)\s*(?:"([^"]*)"|'([^']*)')/g)) {
+        collectDependency(candidate[1] ?? candidate[2] ?? "");
+      }
+    }
   }
 
   if (dependencies.size > 0) {

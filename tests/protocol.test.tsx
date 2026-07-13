@@ -47,6 +47,23 @@ test("protocol v1 preserves ordered metadata for arbitrary marked elements", asy
   });
 });
 
+test("browser validator literals stay aligned with exported protocol constants", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(
+      `<meta name="${PROTOCOL_META_NAME}" content="${UNSLIDE_PROTOCOL_VERSION}"><main ${PAGE_MARKER_ATTRIBUTE}="aligned">Aligned protocol</main>`,
+    );
+
+    assert.deepEqual(await page.evaluate(validateArtifact), {
+      ok: true,
+      pages: [{ id: "aligned", index: 0, tagName: "main" }],
+    });
+  } finally {
+    await browser.close();
+  }
+});
+
 test("protocol validation rejects unsupported artifact versions with migration guidance", async () => {
   const result = await validateFixture("protocol-unsupported-version.html");
 
@@ -287,6 +304,48 @@ test("capture names a resource that blocks DOM parsing", async () => {
       captureHtmlPages(inputPath, resolve(directory, "captures")),
       /Cannot load HTML artifact .*Pending resources: .*never\.js/,
     );
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("capture tracks concurrent requests to the same URL independently", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-duplicate-request-"));
+  let sharedRequests = 0;
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==", "base64");
+  const server = createServer((request, response) => {
+    if (request.url === "/shared") {
+      sharedRequests += 1;
+      response.setHeader("Access-Control-Allow-Origin", "*");
+      if (sharedRequests === 1) response.end("ready");
+      return;
+    }
+    if (request.url === "/gate.png") {
+      setTimeout(() => {
+        response.setHeader("Content-Type", "image/png");
+        response.end(png);
+      }, 200);
+      return;
+    }
+    response.statusCode = 404;
+    response.end();
+  });
+
+  try {
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const origin = `http://127.0.0.1:${address.port}`;
+    const inputPath = resolve(directory, "duplicate-request.html");
+    await writeFile(inputPath, `<!doctype html><html><body><script>void fetch("${origin}/shared"); void fetch("${origin}/shared");</script><main data-unslide-page="one"><img src="${origin}/gate.png" alt=""></main></body></html>`);
+
+    await assert.rejects(
+      captureHtmlPages(inputPath, resolve(directory, "captures")),
+      /Resource still pending: .*\/shared/,
+    );
+    assert.equal(sharedRequests, 2);
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolveClose) => server.close(() => resolveClose()));

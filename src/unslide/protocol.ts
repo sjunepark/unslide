@@ -1,3 +1,5 @@
+// validateArtifact is serialized into the browser and cannot close over these
+// module bindings. Keep its protocol literals synchronized with these exports.
 export const UNSLIDE_PROTOCOL_VERSION = 1;
 export const PROTOCOL_META_NAME = "unslide-protocol";
 export const PAGE_MARKER_ATTRIBUTE = "data-unslide-page";
@@ -33,6 +35,7 @@ export type ArtifactValidationResult =
  * directly in the artifact without coupling the protocol to an authoring tool.
  */
 export async function validateArtifact(): Promise<ArtifactValidationResult> {
+  // Browser-evaluated copies of the exported protocol constants above.
   const markerAttribute = "data-unslide-page";
   const markerSelector = `[${markerAttribute}]`;
   const resourceTimeoutMs = 5_000;
@@ -44,6 +47,8 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
     }),
   ]);
 
+  // This selector and the supported version are browser copies of
+  // PROTOCOL_META_NAME and UNSLIDE_PROTOCOL_VERSION; update both locations.
   const protocolMetadata = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="unslide-protocol"]'));
   if (protocolMetadata.length > 1) {
     issues.push({
