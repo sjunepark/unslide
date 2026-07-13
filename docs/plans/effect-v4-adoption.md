@@ -1,6 +1,6 @@
 # Effect v4 Internal Runtime Plan
 
-Status: **Runtime Goal 1 complete; Runtime Goal 2 is in progress.**
+Status: **Runtime Goals 1 and 2 complete; Runtime Goal 3 is next.**
 
 This is an internal maintenance track governed by
 [D5](../decisions/0005-effect-v4-internal-runtime.md). It does not reopen
@@ -144,7 +144,7 @@ preserving every observable CLI and package behavior.
 
 ## Runtime Goal 2 — Scoped Browser and PDF Lifecycles
 
-Status: **in progress**
+Status: **complete**
 
 Depends on: Runtime Goal 1
 
@@ -201,7 +201,7 @@ without changing the serializable artifact protocol or output artifacts.
 - Browser protocol and generated HTML, PNG, and PDF behavior remain unchanged.
 - `PLAN.md` points to Runtime Goal 3.
 
-### Current Progress
+### Completion Evidence
 
 - Chromium browser, context, and page ownership now uses one sequential Effect
   scope. The existing 5-second navigation policy is an interrupting Effect
@@ -212,11 +212,25 @@ without changing the serializable artifact protocol or output artifacts.
   its same-URL regression test remain unchanged and pass.
 - PDF loading tasks, pages, unsettled render tasks, and native canvases now have
   explicit scoped destruction, cleanup, cancellation, and release. Per-page
-  scopes preserve sequential ordering and release each page before the next.
-- `pnpm run check` and all 43 tests pass on Node 24.15.0. Real Chromium and
-  PDF.js evidence covers success, operation failure, interruption, cleanup
-  failure, combined diagnostics, same-URL readiness, rollback, and staging
-  cleanup. Full report regeneration/inspection and review remain.
+  scopes preserve sequential ordering and release each page before the next;
+  interruption of stalled page acquisition destroys the loading task exactly
+  once, while non-cancellable native encoding and staging writes finish before
+  cleanup.
+- On Node 24.15.0, full `pnpm run validate` passed with all 44 tests, including
+  the packed clean-consumer workflow. Both proof reports regenerated, captured,
+  exported, and rendered from PDF at their expected 3- and 8-page counts.
+- All 22 HTML and PDF-native page images were inspected without overflow,
+  clipping, missing glyphs, blank pages, or target drift. Their hashes remained
+  identical after the review fix and final validation. No Chromium process,
+  PDF task, page-image staging directory, PDF staging file, or recovery
+  temporary resource survived the completed or failed workflows.
+- Package build and dry-run packing retained the established 24-file surface
+  and only the two public declaration files; no Effect type escaped through a
+  package export. No unstable Effect import, service, Layer, adapter, new
+  timeout, or concurrent ordering path was introduced.
+- The required subagent implementation review and diet lens found no decision
+  item. Its one safe finding—interrupting a stalled PDF page acquisition—was
+  fixed, independently rechecked, and covered in both PDF workflows.
 
 ### Suggested `/goal` Objective
 
@@ -228,7 +242,7 @@ without changing the serializable artifact protocol or output artifacts.
 
 ## Runtime Goal 3 — Filesystem Transactions and Release Hardening
 
-Status: **pending**
+Status: **next**
 
 Depends on: Runtime Goal 2
 

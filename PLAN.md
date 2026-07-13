@@ -1,18 +1,18 @@
 # Plan
 
-Status: **V1 and the accepted V2 scope are complete; Runtime Goal 2 of the
-Effect v4 internal migration is in progress.**
+Status: **V1 and the accepted V2 scope are complete; Runtime Goals 1 and 2 of
+the Effect v4 internal migration are complete.**
 
-Current next action: **Complete Runtime Goal 2's full rendered validation,
-resource-leak audit, and required subagent review.** No V2 product
-implementation goal remains.
+Current next action: **Execute Runtime Goal 3 from the Effect v4 internal
+runtime plan.** Do not resume a deferred product gate before that maintenance
+goal completes.
 
 Suggested `/goal` objective:
 
-> Implement Runtime Goal 2 from `docs/plans/effect-v4-adoption.md`: migrate the
-> browser and PDF lifecycles to scoped Effect v4 resources, fix same-URL request
-> accounting, prove cleanup and interruption behavior, preserve the page
-> protocol and artifacts, update both plans, and complete full validation and
+> Implement Runtime Goal 3 from `docs/plans/effect-v4-adoption.md`: complete the
+> filesystem and publication migration without weakening transaction recovery,
+> remove transition scaffolding, harden the package and consumer workflow,
+> update current architecture and plans, and complete full validation and
 > review.
 
 This file is the live execution state. Update statuses, decisions, blockers,
@@ -81,8 +81,8 @@ Keep these outside V2 unless a later decision changes scope:
 | PDF | 2. PDF-native inspection | Complete | PDF 1 | Actual PDF pages render to inspection images |
 | PDF | 3. Export hardening | Complete | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
 | Runtime | 1. Foundation and typed failures | Complete | Completed V2, D5 | Exact v4 foundation and unchanged CLI/package behavior |
-| Runtime | 2. Scoped browser and PDF lifecycles | In progress | Runtime 1 | Lifecycle implementation complete; full validation and review remain |
-| Runtime | 3. Filesystem transactions and release hardening | Pending | Runtime 2 | Transaction invariants and packed-consumer workflow pass |
+| Runtime | 2. Scoped browser and PDF lifecycles | Complete | Runtime 1 | Interruption-safe cleanup and readiness accounting |
+| Runtime | 3. Filesystem transactions and release hardening | Planned | Runtime 2 | Transaction invariants and packed-consumer workflow pass |
 | Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
 
 ## Detailed Plans
@@ -140,7 +140,7 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Complete Runtime Goal 2 from
+Execute Runtime Goal 3 from
 [`docs/plans/effect-v4-adoption.md`](docs/plans/effect-v4-adoption.md). This is an
 internal maintenance goal, not new product scope. The consumer-evidence gates
 for recipes, additional source adapters, and mixed PDF geometry remain unchanged
