@@ -92,12 +92,15 @@ The verified pre-release path uses a packed tarball. From this repository:
 pnpm pack --pack-destination .tmp/package
 ```
 
-In an existing pnpm project, allow the pinned `esbuild` install script in
-`pnpm-workspace.yaml`, then install that tarball:
+In an existing pnpm project, enforce dependency engine ranges, allow the pinned
+`esbuild` install script, and explicitly reject Effect's optional native
+MessagePack accelerator in `pnpm-workspace.yaml`, then install that tarball:
 
 ```yaml
+engineStrict: true
 allowBuilds:
   esbuild: true
+  msgpackr-extract: false
 ```
 
 ```sh
@@ -144,8 +147,9 @@ of the installed contract.
 
 ## Supported Environment and Compatibility
 
-Version 0.1.0 supports Node.js 24.x and pnpm 11.12 on the verified macOS arm64
-environment. HTML capture and PDF export use Playwright 1.61.1 and its managed
+Version 0.1.0 supports Node.js 24.15 or newer within the Node 24 release line
+and pnpm 11.12 on the verified macOS arm64 environment. HTML capture and PDF
+export use Playwright 1.61.1 and its managed
 Chromium; PDF validation and rasterization use PDF.js 6.1.200, with
 `@napi-rs/canvas` 1.0.2 providing the pinned Node canvas. Run
 `pnpm dlx playwright@1.61.1 install chromium` before the first capture or export.

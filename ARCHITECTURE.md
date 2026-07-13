@@ -159,7 +159,8 @@ documentation are insufficient.
 - `src/unslide/protocol.ts` defines protocol v1 metadata, validation, and static
   readiness independently of React.
 - `src/unslide/browser.ts` owns canonical Chromium loading, shared protocol
-  readiness, and browser/resource diagnostics without importing React.
+  readiness, browser/resource diagnostics, and scoped browser/context/page
+  release without importing React.
 - `src/unslide/capture.ts` captures authored page bounds through that browser
   seam and returns deterministic structured results.
 - `src/unslide/page-images.ts` atomically replaces managed page PNG sets while
@@ -168,9 +169,11 @@ documentation are insufficient.
   versioned operational schema, and resolves safe project-relative paths.
 - `src/unslide/pdf.ts` prints canonical HTML through the shared browser seam,
   requires authored page geometry, validates page count, common geometry, and
-  extractable text with PDF.js, and publishes the PDF atomically.
+  extractable text with scoped PDF.js loading tasks and pages, and publishes
+  the PDF atomically.
 - `src/unslide/pdf-inspection.ts` reads only an existing PDF and rasterizes each
-  page through PDF.js and `@napi-rs/canvas` into deterministic 96-DPI PNGs.
+  page through scoped PDF.js tasks, pages, render tasks, and native canvases
+  into deterministic 96-DPI PNGs.
 - `src/unslide/build.ts` and `src/unslide/inspect.ts` provide the named React
   build and canonical artifact-inspection operations used by the CLI.
 - `src/cli.ts` exposes initialization, HTML build/inspection/capture, PDF export,

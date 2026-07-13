@@ -1,6 +1,6 @@
 # Effect v4 Internal Runtime Plan
 
-Status: **planned; Runtime Goal 1 is next.**
+Status: **Runtime Goals 1 and 2 complete; Runtime Goal 3 is next.**
 
 This is an internal maintenance track governed by
 [D5](../decisions/0005-effect-v4-internal-runtime.md). It does not reopen
@@ -40,7 +40,7 @@ product scope or change Unslide's public authoring and artifact contracts.
 
 ## Runtime Goal 1 — Foundation and Typed Failure Boundary
 
-Status: **planned**
+Status: **complete**
 
 Depends on: completed V2 scope and D5
 
@@ -103,6 +103,38 @@ preserving every observable CLI and package behavior.
   per-function dual API exists.
 - `PLAN.md` points to Runtime Goal 2.
 
+### Completion Evidence
+
+- `effect@4.0.0-beta.97` is an exact runtime dependency and
+  `@effect/language-service@0.87.0` is an exact development dependency. The
+  pinned local plugin schema and `check` script enable build diagnostics without
+  adding an install lifecycle. The workspace enforces dependency engine ranges;
+  the active release-age policy has one exact exception for the newly published
+  tool.
+- One named root Effect program owns CLI execution. Four internal
+  `Data.TaggedError` cases describe project discovery, configuration, report
+  lookup, and bridged command failures; one exhaustive formatter preserves the
+  existing TOON payloads and 0/1/2 exits. Unknown exceptions in the migrated
+  configuration slice remain defects at the outer boundary.
+- Project discovery, JSON/schema validation, safe path resolution, canonical
+  path checks, and report lookup use typed Effect channels. Remaining
+  Promise-native commands cross one orchestration bridge rather than gaining
+  parallel APIs; no service, Layer, unstable import, or public Effect type was
+  introduced.
+- Tests assert exact help and failure bytes, empty stderr, all exit codes, and
+  every tagged failure mapping. On the canonical Node 24.15 environment,
+  frozen installation, build diagnostics, package compilation, and full
+  validation with all 37 repository tests passed; all 22 regenerated HTML and
+  PDF page images were inspected without defects.
+- The final tarball retained only the established exports and two public
+  declaration files. A clean packed consumer installed with a frozen lockfile
+  and completed initialization, HTML build/inspection/capture, PDF export, and
+  PDF inspection; no Effect type appeared in the packed declarations.
+- The production audit found no known vulnerabilities. Effect and its added
+  transitive dependencies use MIT, ISC, BSD-3-Clause, or Apache-2.0 licenses.
+  The implementation review and bounded recheck, including the diet lens,
+  ended with no remaining safe finding or decision.
+
 ### Suggested `/goal` Objective
 
 > Implement Runtime Goal 1 from `docs/plans/effect-v4-adoption.md`: add the
@@ -112,7 +144,7 @@ preserving every observable CLI and package behavior.
 
 ## Runtime Goal 2 — Scoped Browser and PDF Lifecycles
 
-Status: **pending**
+Status: **complete**
 
 Depends on: Runtime Goal 1
 
@@ -169,6 +201,37 @@ without changing the serializable artifact protocol or output artifacts.
 - Browser protocol and generated HTML, PNG, and PDF behavior remain unchanged.
 - `PLAN.md` points to Runtime Goal 3.
 
+### Completion Evidence
+
+- Chromium browser, context, and page ownership now uses one sequential Effect
+  scope. The existing 5-second navigation policy is an interrupting Effect
+  deadline; real-browser tests prove release after success, operation failure,
+  interruption, and cleanup failure.
+- A small internal scope runner retains primary and cleanup causes together at
+  the Promise boundary. The existing `Set<Request>` identity accounting and
+  its same-URL regression test remain unchanged and pass.
+- PDF loading tasks, pages, unsettled render tasks, and native canvases now have
+  explicit scoped destruction, cleanup, cancellation, and release. Per-page
+  scopes preserve sequential ordering and release each page before the next;
+  interruption of stalled page acquisition destroys the loading task exactly
+  once, while non-cancellable native encoding and staging writes finish before
+  cleanup.
+- On Node 24.15.0, full `pnpm run validate` passed with all 44 tests, including
+  the packed clean-consumer workflow. Both proof reports regenerated, captured,
+  exported, and rendered from PDF at their expected 3- and 8-page counts.
+- All 22 HTML and PDF-native page images were inspected without overflow,
+  clipping, missing glyphs, blank pages, or target drift. Their hashes remained
+  identical after the review fix and final validation. No Chromium process,
+  PDF task, page-image staging directory, PDF staging file, or recovery
+  temporary resource survived the completed or failed workflows.
+- Package build and dry-run packing retained the established 24-file surface
+  and only the two public declaration files; no Effect type escaped through a
+  package export. No unstable Effect import, service, Layer, adapter, new
+  timeout, or concurrent ordering path was introduced.
+- The required subagent implementation review and diet lens found no decision
+  item. Its one safe finding—interrupting a stalled PDF page acquisition—was
+  fixed, independently rechecked, and covered in both PDF workflows.
+
 ### Suggested `/goal` Objective
 
 > Implement Runtime Goal 2 from `docs/plans/effect-v4-adoption.md`: migrate the
@@ -179,7 +242,7 @@ without changing the serializable artifact protocol or output artifacts.
 
 ## Runtime Goal 3 — Filesystem Transactions and Release Hardening
 
-Status: **pending**
+Status: **next**
 
 Depends on: Runtime Goal 2
 

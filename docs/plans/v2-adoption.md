@@ -221,8 +221,9 @@ exports, errors, and upgrade behavior are credible outside this repository.
 - Config and artifact protocol v1 compatibility are explicit. Unsupported
   versions fail with manual-migration guidance, while pre-0.1.0 artifacts with
   absent protocol metadata remain readable as v1.
-- Node.js 24.x, pnpm 11.12, Playwright 1.61.1, managed Chromium, and the verified
-  macOS arm64 environment are documented without broader support claims. The
+- Node.js 24.15 or newer within the Node 24 release line, pnpm 11.12, Playwright
+  1.61.1, managed Chromium, and the verified macOS arm64 environment are
+  documented without broader support claims. The
   PDF evidence is now complete; the first release remains private 0.x pending a
   later stable release decision.
 - Type checking, all 33 focused tests, package build and file inspection,

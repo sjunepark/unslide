@@ -122,7 +122,10 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
       packageManager: "pnpm@11.12.0",
       dependencies: { unslide: `file:${tarballPath}` },
     }, null, 2)}\n`);
-    await writeFile(resolve(consumerRoot, "pnpm-workspace.yaml"), "allowBuilds:\n  esbuild: true\n");
+    await writeFile(
+      resolve(consumerRoot, "pnpm-workspace.yaml"),
+      "engineStrict: true\nallowBuilds:\n  esbuild: true\n  msgpackr-extract: false\n",
+    );
     await execFileAsync("pnpm", ["install"], { cwd: consumerRoot });
     await execFileAsync("pnpm", ["install", "--frozen-lockfile"], { cwd: consumerRoot });
 
@@ -138,10 +141,11 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
       dependencies: Record<string, string>;
     };
     assert.equal(installedManifest.version, "0.1.0");
-    assert.equal(installedManifest.engines.node, ">=24 <25");
+    assert.equal(installedManifest.engines.node, ">=24.15 <25");
     assert.deepEqual(Object.keys(installedManifest.exports).sort(), ["./protocol.md", "./react", "./schema/unslide.json", "./support.md"]);
     assert.equal(installedManifest.dependencies["pdfjs-dist"], "6.1.200");
     assert.equal(installedManifest.dependencies["@napi-rs/canvas"], "1.0.2");
+    assert.equal(installedManifest.dependencies.effect, "4.0.0-beta.97");
 
     const help = await runConsumerCli(consumerRoot, ["--help"]);
     assert.match(String(help.bin), /\/bin\/unslide\.mjs$/);

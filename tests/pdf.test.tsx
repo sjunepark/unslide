@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import test from "node:test";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { exportHtmlPdf } from "../src/unslide/pdf.js";
 
 const repositoryRoot = resolve(".");
@@ -22,6 +23,20 @@ function artifact(styles: string, body: string): string {
 async function temporaryDirectory(prefix: string): Promise<string> {
   await mkdir(resolve(repositoryRoot, ".tmp"), { recursive: true });
   return mkdtemp(resolve(repositoryRoot, ".tmp", prefix));
+}
+
+async function pdfRuntimePrototypes(bytes: Uint8Array) {
+  const loadingTask = getDocument({ data: new Uint8Array(bytes) });
+  const document = await loadingTask.promise;
+  const page = await document.getPage(1);
+  const prototypes = {
+    document: Object.getPrototypeOf(document) as object,
+    loadingTask: Object.getPrototypeOf(loadingTask) as object,
+    page: Object.getPrototypeOf(page) as object,
+  };
+  page.cleanup();
+  await loadingTask.destroy();
+  return prototypes;
 }
 
 test("exports a readable text PDF with authored common geometry", async () => {
@@ -180,6 +195,78 @@ test("reports an invalid PDF output target and removes staging files", async () 
     await assert.rejects(exportHtmlPdf(inputPath, invalidOutput), /EISDIR|ENOTEMPTY|directory/i);
     await access(invalidOutput);
     assert.equal((await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")), false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("PDF validation releases loading tasks and pages while retaining cleanup failures", async () => {
+  const directory = await temporaryDirectory("unslide pdf validation lifecycle ");
+  const inputPath = resolve(directory, "report.html");
+  const outputPath = resolve(directory, "report.pdf");
+  try {
+    await writeFile(inputPath, artifact(
+      "@page{size:4in 3in;margin:0}body{margin:0}",
+      '<main data-unslide-page="one">Scoped PDF validation</main>',
+    ));
+    await exportHtmlPdf(inputPath, outputPath);
+    const prototypes = await pdfRuntimePrototypes(await readFile(outputPath));
+    const documentPrototype = prototypes.document as { getPage: (index: number) => Promise<unknown> };
+    const loadingTaskPrototype = prototypes.loadingTask as { destroy: () => Promise<void> };
+    const pagePrototype = prototypes.page as { cleanup: () => boolean };
+    const originalGetPage = documentPrototype.getPage;
+    const originalDestroy = loadingTaskPrototype.destroy;
+    const originalCleanup = pagePrototype.cleanup;
+    let destroyCalls = 0;
+    let cleanupCalls = 0;
+    try {
+      loadingTaskPrototype.destroy = async function() {
+        destroyCalls += 1;
+        await originalDestroy.call(this);
+      };
+      pagePrototype.cleanup = function() {
+        cleanupCalls += 1;
+        return originalCleanup.call(this);
+      };
+      await exportHtmlPdf(inputPath, outputPath);
+      assert.deepEqual({ cleanupCalls, destroyCalls }, { cleanupCalls: 1, destroyCalls: 1 });
+
+      let startPageLoad: (() => void) | undefined;
+      const pageLoadStarted = new Promise<void>((resolveStarted) => {
+        startPageLoad = resolveStarted;
+      });
+      documentPrototype.getPage = async function() {
+        startPageLoad?.();
+        return new Promise<never>(() => {});
+      };
+      destroyCalls = 0;
+      const controller = new AbortController();
+      const interrupted = exportHtmlPdf(inputPath, outputPath, { signal: controller.signal });
+      await pageLoadStarted;
+      controller.abort();
+      await assert.rejects(interrupted, /Operation interrupted/);
+      assert.equal(destroyCalls, 1);
+      assert.equal((await readFile(outputPath)).subarray(0, 5).toString(), "%PDF-");
+      documentPrototype.getPage = originalGetPage;
+
+      await writeFile(inputPath, artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}main,aside{width:4in;height:3in}main{break-after:page}",
+        '<main data-unslide-page="one">Primary PDF validation failure</main><aside>Extra sheet</aside>',
+      ));
+      loadingTaskPrototype.destroy = async function() {
+        await originalDestroy.call(this);
+        throw new Error("fixture PDF loading-task cleanup failed");
+      };
+      await assert.rejects(
+        exportHtmlPdf(inputPath, outputPath),
+        /PDF page count 2 does not match[\s\S]*Cleanup failed: fixture PDF loading-task cleanup failed/,
+      );
+      assert.equal((await readFile(outputPath)).subarray(0, 5).toString(), "%PDF-");
+    } finally {
+      documentPrototype.getPage = originalGetPage;
+      loadingTaskPrototype.destroy = originalDestroy;
+      pagePrototype.cleanup = originalCleanup;
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
