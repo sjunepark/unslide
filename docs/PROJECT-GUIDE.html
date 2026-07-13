@@ -609,9 +609,9 @@
           <h2>Who owns what</h2>
           <p class="section-intro">This three-way boundary explains almost every architectural choice. Select an owner to see its responsibilities.</p>
           <div class="ownership-controls" role="group" aria-label="Choose an ownership layer">
-            <button class="segmented-button owner-button" data-owner="caller" aria-pressed="false">Caller</button>
-            <button class="segmented-button owner-button" data-owner="report" aria-pressed="true">Report source</button>
-            <button class="segmented-button owner-button" data-owner="unslide" aria-pressed="false">Unslide</button>
+            <button type="button" class="segmented-button owner-button" data-owner="caller" aria-pressed="false">Caller</button>
+            <button type="button" class="segmented-button owner-button" data-owner="report" aria-pressed="true">Report source</button>
+            <button type="button" class="segmented-button owner-button" data-owner="unslide" aria-pressed="false">Unslide</button>
           </div>
           <div class="ownership-stage" aria-live="polite">
             <div>
@@ -629,10 +629,10 @@
           <h2>How it works</h2>
           <p class="section-intro">Click through the pipeline. HTML is the center of gravity: every downstream command consumes it or an artifact derived from it.</p>
           <div class="pipeline" role="group" aria-label="Runtime pipeline">
-            <button class="pipeline-node" data-stage="source" aria-pressed="false"><span>AUTHOR</span><strong>Data + TSX</strong><small>Display-ready values and a complete document</small></button>
-            <button class="pipeline-node" data-stage="html" aria-pressed="true"><span>CANONICAL</span><strong>Standalone HTML</strong><small>The durable artifact and protocol boundary</small></button>
-            <button class="pipeline-node" data-stage="html-proof" aria-pressed="false"><span>SCREEN MEDIA</span><strong>HTML page PNGs</strong><small>Chromium captures authored page bounds</small></button>
-            <button class="pipeline-node" data-stage="pdf" aria-pressed="false"><span>PRINT MEDIA</span><strong>PDF + page PNGs</strong><small>Validated export, then PDF-native inspection</small></button>
+            <button type="button" class="pipeline-node" data-stage="source" aria-pressed="false"><span>AUTHOR</span><strong>Data + TSX</strong><small>Display-ready values and a complete document</small></button>
+            <button type="button" class="pipeline-node" data-stage="html" aria-pressed="true"><span>CANONICAL</span><strong>Standalone HTML</strong><small>The durable artifact and protocol boundary</small></button>
+            <button type="button" class="pipeline-node" data-stage="html-proof" aria-pressed="false"><span>SCREEN MEDIA</span><strong>HTML page PNGs</strong><small>Chromium captures authored page bounds</small></button>
+            <button type="button" class="pipeline-node" data-stage="pdf" aria-pressed="false"><span>PRINT MEDIA</span><strong>PDF + page PNGs</strong><small>Validated export, then PDF-native inspection</small></button>
           </div>
           <div class="pipeline-detail" aria-live="polite">
             <div><h3 id="stage-title">Standalone HTML is canonical</h3><p id="stage-summary">The build step serializes the caller’s complete React document, rejects unresolved dependencies, and publishes one self-contained file.</p></div>
@@ -677,24 +677,24 @@
           <div class="repo-explorer">
             <div class="file-tree" role="group" aria-label="Project modules">
               <p class="file-group">ENTRY &amp; ORCHESTRATION</p>
-              <button class="file-button" data-file="cli" aria-pressed="true">src/cli.ts</button>
-              <button class="file-button" data-file="config" aria-pressed="false">src/unslide/config.ts</button>
-              <button class="file-button" data-file="init" aria-pressed="false">src/unslide/init.ts</button>
+              <button type="button" class="file-button" data-file="cli" aria-pressed="true">src/cli.ts</button>
+              <button type="button" class="file-button" data-file="config" aria-pressed="false">src/unslide/config.ts</button>
+              <button type="button" class="file-button" data-file="init" aria-pressed="false">src/unslide/init.ts</button>
               <p class="file-group">AUTHORING</p>
-              <button class="file-button" data-file="build" aria-pressed="false">src/unslide/build.ts</button>
-              <button class="file-button" data-file="render" aria-pressed="false">src/unslide/render.tsx</button>
-              <button class="file-button" data-file="react" aria-pressed="false">src/unslide/react.ts</button>
+              <button type="button" class="file-button" data-file="build" aria-pressed="false">src/unslide/build.ts</button>
+              <button type="button" class="file-button" data-file="render" aria-pressed="false">src/unslide/render.tsx</button>
+              <button type="button" class="file-button" data-file="react" aria-pressed="false">src/unslide/react.ts</button>
               <p class="file-group">HTML PROTOCOL &amp; CAPTURE</p>
-              <button class="file-button" data-file="protocol" aria-pressed="false">src/unslide/protocol.ts</button>
-              <button class="file-button" data-file="browser" aria-pressed="false">src/unslide/browser.ts</button>
-              <button class="file-button" data-file="capture" aria-pressed="false">src/unslide/capture.ts</button>
+              <button type="button" class="file-button" data-file="protocol" aria-pressed="false">src/unslide/protocol.ts</button>
+              <button type="button" class="file-button" data-file="browser" aria-pressed="false">src/unslide/browser.ts</button>
+              <button type="button" class="file-button" data-file="capture" aria-pressed="false">src/unslide/capture.ts</button>
               <p class="file-group">PDF DELIVERY</p>
-              <button class="file-button" data-file="pdf" aria-pressed="false">src/unslide/pdf.ts</button>
-              <button class="file-button" data-file="pdf-inspection" aria-pressed="false">src/unslide/pdf-inspection.ts</button>
-              <button class="file-button" data-file="images" aria-pressed="false">src/unslide/page-images.ts</button>
+              <button type="button" class="file-button" data-file="pdf" aria-pressed="false">src/unslide/pdf.ts</button>
+              <button type="button" class="file-button" data-file="pdf-inspection" aria-pressed="false">src/unslide/pdf-inspection.ts</button>
+              <button type="button" class="file-button" data-file="images" aria-pressed="false">src/unslide/page-images.ts</button>
               <p class="file-group">PROOF REPORTS</p>
-              <button class="file-button" data-file="spike" aria-pressed="false">src/spike/</button>
-              <button class="file-button" data-file="report" aria-pressed="false">src/reports/operating-review/</button>
+              <button type="button" class="file-button" data-file="spike" aria-pressed="false">src/spike/</button>
+              <button type="button" class="file-button" data-file="report" aria-pressed="false">src/reports/operating-review/</button>
             </div>
             <div class="file-detail" aria-live="polite">
               <p class="path" id="file-path">src/cli.ts</p>
@@ -750,13 +750,13 @@
           </div>
           <div class="commands">
             <h3>Commands you will actually use</h3>
-            <div class="command-row"><code>pnpm run check</code><button class="copy-button" data-copy="pnpm run check">Copy</button></div>
-            <div class="command-row"><code>pnpm test</code><button class="copy-button" data-copy="pnpm test">Copy</button></div>
-            <div class="command-row"><code>pnpm run validate</code><button class="copy-button" data-copy="pnpm run validate">Copy</button></div>
-            <div class="command-row"><code>pnpm --silent run unslide build operating-review</code><button class="copy-button" data-copy="pnpm --silent run unslide build operating-review">Copy</button></div>
-            <div class="command-row"><code>pnpm --silent run unslide capture operating-review</code><button class="copy-button" data-copy="pnpm --silent run unslide capture operating-review">Copy</button></div>
-            <div class="command-row"><code>pnpm --silent run unslide export operating-review</code><button class="copy-button" data-copy="pnpm --silent run unslide export operating-review">Copy</button></div>
-            <div class="command-row"><code>pnpm --silent run unslide inspect-pdf operating-review</code><button class="copy-button" data-copy="pnpm --silent run unslide inspect-pdf operating-review">Copy</button></div>
+            <div class="command-row"><code>pnpm run check</code><button type="button" class="copy-button" data-copy="pnpm run check">Copy</button></div>
+            <div class="command-row"><code>pnpm test</code><button type="button" class="copy-button" data-copy="pnpm test">Copy</button></div>
+            <div class="command-row"><code>pnpm run validate</code><button type="button" class="copy-button" data-copy="pnpm run validate">Copy</button></div>
+            <div class="command-row"><code>pnpm --silent run unslide build operating-review</code><button type="button" class="copy-button" data-copy="pnpm --silent run unslide build operating-review">Copy</button></div>
+            <div class="command-row"><code>pnpm --silent run unslide capture operating-review</code><button type="button" class="copy-button" data-copy="pnpm --silent run unslide capture operating-review">Copy</button></div>
+            <div class="command-row"><code>pnpm --silent run unslide export operating-review</code><button type="button" class="copy-button" data-copy="pnpm --silent run unslide export operating-review">Copy</button></div>
+            <div class="command-row"><code>pnpm --silent run unslide inspect-pdf operating-review</code><button type="button" class="copy-button" data-copy="pnpm --silent run unslide inspect-pdf operating-review">Copy</button></div>
           </div>
         </section>
 
@@ -995,7 +995,10 @@
       const observer = new IntersectionObserver((entries) => {
         const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
         if (!visible) return;
-        navLinks.forEach((link) => link.toggleAttribute("aria-current", link.hash === `#${visible.target.id}`));
+        navLinks.forEach((link) => {
+          if (link.hash === `#${visible.target.id}`) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        });
         document.getElementById("mobile-jump").value = visible.target.id;
       }, { rootMargin: "-20% 0px -65%", threshold: [0, 0.2, 0.5] });
       sections.forEach((section) => observer.observe(section));

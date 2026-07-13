@@ -144,25 +144,15 @@ export is not a defining v1 capability.
 
 ## V2 Product Direction
 
-V1 proved the authoring loop but centralized visual policy in a repository-local
-page foundation. V2 replaces that adoption model with three layers:
+V2 replaces V1's repository-local visual foundation with a nonvisual HTML
+artifact protocol, packaged tooling, and fully report-owned design. React is
+the first authoring module, while optional starters remain editable source
+rather than renderer requirements. See [D3](docs/decisions/0003-headless-artifact-protocol.md)
+for the accepted ownership and protocol boundary.
 
-1. A small HTML artifact protocol identifies explicit pages without prescribing
-   their elements, styling, size, or repeated material.
-2. Versioned tooling builds, validates, captures, and exports those artifacts.
-   React is the first authoring module, not the definition of the artifact.
-3. Optional starters and visual recipes may generate editable source, but they
-   are never required by the renderer.
-
-The artifact protocol requires only independently viewable HTML, ordered unique
-page markers, and a reliable visual-readiness contract. Report source owns the
-complete document and every design decision.
-
-PDF export consumes the canonical HTML through the supported Chromium print
-pipeline. Report CSS owns print layout and paper geometry. Export validation
-requires each marked HTML page to correspond to exactly one PDF page, and
-visual inspection must render the produced PDF rather than reuse HTML
-screenshots.
+PDF remains derived from canonical HTML through Chromium and is inspected from
+the produced PDF. See [D4](docs/decisions/0004-html-first-pdf-export.md) for the
+accepted print and validation contract.
 
 V2 packages stable behavior instead of asking adopters to copy it. Project
 configuration remains operational: report entries and delivery/inspection
