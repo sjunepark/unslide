@@ -142,9 +142,9 @@ and its managed Chromium build:
 
 - `pnpm install --frozen-lockfile` completed from the committed lockfile;
 - `pnpm exec playwright install chromium` completed successfully;
-- `pnpm run validate` passed all 37 focused protocol, authoring, CLI, PDF, and
-  clean-consumer tests and generated both delivery artifacts plus their HTML and
-  PDF-native capture sets;
+- `pnpm run validate` passed all 44 protocol, authoring, CLI, PDF, lifecycle,
+  and clean-consumer tests and generated both delivery artifacts plus their HTML
+  and PDF-native capture sets;
 - every generated page image was visually inspected;
 - both HTML artifacts contained no external URLs, scripts, or linked styles;
 - direct local opening required no server or Playwright runtime;

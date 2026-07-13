@@ -187,7 +187,7 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
 
   const configText = yield* Effect.tryPromise({
     try: () => readFile(configPath, "utf8"),
-    catch: (cause) => nodeFailure(cause, configPath, "read", `Cannot parse ${configPath}: ${errorMessage(cause)}`),
+    catch: (cause) => nodeFailure(cause, configPath, "read", `Cannot read ${configPath}: ${errorMessage(cause)}`),
   });
   const configJson: unknown = yield* Effect.try({
     try: () => JSON.parse(configText),

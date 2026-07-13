@@ -197,7 +197,27 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
       },
     );
 
-    await writeFile(resolve(externalRoot, "unslide.json"), JSON.stringify({ version: 2, reports: {} }));
+    const namedMissingProject = await runCli(["build", "fixture"], externalRoot, stableCliEnvironment);
+    assert.deepEqual(
+      { exitCode: namedMissingProject.exitCode, stderr: namedMissingProject.stderr, stdout: namedMissingProject.stdout },
+      {
+        exitCode: 1,
+        stderr: "",
+        stdout: encode({ error: { code: "operation-failed", message: missingMessage } }),
+      },
+    );
+
+    const externalConfigPath = resolve(externalRoot, "unslide.json");
+    await mkdir(externalConfigPath);
+    const unreadableConfig = await runCli([], externalRoot, stableCliEnvironment);
+    assert.equal(unreadableConfig.exitCode, 1);
+    assert.equal(unreadableConfig.stderr, "");
+    assert.equal((unreadableConfig.value.error as Record<string, unknown>).code, "operation-failed");
+    assert.match(String((unreadableConfig.value.error as Record<string, unknown>).message), /^Cannot read .*unslide\.json:/);
+    assert.doesNotMatch(String((unreadableConfig.value.error as Record<string, unknown>).message), /^Cannot parse /);
+
+    await rm(externalConfigPath, { recursive: true });
+    await writeFile(externalConfigPath, JSON.stringify({ version: 2, reports: {} }));
     const invalidConfig = await runCli([], externalRoot, stableCliEnvironment);
     assert.deepEqual(
       { exitCode: invalidConfig.exitCode, stderr: invalidConfig.stderr, stdout: invalidConfig.stdout },

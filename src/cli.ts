@@ -100,13 +100,17 @@ function defectError(error: unknown): number {
   return 1;
 }
 
-function formatCliFailure(error: CliFailure): number {
+function formatCliFailure(error: CliFailure, invocation: "home" | "command"): number {
   switch (error._tag) {
     case "ProjectNotFound":
-      writeOutput({
-        error: { code: "project-not-found", message: error.message },
-        help: [`Run ${CLI_INVOCATION} init to plan a new project`],
-      });
+      if (invocation === "home") {
+        writeOutput({
+          error: { code: "project-not-found", message: error.message },
+          help: [`Run ${CLI_INVOCATION} init to plan a new project`],
+        });
+      } else {
+        writeOutput({ error: { code: "operation-failed", message: error.message } });
+      }
       return 1;
     case "ProjectConfigFailure":
     case "ReportNotFound":
@@ -356,9 +360,10 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   return 0;
 });
 
+const arguments_ = process.argv.slice(2);
 const exit = await Effect.runPromiseExit(
-  runCommand(process.argv.slice(2)).pipe(
-    Effect.catch((failure) => Effect.sync(() => formatCliFailure(failure))),
+  runCommand(arguments_).pipe(
+    Effect.catch((failure) => Effect.sync(() => formatCliFailure(failure, arguments_.length === 0 ? "home" : "command"))),
   ),
 );
 const exitCode = Exit.isSuccess(exit) ? exit.value : defectError(Cause.squash(exit.cause));
