@@ -8,11 +8,12 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1, V2 Core, V2 Adoption, and PDF export/inspection are complete.** The
+Status: **V1 and the accepted V2 delivery scope are complete.** The
 CLI initializes schema-validated projects and builds, inspects, and captures
 named reports through installed, versioned tooling. Chromium exports validated
-PDFs, and the CLI renders those PDFs to target-native page images. Packaged
-delivery hardening remains; repository execution state is maintained in `PLAN.md`.
+PDFs, and the CLI renders those PDFs to target-native page images. The packaged
+workflow is verified end to end; repository execution state is maintained in
+`PLAN.md`.
 
 ## Rendering Spike
 
@@ -104,6 +105,8 @@ pnpm exec unslide init --yes
 pnpm exec unslide build report
 pnpm exec unslide inspect report
 pnpm exec unslide capture report
+pnpm exec unslide export report
+pnpm exec unslide inspect-pdf report
 ```
 
 The first `init` is a dry run. `--yes` creates only `unslide.json`,
@@ -128,12 +131,13 @@ The 0.1.0 tarball intentionally exposes only:
 - the `unslide` executable;
 - `unslide/react` for React plus local-asset helpers;
 - the [project JSON Schema](schema/unslide.schema.json); and
-- the [HTML artifact protocol](docs/PROTOCOL.md).
+- the [HTML artifact protocol](docs/PROTOCOL.md) and
+  [supported delivery contract](docs/SUPPORT.md).
 
 Playwright, browser sessions, validators, capture internals, and speculative
-adapter seams are package implementation details. Repository-only product,
-architecture, decision, workflow, and execution documents are not part of the
-installed contract.
+adapter seams are package implementation details. Other repository-only
+product, architecture, decision, workflow, and execution documents are not part
+of the installed contract.
 
 ## Supported Environment and Compatibility
 
@@ -143,16 +147,18 @@ Chromium; PDF validation and rasterization use PDF.js 6.1.200, with
 `@napi-rs/canvas` 1.0.2 providing the pinned Node canvas. Run
 `pnpm dlx playwright@1.61.1 install chromium` before the first capture or export.
 Other Node versions, package managers, operating systems, and browser engines
-are not yet claimed.
+are not yet claimed. See the [supported delivery contract](docs/SUPPORT.md) for
+the exact matrix, repeatability boundary, accessibility limits, and deferred PDF
+features.
 
 `unslide.json` version 1 and artifact protocol v1 are the current persisted
 contracts. Explicit unsupported versions fail with manual migration guidance;
 the CLI does not rewrite user-owned configuration or report source. Artifacts
 created before 0.1.0 without protocol metadata remain compatible as v1.
 
-The first release remains private and 0.x while packed-consumer and PDF evidence
-accumulates. A stable public release requires an explicit later decision; 0.1.0
-does not promise automated upgrades or semantic-version stability.
+The first release remains private and 0.x. A stable public release requires an
+explicit later decision; 0.1.0 does not promise automated upgrades or
+semantic-version stability.
 
 ## V1 in One Sentence
 
@@ -176,8 +182,8 @@ file, and let a human or coding agent inspect real browser-rendered page images.
 - Optional visual recipes may generate editable source but will not be runtime
   requirements.
 
-Items not yet implemented remain planned until their corresponding V2 goals
-pass. The commands above remain the supported repository workflow today.
+The commands above are the supported repository workflow today. Deferred PDF
+and recipe capabilities require later evidence-backed decisions.
 
 ## Working Principle
 

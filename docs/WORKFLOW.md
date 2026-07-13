@@ -3,7 +3,7 @@
 This document records commands that work in the current implementation. The V2
 artifact protocol, headless full-document authoring, and canonical capture path
 are active in these commands. Chromium PDF export and PDF-native inspection are
-also implemented; follow [`PLAN.md`](../PLAN.md) for packaged hardening.
+also implemented and verified through the packed consumer workflow.
 
 ## Supported Development Environment
 
@@ -52,6 +52,8 @@ pnpm exec unslide init --yes
 pnpm exec unslide build report
 pnpm exec unslide inspect report
 pnpm exec unslide capture report
+pnpm exec unslide export report
+pnpm exec unslide inspect-pdf report
 ```
 
 The first `init` command shows the planned file writes. The confirmed command
@@ -126,8 +128,8 @@ PDF.js/Node-canvas rasterizer are implemented, and repository commands delegate
 through the CLI. PDF inspection reads no source HTML or browser state.
 
 The accepted V2 direction supersedes copy-in as the adoption model. Build,
-validation, and capture now run from the hardened locally packed 0.1.0 tooling;
-packaged end-to-end PDF proof remains. See
+validation, capture, export, and PDF inspection run from the hardened locally
+packed 0.1.0 tooling. See
 [D3](decisions/0003-headless-artifact-protocol.md) and the
 [V2 adoption plan](plans/v2-adoption.md).
 
@@ -151,10 +153,17 @@ and its managed Chromium build:
   841.92×594.96-point A4-landscape PDF pages; PDF.js rasterized them to three
   720×960 and eight 1123×794 PNGs, all visually inspected;
 - a packed tarball initialized, built, inspected, and captured a standalone
-  960×540 consumer report outside the repository; and
+  960×540 consumer report outside the repository, then exported and inspected
+  its validated PDF twice with stable structure and identical raster hashes;
+- the packed report preserved local font/raster/SVG assets, Korean and English
+  text, an authored link and print color, title/language metadata, tags, and a
+  heading outline; and
 - every repository-local Markdown link resolved.
 
 The production dependency audit reported no known vulnerabilities. Shipped
 dependencies use permissive MIT, Apache-2.0, or BSD-3-Clause licenses; no
 copyleft dependency is present. Version 0.1.0 remains a private 0.x contract
 rather than a stable public release.
+
+See the [supported delivery contract](SUPPORT.md) for the canonical environment,
+accessibility limits, repeatability boundary, and explicitly deferred features.

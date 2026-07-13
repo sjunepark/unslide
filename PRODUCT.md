@@ -1,10 +1,10 @@
 # Product
 
-Status: **V1, V2 Core, V2 Adoption, and PDF delivery inspection are implemented.** The headless
+Status: **V1 and the accepted V2 delivery scope are implemented.** The headless
 HTML protocol, report-owned React authoring, installed CLI, safe scaffold, and
 canonical capture path are proven through the hardened 0.1.0 package. Validated
-HTML-first PDF export and PDF-native inspection are proven; packaged delivery
-hardening remains.
+HTML-first PDF export and PDF-native inspection are proven from a packed clean
+consumer.
 
 ## Product Idea
 
@@ -165,9 +165,8 @@ visual inspection must render the produced PDF rather than reuse HTML
 screenshots.
 
 V2 packages stable behavior instead of asking adopters to copy it. Project
-configuration remains operational: report entries, output paths, capture
-locations, and explicitly selected export behavior. Design values do not belong
-in project configuration.
+configuration remains operational: report entries and delivery/inspection
+output paths. Design values do not belong in project configuration.
 
 ## Continuing Non-Goals
 

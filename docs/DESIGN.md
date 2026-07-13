@@ -1,9 +1,9 @@
 # Product Design
 
-Status: **V1 behavior, V2 Core, V2 Adoption, and PDF delivery inspection are proven.** Artifact
+Status: **V1 behavior and the accepted V2 delivery design are proven.** Artifact
 protocol v1, full-document React authoring, installed project workflows, safe
 scaffolding, protocol-only canonical capture, and the hardened 0.1.0 package are
-implemented. Packaged PDF delivery hardening remains.
+implemented and verified through packaged HTML/PDF delivery.
 
 This document describes the intended authoring experience and ownership model.
 Exact TypeScript names and command syntax remain implementation outcomes unless
@@ -190,9 +190,9 @@ Tagged output and outlines are useful defaults, not a claim of PDF/UA
 compliance. Formal accessibility, PDF/A, encryption, signing, attachments, and
 other publishing requirements remain separate future capabilities.
 
-## Evidence Required for V2
+## V2 Completion Evidence
 
-The target interface is not proven until all of the following coexist:
+The implemented interface is proven by the following coexisting evidence:
 
 - the current operating review still renders and captures correctly;
 - a contrasting fixture uses different geometry, typography, spacing, and no

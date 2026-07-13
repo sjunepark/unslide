@@ -17,7 +17,8 @@
       "default": "./dist/unslide/react.js"
     },
     "./schema/unslide.json": "./schema/unslide.schema.json",
-    "./protocol.md": "./docs/PROTOCOL.md"
+    "./protocol.md": "./docs/PROTOCOL.md",
+    "./support.md": "./docs/SUPPORT.md"
   },
   "files": [
     "bin/unslide.mjs",
@@ -25,6 +26,7 @@
     "dist/unslide/react.d.ts",
     "dist/unslide/render.d.ts",
     "docs/PROTOCOL.md",
+    "docs/SUPPORT.md",
     "schema/unslide.schema.json",
     "LICENSE",
     "README.md"

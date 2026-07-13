@@ -1,9 +1,10 @@
 # Architecture
 
-Status: **V1, V2 Core, V2 Adoption, and PDF export/inspection are verified.**
+Status: **V1 and the accepted V2 delivery architecture are verified.**
 Artifact protocol v1, headless full-document React authoring, installed CLI and
 scaffolding, canonical HTML capture, and the minimal 0.1.0 package are current;
-packaged end-to-end PDF hardening remains. See `PLAN.md` for the current step.
+the packaged HTML/PDF workflow passes end to end. See `PLAN.md` for the current
+evidence gate.
 
 ## Purpose and Boundaries
 
@@ -192,6 +193,7 @@ are explicit report entries in the root `unslide.json`, not visual policy.
 - [D2 — Repository-owned rendered preview](docs/decisions/0002-rendered-preview.md)
 - [D3 — Headless artifact protocol and author-owned design](docs/decisions/0003-headless-artifact-protocol.md)
 - [D4 — HTML-first PDF export](docs/decisions/0004-html-first-pdf-export.md)
+- [Supported delivery contract](docs/SUPPORT.md)
 - [V2 core plan](docs/plans/v2-core.md)
 - [V2 adoption plan](docs/plans/v2-adoption.md)
 - [V2 PDF plan](docs/plans/v2-pdf.md)

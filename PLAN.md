@@ -1,16 +1,15 @@
 # Plan
 
-Status: **V1, V2 Core, V2 Adoption, and PDF Goals 1–2 complete.**
+Status: **V1 and the accepted V2 scope are complete.**
 
-Current next action: **Run PDF Goal 3 — harden the packaged HTML/PDF delivery
-workflow.** See [`docs/plans/v2-pdf.md`](docs/plans/v2-pdf.md).
+Current next action: **Collect consumer evidence before opening another product
+scope.** No V2 implementation goal remains.
 
 Suggested `/goal` objective:
 
-> Implement PDF Goal 3 from `docs/plans/v2-pdf.md`: harden and verify the packed
-> HTML/PDF delivery workflow, exercise semantic and multilingual content,
-> inspect every target-native page, align all current documentation, and finish
-> the required cross-module review.
+> Exercise Unslide in a second real consumer report, record repeated source or
+> adapter needs, and revisit the recipe or source-adapter decision gate only if
+> that evidence justifies new scope.
 
 This file is the live execution state. Update statuses, decisions, blockers,
 validation, and the current next action in place. Do not append session logs.
@@ -72,7 +71,7 @@ Keep these outside V2 unless a later decision changes scope:
 | Adoption | 3. Packaging hardening | Complete | Adoption 2 | Versioned package workflow passes from a clean consumer fixture |
 | PDF | 1. Chromium PDF export | Complete | Adoption 1 | Canonical HTML produces validated searchable PDF |
 | PDF | 2. PDF-native inspection | Complete | PDF 1 | Actual PDF pages render to inspection images |
-| PDF | 3. Export hardening | Ready | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
+| PDF | 3. Export hardening | Complete | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
 | Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
 
 ## Detailed Plans
@@ -126,6 +125,7 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Begin PDF Goal 3. Prove build, HTML inspection, export, and PDF inspection from
-the packed consumer; verify semantic, multilingual, and repeated-run behavior;
-then align the final support contract and delivery evidence.
+No numbered V2 goal remains. Use the implemented package in additional real
+reports and preserve evidence about repeated visual source, source adapters, or
+mixed PDF geometry. Reopen a deferred decision only when that evidence satisfies
+its gate.

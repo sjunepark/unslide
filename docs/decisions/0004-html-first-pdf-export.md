@@ -2,7 +2,7 @@
 
 Date: 2026-07-13
 
-Status: accepted for V2; export and PDF-native inspection implemented
+Status: accepted and verified for V2
 
 ## Context
 

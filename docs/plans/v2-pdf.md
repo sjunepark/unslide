@@ -1,6 +1,6 @@
 # V2 PDF Plan
 
-Status: **Goals 1–2 complete; Goal 3 ready.**
+Status: **Goals 1–3 complete.**
 
 PDF is a derived target of canonical HTML. This plan must not introduce a
 parallel layout model or require Unslide-owned print design.
@@ -173,7 +173,7 @@ delivery review.
 
 ## PDF Goal 3 — Export Hardening
 
-Status: **ready**
+Status: **complete**
 
 Depends on: PDF Goal 2 and Adoption Goal 3
 
@@ -222,6 +222,31 @@ document the supported delivery contract.
 - No report design decision has moved into runtime or project configuration.
 - `PLAN.md` records V2 PDF delivery complete and names the next evidence-backed
   product decision.
+
+### Completion Evidence
+
+- A clean external consumer installs the packed 0.1.0 tarball and runs `init`,
+  build, HTML inspection/capture, PDF export, and PDF-native inspection through
+  `pnpm exec unslide`; compiled PDF modules and support documentation are present
+  in the package.
+- The consumer report inlines a local WOFF2, PNG, and SVG, includes an authored
+  inline SVG and semantic link, uses Korean and English text, and preserves its
+  authored print background through PDF rasterization.
+- Parsed PDF evidence confirms one authored page, common 720×approximately
+  405-point geometry, searchable multilingual text, the document language and
+  title, Chromium/Skia metadata, a heading outline, marked structure tree with
+  an H1 role, and the link annotation. Forms and signatures remain absent.
+- Repeated packed-consumer exports preserve the complete semantic/structural
+  contract and exact PDF-native PNG hash. PDF bytes are not claimed identical
+  because Chromium writes creation and modification timestamps.
+- [`docs/SUPPORT.md`](../SUPPORT.md) records the exact canonical environment,
+  supported behavior, repeatability boundary, accessibility limits, best-effort
+  semantics, and deferred features.
+- Full validation passes 33 tests and regenerates both proof HTML/PDF targets
+  plus their target-native capture sets. All 22 proof pages across HTML and PDF
+  evidence were visually inspected, the dependency audit and license review are
+  clean, every local Markdown link resolves, and the final cross-module review
+  has no remaining safe findings.
 
 ### Suggested `/goal` Objective
 
