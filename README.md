@@ -8,9 +8,10 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1 complete.** The explicit-page authoring, standalone HTML, isolated
-capture, real-report trial, minimum reuse extraction, and clean-checkout
-workflow are verified.
+Status: **V1 complete; V2 planned.** The current repository verifies explicit
+pages, standalone HTML, and isolated capture. The accepted V2 direction moves
+all visual policy into report-owned source, packages stable tooling, and adds
+HTML-first PDF export. See [`PLAN.md`](PLAN.md) before starting work.
 
 ## Rendering Spike
 
@@ -49,16 +50,21 @@ live in `src/reports/operating-review/`. Northstar Goods and all report values,
 commentary, and decisions are fictional examples created solely to demonstrate
 the authoring workflow.
 
-## Proven Foundation
+## Current V1 Foundation
 
 After both reports repeated the same mechanics, `src/unslide/` centralized the
 fixed A4 page geometry, optional chrome with numbering, print separation, and
 standalone HTML writer. Report-specific TSX and CSS remain beside each report;
 there is no general component catalogue or published package interface.
 
+That foundation is a verified baseline, not the target public interface. V2
+retains the build and inspection behavior while removing required geometry,
+chrome, document wrappers, and injected CSS from reusable tooling.
+
 ## Start Here
 
-- [PRODUCT.md](PRODUCT.md) — problem, thesis, users, v1 scope, and success.
+- [PRODUCT.md](PRODUCT.md) — product thesis, proven V1 scope, and accepted V2
+  direction.
 - [docs/DESIGN.md](docs/DESIGN.md) — desired authoring and viewing behavior,
   expressed without committing to syntax.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system shape, flows, and invariants.
@@ -70,30 +76,40 @@ there is no general component catalogue or published package interface.
 - [Rendered preview decision](docs/decisions/0002-rendered-preview.md) — why
   browser capture is development tooling rather than part of the report
   runtime.
+- [Headless artifact decision](docs/decisions/0003-headless-artifact-protocol.md)
+  — why reports own all DOM and visual design.
+- [HTML-first PDF decision](docs/decisions/0004-html-first-pdf-export.md) — why
+  PDF derives from canonical HTML and receives target-native inspection.
+- [V2 detailed plans](docs/plans/v2-core.md) — the first `/goal`-ready execution
+  track; adoption and PDF plans are linked from `PLAN.md`.
 
 ## V1 in One Sentence
 
 Create a small report from typed code and data, render it to a local static HTML
 file, and let a human or coding agent inspect real browser-rendered page images.
 
-## Current Direction
+## Accepted V2 Direction
 
-- HTML is the report artifact.
-- TypeScript and TSX are the initial authoring direction.
+- HTML is the canonical report artifact.
+- TypeScript and TSX remain the first authoring direction, while the artifact
+  contract stays HTML-based.
 - A report is an ordered set of fixed-size, explicitly authored pages.
 - Data reaches report source through ordinary language values and props.
-- Headers, footers, and page numbers are ordinary parts of each page.
-- A repository command will render page screenshots in isolated headless
-  Chromium for agent inspection.
-- Playwright is preview tooling only; generated reports do not depend on it.
+- Reports own their complete document, geometry, padding, fonts, repeated
+  material, print rules, and every other design choice.
+- Versioned tooling will own compilation, artifact validation, isolated capture,
+  and PDF export instead of being copied into consuming repositories.
+- PDF will be printed from canonical HTML and visually inspected from the
+  produced PDF.
+- Optional visual recipes may generate editable source but will not be runtime
+  requirements.
 
-The spike intentionally keeps report composition and styling local. The real
-report trial will determine which mechanics, if any, merit a reusable module.
+These items are planned until their corresponding V2 goals pass. The commands
+above remain the supported V1 workflow today.
 
 ## Working Principle
 
-If a proposed feature does not make explicit fixed-page HTML reports easier to
-author, render, or inspect, it does not belong in v1.
+Unslide owns the report lifecycle, never the report's design.
 
 ## License
 

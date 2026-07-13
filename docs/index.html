@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Interactive documentation for authoring fixed-page HTML reports with Unslide.">
+    <meta name="description" content="Interactive V1 documentation for authoring fixed-page HTML reports with Unslide.">
     <title>Unslide documentation</title>
     <style>
       :root {
@@ -243,9 +243,9 @@
           <a href="#quick-start">Quick start</a>
           <a href="#authoring">Author a report</a>
           <p class="nav-label">Adopt</p>
-          <a href="#other-repos">Use in another repo</a>
-          <a href="#structure">Recommended structure</a>
-          <a href="#api">Minimal API</a>
+          <a href="#other-repos">V1 source adoption</a>
+          <a href="#structure">V1 structure</a>
+          <a href="#api">V1 interface</a>
           <p class="nav-label">Operate</p>
           <a href="#inspection">Rendered inspection</a>
           <a href="#boundaries">Scope and boundaries</a>
@@ -256,12 +256,12 @@
 
       <main id="content">
         <section class="hero" id="top" data-search="Unslide fixed-page HTML reports overview">
-          <span class="status">V1 implemented and verified</span>
+          <span class="status">V1 verified · V2 redesign planned</span>
           <h1>Reports belong in source control.</h1>
           <p class="lede">Unslide turns typed data and explicit TSX pages into standalone, fixed-page HTML reports. You decide what goes on each page; Chromium shows you the truth.</p>
           <div class="hero-actions">
             <a class="button primary" href="#quick-start">Run the example</a>
-            <a class="button secondary" href="#other-repos">Adopt in another repo</a>
+            <a class="button secondary" href="#other-repos">Review V1 adoption</a>
           </div>
           <div class="flow" aria-label="Unslide workflow">
             <div class="flow-step"><strong>Typed data</strong><span>Caller-owned values</span></div>
@@ -269,11 +269,12 @@
             <div class="flow-step"><strong>Static HTML</strong><span>No runtime server</span></div>
             <div class="flow-step"><strong>Page captures</strong><span>Rendered inspection</span></div>
           </div>
+          <div class="callout"><span class="callout-mark">i</span><p><strong>This page documents the current V1 implementation.</strong> The accepted V2 direction replaces required A4/chrome source and copy-in adoption with a headless artifact protocol, versioned tooling, fully report-owned design, and HTML-first PDF export. See <a href="../PLAN.md">the live plan</a> before starting new work.</p></div>
         </section>
 
         <section class="doc-section" id="overview" data-search="overview principles explicit pages ordinary code rendered truth standalone HTML">
           <h2>What Unslide is</h2>
-          <p class="section-intro">A small, repository-local foundation for deliberately composed reports—not a presentation app, document flow engine, or general component library.</p>
+          <p class="section-intro">V1 is a small, repository-local foundation for deliberately composed reports—not a presentation app, document flow engine, or general component library.</p>
           <div class="principles">
             <article class="principle"><strong>Explicit pages</strong><p>Page membership stays visible in source. Content never flows to another page automatically.</p></article>
             <article class="principle"><strong>Ordinary code</strong><p>Typed data, React server rendering, semantic HTML, and normal CSS. No proprietary template language.</p></article>
@@ -341,9 +342,9 @@ export function Report({ data }: { data: ReportData }) {
         </section>
 
         <section class="doc-section" id="other-repos" data-search="use integrate adopt other repository copy install dependencies scripts tsconfig gitignore">
-          <h2>Use Unslide in another repo</h2>
-          <p class="section-intro">V1 is intentionally not published as a package and does not promise a stable public API. The proven adoption path is to copy the small foundation into the consuming repository so report source and rendering stay reviewable together.</p>
-          <div class="callout"><span class="callout-mark">!</span><p><strong>Treat this as source adoption, not package installation.</strong> Copy the four foundation/capture files, then let the consuming repository own future changes. Re-copy intentionally when you want to take upstream updates.</p></div>
+          <h2>V1 source adoption</h2>
+          <p class="section-intro">This is the verified V1 path only. V2 will package stable build, validation, capture, and PDF behavior while leaving every visual decision in report-owned source.</p>
+          <div class="callout"><span class="callout-mark">!</span><p><strong>Do not treat this copy-in recipe as the target architecture.</strong> Use it only when adopting the current V1 implementation before the package-based V2 goals are complete.</p></div>
           <ol class="steps">
             <li>
               <h3>Copy the proven mechanics</h3>
@@ -410,7 +411,7 @@ await writeReportHtml({
         </section>
 
         <section class="doc-section" id="structure" data-search="recommended folder structure files data report render styles unslide artifacts captures">
-          <h2>Recommended repository structure</h2>
+          <h2>V1 repository structure</h2>
           <p class="section-intro">Separate shared mechanics from report-owned data and composition. A new report should not require changes under <code>src/unslide/</code>.</p>
           <div class="file-tree"><b>src/unslide/</b>
 ├── foundation.css      <span class="token-comment"># page geometry and print behavior</span>
@@ -431,7 +432,7 @@ await writeReportHtml({
         </section>
 
         <section class="doc-section" id="api" data-search="API Page PageChrome writeReportHtml props options interface number total chrome className body reportStyles outputPath">
-          <h2>The minimal API</h2>
+          <h2>The V1 interface</h2>
           <p class="section-intro">Two exports cover the reusable runtime. Capture remains a shell-driven development adapter.</p>
           <div class="api-row">
             <div><h3><code>&lt;Page&gt;</code></h3><span class="api-meta">src/unslide/page.tsx</span></div>
@@ -464,8 +465,8 @@ await writeReportHtml({
         </section>
 
         <section class="doc-section" id="boundaries" data-search="scope boundaries goals non-goals automatic pagination animations editor linting PDF calculations package">
-          <h2>Know the boundary</h2>
-          <p class="section-intro">Unslide stays useful by remaining small. Extend report source freely; expand the shared foundation only when repeated real work proves a durable need.</p>
+          <h2>Know the V1 boundary</h2>
+          <p class="section-intro">This is the implemented V1 ownership split. The accepted V2 design moves geometry and repeated material out of the runtime; follow the live plan for migration status.</p>
           <div class="boundary">
             <div><h3>Unslide owns</h3><ul class="check-list"><li>Fixed A4 landscape page geometry</li><li>Optional chrome and page numbering</li><li>Standalone static HTML output</li><li>Screen and print page separation</li><li>Isolated Chromium page capture</li></ul></div>
             <div><h3>Callers or future scope own</h3><ul class="check-list no"><li>Business calculations and domain models</li><li>Automatic pagination or fit repair</li><li>A visual editor or presentation controls</li><li>A large report component catalogue</li><li>Stable package distribution or multi-renderer support</li></ul></div>
@@ -481,7 +482,7 @@ await writeReportHtml({
           <div class="api-row"><div><h3>Output needs a server</h3></div><div><p>Assets or styles were probably linked externally. Keep required CSS and assets local or embedded so the generated report remains standalone.</p></div></div>
         </section>
 
-        <footer class="footer"><span>Unslide V1 · 13 July 2026</span><a href="WORKFLOW.md">Detailed workflow</a><a href="DESIGN.md">Design model</a><a href="decisions/0001-explicit-pages.md">Decision records</a></footer>
+        <footer class="footer"><span>Unslide V1 guide · V2 planned · 13 July 2026</span><a href="WORKFLOW.md">Current workflow</a><a href="DESIGN.md">Target design</a><a href="../PLAN.md">Live plan</a></footer>
       </main>
     </div>
 

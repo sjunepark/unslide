@@ -1,208 +1,214 @@
-# V1 Design
+# Product Design
 
-This document describes what using Unslide should feel like. It deliberately
-avoids defining TSX element names, props, function signatures, CSS class names,
-or package boundaries. Those are implementation decisions to make while using
-the first report.
+Status: **V1 behavior is proven; V2 removes visual policy from the reusable
+interface and adds package-based adoption plus HTML-first PDF export.**
+
+This document describes the intended authoring experience and ownership model.
+Exact TypeScript names and command syntax remain implementation outcomes unless
+they already exist in the V1 workflow.
 
 ## Desired Experience
 
-An author should be able to think in pages:
+An author or coding agent should be able to:
 
-1. Decide what the report needs to communicate.
-2. Decide which pages communicate it.
-3. Place data and content on those pages using ordinary code and web layout.
-4. Render the report.
-5. Inspect the actual pages.
-6. Adjust the source until the result is right.
+1. Prepare display-ready values in ordinary code.
+2. Compose a known set of explicit pages with arbitrary HTML and CSS.
+3. Mark those pages for Unslide without adopting a prescribed page element.
+4. Build one standalone HTML artifact.
+5. Inspect the actual browser-rendered pages.
+6. Export the same HTML through the canonical browser to PDF when needed.
+7. Inspect the actual PDF pages and revise source until both targets are right.
 
-This is intentionally similar to composing a static presentation, except the
-source is plain text, the values come directly from code, and repeated structure
-can be reused normally.
+The author decides every visual property. Unslide makes the build and inspection
+loop predictable.
 
 ## Conceptual Vocabulary
 
-These terms describe behavior, not a required implementation interface.
+These terms describe behavior rather than required source syntax.
 
 ### Report
 
-An ordered collection of explicit pages plus document-level metadata and shared
-styling.
+User-owned source and data that produce an ordered static document. A report
+owns its complete HTML structure, document metadata, styles, fonts, assets, and
+page composition.
 
 ### Page
 
-A fixed-size rectangular canvas. It owns a content region and may display shared
-page chrome. Page content does not automatically continue elsewhere.
+One explicitly composed region intended for independent capture and, when PDF
+is requested, one printed sheet. A page may use any element and any geometry.
+Content does not automatically continue to another page.
 
-### Page chrome
+### Page marker
 
-Repeated material around the page content, such as a report title, engagement
-name, confidentiality label, footer, or page number. A cover may intentionally
-omit it.
+A nonvisual artifact-protocol marker that gives a page a stable unique identity
+and makes its order observable to tooling. The marker does not add an element,
+class, style, size, padding, or chrome.
 
-### Report data
+### Repeated material
 
-Ordinary values supplied by the caller. This can include text, numbers, arrays,
-and already-prepared structures for tables or figures. Unslide does not require
-a universal report schema.
+Any report-owned structure repeated across pages, such as a title, logo,
+confidentiality notice, running label, or page number. Unslide does not name or
+require header, footer, or chrome regions. Ordinary source may reuse whatever
+the report needs.
 
 ### HTML artifact
 
-The static document delivered by the renderer. It is the primary v1 output and
-must be independently viewable.
+The canonical standalone output. It retains semantic HTML and real text, opens
+without the Unslide development runtime, and supplies the input for capture and
+PDF export.
 
-### Capture artifact
+### PDF artifact
 
-A temporary image of a rendered page or complete report. It exists only so a
-human or agent can judge the real visual result.
+A derived delivery output produced by printing the canonical HTML through the
+supported browser. It is not a second renderer or authoring source.
 
-## Explicit Composition
+### Inspection artifact
 
-Page membership is visible in source. An author can answer “which page contains
-this material?” without understanding a pagination algorithm.
+A disposable image rendered from the delivery target being judged. HTML
+inspection captures HTML pages; PDF inspection rasterizes the generated PDF
+pages.
 
-Normal code may choose whether a whole page exists. For example, a report may
-include a sensitivity page only when sensitivity data is provided. The decision
-is made in report source, not by measuring remaining space.
+### Recipe
 
-The author may also split a large table manually or introduce another page.
-These choices are part of report design and remain readable in the source diff.
+Optional editable source that demonstrates a design or repeated report-local
+pattern. Recipes may include page geometry, typography, repeated material,
+tables, or figures, but the rendering tool never requires them.
 
-## Fixed Geometry
+## Author-Owned Design
 
-V1 begins with one real report size chosen by the first use case. Page geometry
-includes the outer dimensions, usable content region, and reserved chrome
-regions.
+Report source owns all visual and structural decisions, including:
 
-The first implementation should make these boundaries visually obvious in
-screen preview. Browser zoom may change how large a page appears on a monitor,
-but must not change its internal layout.
+- the full document tree and semantic elements;
+- page dimensions, orientation, margins, padding, and overflow behavior;
+- screen and print layout;
+- fonts, colors, rules, backgrounds, and design tokens;
+- repeated material and page numbering, or their absence;
+- CSS organization and optional styling dependencies; and
+- page-specific and conditional composition.
 
-Additional page sizes and per-page orientations are introduced only after a
-real report requires them.
+The reusable renderer must not inject a reset, foundation stylesheet, wrapper,
+page frame, or default chrome. It may validate observable artifact behavior but
+must not repair or restyle the report.
 
-## Content Fit and Overflow
+## Explicit Composition and Content Fit
 
-Content fit is an authoring responsibility. Unslide does not need an overflow
-analyzer, repair system, or report linter in v1.
+Page membership remains readable in source. Normal code may conditionally add
+or remove a whole page, and authors may split content manually. Unslide does
+not measure remaining space and move content between pages.
 
-During development, overflow should remain visually apparent rather than being
-silently hidden. The author or agent sees the rendered result and changes the
-content, layout, typography, or page allocation.
-
-This is an accepted tradeoff of explicit pagination: variable content can
-require a report-source adjustment, while the system remains small and
-predictable.
-
-## Headers, Footers, and Page Numbers
-
-Headers and footers are regions inside each explicitly constructed page, not
-features of an automatic pagination engine.
-
-Shared mechanics may provide page position and total page count to repeated
-chrome. The report remains free to vary or suppress chrome for covers, divider
-pages, or other intentional designs.
-
-The first report should determine which repetition is worth centralizing.
+Overflow remains an authoring problem. Inspection should expose it, and export
+validation may report that marked HTML pages produced an unexpected number of
+PDF sheets. Tooling must not silently shrink, truncate, or redistribute content.
 
 ## Data Flow
 
-Report data should enter through ordinary typed code. The framework does not
-introduce a proprietary variable language, data-binding expression syntax, or
-domain schema.
+Data enters report source through ordinary typed values. Callers own business
+calculations, domain models, provenance, and conclusions. The authoring module
+does not introduce a proprietary expression language or universal report
+schema.
 
-The caller prepares values before rendering. Report source may format and place
-those values, but domain computation remains with the caller.
+## Artifact Protocol
 
-The first spike should test both scalar values and repeated data such as a
-small table. That is enough to evaluate whether the authoring approach feels
-natural.
+The public artifact contract should remain smaller and more durable than any
+authoring module:
 
-## Styling
+- the output is independently viewable HTML;
+- pages are discoverable in document order through a versioned nonvisual
+  marker;
+- page identities are present and unique;
+- fonts, images, and optional asynchronous visuals have an observable readiness
+  path; and
+- capture or export failures identify the page or resource involved.
 
-HTML and CSS perform layout. The project should prefer ordinary web behavior
-over custom layout machinery.
+React is the first source adapter because V1 proved typed TSX and static server
+rendering. The HTML contract must remain usable by other generators without
+requiring a generalized plugin interface in V2.
 
-V1 needs enough shared styling to establish:
+## Project Configuration
 
-- page dimensions and content regions;
-- a screen background that makes page edges visible;
-- print page separation;
-- a small typography hierarchy; and
-- one credible example report.
+Project configuration tells tooling how to operate. It may describe report
+entries, output paths, inspection directories, registry locations, or explicit
+export choices.
 
-It does not need a general theme interface, token taxonomy, or large library of
-report-specific patterns.
+It must not become a design schema. Fonts, page sizes, margins, padding,
+colors, chrome, and visual tokens stay in source. Configuration should be
+schema-validated and deterministic, with clear diagnostics for unsupported or
+unknown fields.
 
-## Rendered Inspection
+## Distribution and Recipes
 
-Source is not visual truth. Font metrics, line wrapping, table width, and visual
-balance become real only after browser layout.
+Stable behavior belongs in a versioned package so fixes and migrations remain
+local to the implementation. One-time project scaffolding may create report
+source and configuration.
 
-The preview workflow therefore produces browser-rendered images. An agent
-should be able to run one documented command and inspect one image per page
-without access to a user's interactive browser session.
+A source registry is optional later work. If evidence justifies it, registry
+items should be visual recipes or complete report starters that users own after
+installation. Modified generated source must never be overwritten silently.
+Managed upgrades would require provenance hashes, dry-run diffs, and an
+explicit conflict path; that system is not part of the initial V2 core.
 
-The preview tool should use an isolated profile and require no login state. Its
-artifacts are disposable and should not be reviewed as hand-authored files.
+## HTML Inspection
 
-## Output Expectations
+The capture path loads the canonical HTML in isolated Chromium, waits for
+visual readiness, discovers the marked pages, and writes one image per page.
+It must work for unrelated DOM structures and page geometries.
 
-The v1 artifact is static HTML. It should:
+The browser profile remains isolated and requires no login state. Inspection
+artifacts are disposable and do not become authoring source.
 
-- open locally;
-- retain real text and semantic HTML rather than flattening the report to
-  images;
-- use local or embedded assets needed for the report;
-- require no application backend; and
-- preserve explicit page separation when printed from the supported browser.
+## PDF Export and Inspection
 
-PDF may be produced from the same browser for convenience, but HTML remains the
-format that defines v1.
+PDF export prints the canonical HTML with Chromium print media. Report CSS owns
+paper geometry, page breaks, color adjustment, and print-specific presentation.
+The initial exporter should prefer CSS page size, include report backgrounds,
+and support tagged output and a document outline without exposing the raw
+browser option surface as Unslide's interface.
 
-## Criteria for Reuse
+Export succeeds only when:
 
-Do not create a reusable report concept merely because it can be imagined.
-Extract it when at least one of these is observed:
+- the HTML artifact satisfies the page protocol;
+- required resources are ready;
+- the browser produces a readable PDF;
+- the number of PDF pages equals the number of marked HTML pages; and
+- the resulting PDF can be inspected page by page.
 
-- the same mechanics are repeated across several pages;
-- changing the behavior otherwise requires synchronized edits;
-- authors repeatedly need knowledge that a shared module can hide; or
-- a second real report demonstrates the same need.
+Initial V2 supports arbitrary report-wide page geometry but does not promise
+mixed page sizes or orientations in one PDF. Mixed geometry requires a separate
+evidence-backed decision because it may require per-page printing and PDF
+merging.
 
-Small report-specific markup may remain in report source indefinitely.
+Tagged output and outlines are useful defaults, not a claim of PDF/UA
+compliance. Formal accessibility, PDF/A, encryption, signing, attachments, and
+other publishing requirements remain separate future capabilities.
 
-## Evidence from the First Reports
+## Evidence Required for V2
 
-The three-page spike and eight-page operating review established the same A4
-landscape geometry, screen and print treatment, optional chrome, final page
-numbering, embedded document shell, and isolated capture path. The shared page
-foundation and HTML writer now own those mechanics.
+The target interface is not proven until all of the following coexist:
 
-The real report did not demonstrate a common content vocabulary. Its
-trajectory figure, commercial mix, regional table, bilingual market page, and
-priority layout are clearer as direct report source. They should not become a
-component catalogue.
+- the current operating review still renders and captures correctly;
+- a contrasting fixture uses different geometry, typography, spacing, and no
+  repeated chrome;
+- neither report imports required visual source from the runtime;
+- a clean consumer fixture installs the versioned tooling instead of copying
+  implementation files;
+- HTML capture works through the common artifact protocol; and
+- browser-produced PDF export and PDF-native inspection pass for both reports.
 
-Rendered inspection exposed ambiguous chart labeling and overly small decision
-copy. Both were corrected in report source and recaptured. This reinforces that
-visual judgment belongs in the authoring loop, not in an automated fit system.
+## Continuing Scope Boundaries
 
-## Questions Deliberately Deferred
+Automatic pagination, automatic fit repair, a visual editor, animations,
+business calculations, a mandatory design system, and speculative renderer
+plugins remain outside the accepted direction.
 
-The following are decided during implementation, using the first report as
-evidence:
+## Evidence from V1
 
-- the exact TSX authoring syntax;
-- the static rendering runtime;
-- whether an existing UI library is used at all;
-- the names and shapes of reusable report concepts;
-- CSS file organization;
-- source and package directory layout;
-- how assets are embedded;
-- whether page size is initially fixed or configurable;
-- whether the project is published as a package after v1; and
-- which conveniences deserve commands beyond render and capture.
+The three-page spike and eight-page operating review proved explicit page
+composition, typed data, standalone HTML, isolated Chromium capture, and the
+need for rendered inspection. They also showed that report-specific figures,
+tables, bilingual layouts, and visual systems are clearest as direct source.
 
-Automatic pagination, visual editing, animations, and automated report linting
-are outside v1 rather than deferred syntax questions.
+V1 centralized A4 geometry and chrome because both initial reports repeated
+them. That was useful implementation evidence, but copying that visual
+foundation into other repositories would distribute policy and maintenance
+together. V2 retains the proven rendering mechanics while moving all visual
+policy back to report-owned source.

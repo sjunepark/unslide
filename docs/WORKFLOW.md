@@ -1,7 +1,11 @@
 # V1 Workflow
 
-For an interactive overview, authoring guide, and copy-in recipe for other
-repositories, open [`docs/index.html`](index.html) directly in a browser.
+This document records commands that work in the current implementation. V2 is
+planned but not yet available; follow [`PLAN.md`](../PLAN.md) for its live state.
+
+For an interactive overview and authoring guide to the V1 implementation, open
+[`docs/index.html`](index.html) directly in a browser. Its copy-in recipe is
+historical guidance for V1, not the accepted V2 adoption model.
 
 ## Supported Development Environment
 
@@ -63,6 +67,13 @@ The proven foundation remains repository-local under `src/unslide/`. Two
 reports justify shared page geometry, chrome/numbering, the HTML shell, and
 capture. They do not yet justify a published package, configurable theme
 system, component catalogue, or stable public API.
+
+The accepted V2 direction supersedes copy-in as the future adoption model.
+Stable build, validation, capture, and export behavior will move to versioned
+tooling, while report source owns all DOM and visual policy. Current files and
+commands do not provide that interface yet. See
+[D3](decisions/0003-headless-artifact-protocol.md) and the
+[V2 adoption plan](plans/v2-adoption.md).
 
 ## Clean-Checkout Evidence
 

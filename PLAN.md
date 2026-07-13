@@ -1,288 +1,131 @@
 # Plan
 
-Status: **V1 complete; all exit criteria verified.**
+Status: **V1 complete; V2 architecture accepted and execution-ready.**
 
-Current next action: **Use the workflow for real reports; revisit deferred
-scope only with new evidence or an explicit decision.**
+Current next action: **Run Core Goal 1 — establish the headless artifact
+protocol and validator.** See [`docs/plans/v2-core.md`](docs/plans/v2-core.md).
 
-This is the live plan. Update completed work, decisions, blockers, and the next
-action in place. Do not append session logs.
+Suggested `/goal` objective:
 
-## Scope Guardrails
+> Implement Core Goal 1 from `docs/plans/v2-core.md`. Keep `PLAN.md` and the
+> detailed plan current, preserve V1 behavior unless the goal explicitly
+> migrates it, run the required validation and code-review pass, and stop only
+> when the goal's exit criteria are satisfied or a concrete blocker is recorded.
 
-V1 is an explicit fixed-page HTML report tool. Keep the following outside the
-implementation plan unless a later decision changes scope:
+This file is the live execution state. Update statuses, decisions, blockers,
+validation, and the current next action in place. Do not append session logs.
 
-- automatic pagination;
-- animations and presentation controls;
-- visual drag-and-drop editing;
-- report linting or automatic overflow repair;
-- a large report design system;
-- multiple browser adapters;
-- domain-specific data or calculation models; and
-- speculative package interfaces.
+## Accepted Direction
 
-The first implementation exists to discover good syntax. The plan therefore
-specifies outcomes and evidence, not proposed function signatures or element
-names.
+V2 keeps explicit fixed pages and standalone HTML while replacing the
+repository-copy adoption model:
+
+- HTML is the canonical artifact.
+- A small nonvisual artifact protocol identifies pages and readiness.
+- Reports own their entire DOM and every visual decision.
+- Versioned tooling owns build, validation, capture, and export mechanics.
+- React is the first authoring module, not the artifact definition.
+- Project configuration is operational rather than visual.
+- PDF is derived from canonical HTML through Chromium and inspected from the
+  produced PDF.
+- Optional visual recipes remain user-owned source and are not runtime
+  requirements.
+
+See [D3](docs/decisions/0003-headless-artifact-protocol.md) and
+[D4](docs/decisions/0004-html-first-pdf-export.md).
+
+## Guardrails
+
+Keep these outside V2 unless a later decision changes scope:
+
+- automatic pagination or content redistribution;
+- automatic shrinking, truncation, or overflow repair;
+- a visual editor, animations, or presentation controls;
+- a universal report schema or business calculation layer;
+- required page frames, chrome, headers, footers, typography, or themes;
+- design values in project configuration;
+- a public plugin system before two real adapters exist;
+- mixed page geometry within one PDF before canonical-browser evidence; and
+- managed source-recipe upgrades before adoption evidence justifies them.
+
+## Execution Rules
+
+- Work one numbered goal at a time and update its plan file in the same change.
+- Preserve working V1 commands until their documented replacement passes.
+- Do not document planned commands as available before they run successfully.
+- Use fixtures to prove behavior through the public seam, not private helpers.
+- Every implementation goal ends with the required code-review pass.
+- Any change to an accepted constraint updates its decision record and all
+  conflicting current guidance.
 
 ## Progress
 
-| Phase | State | Exit artifact |
-|---|---|---|
-| 0. Foundation | Complete | Product, design, architecture, decisions, and live plan |
-| 1. Rendering-loop spike | Complete | Three-page data-driven HTML report plus agent-readable page captures |
-| 2. Real report trial | Complete | One credible report reproduced through the complete loop |
-| 3. Minimum reuse extraction | Complete | Small interface justified by repeated real usage |
-| 4. V1 hardening | Complete | Fresh-clone workflow and documented v1 release |
+| Track | Goal | State | Depends on | Exit evidence |
+|---|---|---|---|---|
+| Foundation | V1 phases 0–4 | Complete | — | Clean install and full V1 validation |
+| Planning | V2 architecture and goal plans | Complete | V1 evidence | PRODUCT, DESIGN, ARCHITECTURE, D3, D4, and detailed plans agree |
+| Core | 1. Artifact protocol and validator | Ready | V2 planning | Arbitrary HTML fixtures validate through one nonvisual page contract |
+| Core | 2. Headless React authoring | Pending | Core 1 | Full-document rendering injects no visual policy |
+| Core | 3. Canonical HTML capture | Pending | Core 2 | Unrelated geometries capture through the protocol |
+| Adoption | 1. CLI and project configuration | Pending | Core 3 | Named reports build, inspect, and capture through one CLI |
+| Adoption | 2. Project scaffolding and migration | Pending | Adoption 1 | Clean consumer uses installed tooling; both reports are source-owned |
+| Adoption | 3. Packaging hardening | Pending | Adoption 2 | Versioned package workflow passes from a clean consumer fixture |
+| PDF | 1. Chromium PDF export | Pending | Adoption 1 | Canonical HTML produces validated searchable PDF |
+| PDF | 2. PDF-native inspection | Pending | PDF 1 | Actual PDF pages render to inspection images |
+| PDF | 3. Export hardening | Pending | PDF 2, Adoption 3 | Both proof reports pass HTML and PDF delivery workflows |
+| Recipes | Evidence gate | Deferred | Adoption evidence | Explicit decision on whether a registry earns its cost |
 
-## Phase 0 — Foundation
+## Detailed Plans
 
-Completed:
+- [`docs/plans/v2-core.md`](docs/plans/v2-core.md) — artifact protocol,
+  headless React authoring, and canonical HTML capture.
+- [`docs/plans/v2-adoption.md`](docs/plans/v2-adoption.md) — CLI, JSON
+  configuration, scaffolding, report migration, and package hardening.
+- [`docs/plans/v2-pdf.md`](docs/plans/v2-pdf.md) — browser PDF export,
+  artifact validation, PDF-native inspection, and release hardening.
 
-- Defined the product thesis and primary user.
-- Limited v1 to explicit fixed pages.
-- Chose HTML as the primary artifact.
-- Recorded TypeScript and TSX as the initial authoring direction without fixing
-  syntax.
-- Separated browser capture from the report runtime.
-- Chose Playwright with Chromium as the initial preview direction.
-- Explicitly excluded automatic pagination and report linting from v1.
+The tracks are ordered by dependency, not by file ownership. PDF Goal 1 may
+start after Adoption Goal 1 because it needs the CLI and report lookup, while
+Adoption packaging can continue independently after migration.
 
-No implementation scaffold or dependency has been created yet.
+## V1 Verified Baseline
 
-## Phase 1 — Rendering-Loop Spike
+V1 is the regression baseline, not the target public interface:
 
-### Objective
+- React static rendering produces standalone HTML for a three-page fixture and
+  an eight-page operating review.
+- The reports use explicit pages driven by ordinary typed data.
+- Isolated Chromium writes one inspection PNG per page.
+- Both reports open locally and print as the expected A4 landscape page count.
+- A frozen pnpm install and `pnpm run validate` pass from a clean exported tree.
 
-Prove the smallest complete loop from typed data and report source to static
-HTML and agent-inspectable rendered pages.
+The current V1 foundation still injects A4 geometry and chrome. V2 goals remove
+that requirement without discarding the proven authoring and inspection loop.
 
-### Work
+## Decision Gates
 
-1. Choose the smallest credible TypeScript/TSX static-rendering setup.
-   - Decide the rendering runtime while writing the spike.
-   - Prefer familiar behavior over a custom JSX runtime or bespoke language.
-   - Record the reason only after the code demonstrates the choice.
+### Recipe registry
 
-2. Create one deliberately small report fixture.
-   - Use three explicit pages: a sparse cover, a normal content page, and a
-     denser page containing repeated data such as a table.
-   - Feed it typed sample data rather than hard-coding every displayed value.
-   - Include a repeated footer and page numbering so the shared mechanics are
-     exercised.
+Do not build a shadcn-style registry during the core migration. Reconsider only
+after at least two consumer reports show repeated demand for installing the same
+editable visual source. A positive decision must specify provenance, dry-run
+diffs, modification detection, and conflict behavior before managed upgrades
+are promised.
 
-3. Produce a static HTML artifact.
-   - Make page edges visible in ordinary screen viewing.
-   - Preserve fixed page separation in browser print preview.
-   - Keep the output locally viewable without a running application.
+### Additional source adapters
 
-4. Add the rendered-inspection command.
-   - Launch isolated headless Chromium.
-   - Load the actual generated artifact.
-   - Wait for the document and fonts to be visually ready.
-   - Save one readable image per page in a temporary output directory.
-   - Make failures concise and actionable for a shell-driven agent.
+Do not publish a renderer plugin interface around the React implementation.
+Reconsider when a second generator produces the artifact protocol and reveals
+which behavior actually varies.
 
-5. Exercise one intentional overflow.
-   - Change sample content so one page visibly exceeds its intended region.
-   - Confirm the image makes the problem apparent.
-   - Fix the source manually; do not add an overflow detector.
+### Mixed PDF geometry
 
-6. Document only the commands that now exist.
-   - Installation.
-   - HTML generation.
-   - Page capture.
-   - Opening the final artifact.
-
-### Decisions Made During This Phase
-
-The implementation evidence should settle:
-
-- which static TSX renderer is actually used;
-- whether a development server adds enough value to keep;
-- the initial page size and geometry;
-- the simplest representation of shared page chrome;
-- how the output includes its CSS and sample assets; and
-- where generated HTML and temporary captures live.
-
-Do not attempt to settle future theme, pagination, plugin, or public-package
-interfaces.
-
-### Exit Artifact
-
-A new agent can follow repository instructions to:
-
-1. install dependencies;
-2. change a supplied report value;
-3. generate the report;
-4. capture its pages;
-5. inspect the images;
-6. make a layout correction; and
-7. open the final static HTML.
-
-The spike may be rewritten rather than preserved if using it reveals a simpler
-authoring shape.
-
-### Verified Outcome
-
-- React static server rendering provides familiar typed TSX without a client
-  application or development server.
-- A4 landscape (`297mm × 210mm`) is the initial fixed geometry.
-- Report-local composition supplies shared chrome and final page positions;
-  the cover suppresses chrome explicitly.
-- CSS is embedded in `artifacts/spike/report.html`, so the output has no runtime
-  or network dependency.
-- Isolated Chromium captures the actual HTML to one PNG per page under
-  `.tmp/captures/spike/` after document and font readiness.
-- An intentional table-row spacing increase visibly pushed content beyond the
-  page in capture. Restoring the authored spacing corrected the output; no
-  overflow detector or repair path was added.
-- Installation, render, capture, type-check, and local-open paths were run from
-  the repository root.
-
-## Phase 2 — Real Report Trial
-
-### Objective
-
-Test the idea against real report pressure before treating the initial syntax
-as a reusable interface.
-
-### Work
-
-- Select one existing static report or representative subset.
-- Recreate approximately six to ten pages with realistic Korean and English
-  text, numbers, a table, and at least one figure or image.
-- Populate it from one coherent data object produced outside the report.
-- Let an agent perform at least one content revision and one visual revision
-  through the capture loop.
-- Observe where the spike causes repetition, awkward data flow, or unclear
-  ownership.
-- Record findings by updating current design and decisions rather than keeping
-  a chronological diary.
-
-### Exit Artifact
-
-A credible report that would be useful independently of framework development,
-plus a short list of proven authoring friction.
-
-### Verified Outcome
-
-- One typed data object drives an eight-page operating report with English and
-  Korean prose, formatted metrics, a regional table, and an inline SVG figure.
-- The report uses the same standalone HTML and isolated per-page capture loop
-  as the spike, with shared chrome and numbering on pages 2–8.
-- All eight final page images were inspected, and Chromium print output contains
-  exactly eight A4 landscape pages.
-- A content revision clarified the SMB spending decision. Rendered inspection
-  also exposed ambiguous commercial bars and undersized decision copy; labels
-  and typography were corrected in source and the affected pages recaptured.
-- Report-specific layouts remained direct TSX and CSS. The observed reusable
-  friction is limited to duplicated page geometry, chrome/numbering, document
-  shell, static render setup, and capture invocation.
-
-## Phase 3 — Minimum Reuse Extraction
-
-### Objective
-
-Turn only repeated, stable mechanics into a small reusable interface.
-
-### Work
-
-- Compare the spike and real report.
-- Identify mechanics repeated across pages or reports.
-- Centralize page geometry, shared chrome, numbering, document output, and
-  capture only where repetition demonstrates value.
-- Keep report-specific layout in report source.
-- Remove spike-only abstractions that did not simplify the real report.
-- Document the resulting interface after it exists.
-
-### Exit Artifact
-
-A small reusable module whose deletion would force meaningful mechanics back
-into multiple report files. If deletion merely removes thin wrappers, keep the
-solution report-local instead of publishing a library.
-
-### Verified Outcome
-
-- `src/unslide/page.tsx` centralizes the repeated fixed-page structure,
-  optional chrome, and page numbering used by both reports.
-- `src/unslide/foundation.css` centralizes A4 landscape geometry, content and
-  chrome regions, visible screen separation, and print page breaks.
-- `src/unslide/render.tsx` owns title escaping, the embedded document shell,
-  shared/report CSS inclusion, and standalone file output.
-- Capture was already one shared development command. Report-specific
-  headings, metrics, tables, figures, bilingual layout, and styling remain
-  direct report source.
-- Both reports were regenerated, captured, and visually inspected after the
-  extraction. The normalized geometry introduced no overflow or visual defect.
-
-## Phase 4 — V1 Hardening
-
-### Objective
-
-Make the proven workflow repeatable from a clean checkout.
-
-### Work
-
-- Pin the selected dependencies and browser setup.
-- Ensure generated artifacts and temporary captures are separated clearly.
-- Verify the HTML artifact opens locally without preview tooling.
-- Add focused automated checks for generation and capture-command health only
-  where they prevent real regressions.
-- Document supported development platforms and the canonical preview engine.
-- Provide one minimal example and the real report example.
-- Decide whether the reusable module should be published or remain repository
-  local.
-
-### V1 Exit Criteria
-
-- Explicit pages render at the intended fixed dimensions.
-- Ordinary typed data drives visible report content.
-- Shared chrome and page numbering work across the real report.
-- The final HTML opens independently.
-- A shell-driven agent can generate and inspect per-page images without a
-  personal browser connection.
-- The authoring interface has been simplified after real-report use.
-- Installation, render, capture, and artifact paths are documented.
-- No out-of-scope system was introduced to solve a hypothetical future need.
-
-### Verified Outcome
-
-- Dependencies are pinned by `pnpm-lock.yaml`, pnpm is pinned in
-  `package.json`, and dependency build scripts are explicitly approved in
-  `pnpm-workspace.yaml`.
-- Focused tests cover standalone HTML generation, title escaping, page
-  structure, real Chromium capture, PNG health, and safe capture cleanup.
-- `docs/WORKFLOW.md` records installation, authoring, rendering, capture,
-  validation, platform support, artifact ownership, and the decision to keep
-  the foundation repository-local.
-- A clean exported tree passed a frozen pnpm install, Chromium installation,
-  and `pnpm run validate` on macOS 26.5.1 arm64 with Node.js 24.11.0 and pnpm
-  11.12.0.
-- The clean run produced three fixture captures and eight operating-report
-  captures. Every image was inspected and remained readable without overflow.
-- Both generated HTML files opened directly, contained no external runtime
-  references, and printed as exactly three and eight A4 landscape pages.
-- All repository-local Markdown links resolve, the dependency audit reports no
-  vulnerabilities, and the required implementation review passes completed
-  with all safe findings applied.
-
-## Deferred Backlog
-
-Consider only after v1 evidence:
-
-- additional page sizes or mixed orientations;
-- reusable visual themes;
-- formal PDF delivery;
-- more sophisticated figures;
-- cross-browser testing;
-- nontechnical authoring surfaces;
-- automatic pagination; and
-- a public package and versioning policy.
+Initial PDF support permits arbitrary report-wide geometry but assumes one
+geometry per PDF. Reconsider only with a real mixed-size report and integration
+evidence from the canonical Chromium version.
 
 ## Next Action
 
-V1 has no remaining implementation phase. Continue using the documented loop
-for real reports, and accept deferred capabilities only through new report
-evidence and an explicit scope decision.
+Begin Core Goal 1. When it completes, change the current next action to Core
+Goal 2 and update both the progress table here and the goal status in
+`docs/plans/v2-core.md`.
