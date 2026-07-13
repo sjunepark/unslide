@@ -4,6 +4,11 @@ export interface LifecycleRunOptions {
   readonly signal?: AbortSignal;
 }
 
+export function onceAsync<A>(operation: () => PromiseLike<A>): () => Promise<A> {
+  let result: Promise<A> | undefined;
+  return () => result ??= Promise.resolve().then(operation);
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }

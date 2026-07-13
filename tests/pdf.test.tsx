@@ -30,6 +30,7 @@ async function pdfRuntimePrototypes(bytes: Uint8Array) {
   const document = await loadingTask.promise;
   const page = await document.getPage(1);
   const prototypes = {
+    document: Object.getPrototypeOf(document) as object,
     loadingTask: Object.getPrototypeOf(loadingTask) as object,
     page: Object.getPrototypeOf(page) as object,
   };
@@ -210,8 +211,10 @@ test("PDF validation releases loading tasks and pages while retaining cleanup fa
     ));
     await exportHtmlPdf(inputPath, outputPath);
     const prototypes = await pdfRuntimePrototypes(await readFile(outputPath));
+    const documentPrototype = prototypes.document as { getPage: (index: number) => Promise<unknown> };
     const loadingTaskPrototype = prototypes.loadingTask as { destroy: () => Promise<void> };
     const pagePrototype = prototypes.page as { cleanup: () => boolean };
+    const originalGetPage = documentPrototype.getPage;
     const originalDestroy = loadingTaskPrototype.destroy;
     const originalCleanup = pagePrototype.cleanup;
     let destroyCalls = 0;
@@ -228,6 +231,24 @@ test("PDF validation releases loading tasks and pages while retaining cleanup fa
       await exportHtmlPdf(inputPath, outputPath);
       assert.deepEqual({ cleanupCalls, destroyCalls }, { cleanupCalls: 1, destroyCalls: 1 });
 
+      let startPageLoad: (() => void) | undefined;
+      const pageLoadStarted = new Promise<void>((resolveStarted) => {
+        startPageLoad = resolveStarted;
+      });
+      documentPrototype.getPage = async function() {
+        startPageLoad?.();
+        return new Promise<never>(() => {});
+      };
+      destroyCalls = 0;
+      const controller = new AbortController();
+      const interrupted = exportHtmlPdf(inputPath, outputPath, { signal: controller.signal });
+      await pageLoadStarted;
+      controller.abort();
+      await assert.rejects(interrupted, /Operation interrupted/);
+      assert.equal(destroyCalls, 1);
+      assert.equal((await readFile(outputPath)).subarray(0, 5).toString(), "%PDF-");
+      documentPrototype.getPage = originalGetPage;
+
       await writeFile(inputPath, artifact(
         "@page{size:4in 3in;margin:0}body{margin:0}main,aside{width:4in;height:3in}main{break-after:page}",
         '<main data-unslide-page="one">Primary PDF validation failure</main><aside>Extra sheet</aside>',
@@ -242,6 +263,7 @@ test("PDF validation releases loading tasks and pages while retaining cleanup fa
       );
       assert.equal((await readFile(outputPath)).subarray(0, 5).toString(), "%PDF-");
     } finally {
+      documentPrototype.getPage = originalGetPage;
       loadingTaskPrototype.destroy = originalDestroy;
       pagePrototype.cleanup = originalCleanup;
     }

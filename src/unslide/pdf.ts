@@ -4,7 +4,7 @@ import { basename, dirname, resolve } from "node:path";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { Data, Effect } from "effect";
 import { withLoadedArtifact } from "./browser.js";
-import { runScoped, scoped, type LifecycleRunOptions } from "./lifecycle.js";
+import { onceAsync, runScoped, scoped, type LifecycleRunOptions } from "./lifecycle.js";
 import { PAGE_MARKER_SELECTOR } from "./protocol.js";
 
 // Chromium quantizes CSS print geometry below one point; observed absolute
@@ -116,19 +116,22 @@ async function validatePdf(
   if (bytes.byteLength === 0) throw new Error("Chromium produced an empty PDF.");
 
   const validate = Effect.gen(function* () {
-    const loadingTask = yield* Effect.acquireRelease(
+    const loading = yield* Effect.acquireRelease(
       Effect.try({
-        try: () => getDocument({ data: bytes, stopAtErrors: true }),
+        try: () => {
+          const task = getDocument({ data: bytes, stopAtErrors: true });
+          return { destroy: onceAsync(() => task.destroy()), task };
+        },
         catch: (cause) => new PdfValidationFailure({
           cause,
           message: cause instanceof Error ? cause.message : String(cause),
           phase: "load",
         }),
       }),
-      (task) => Effect.promise(() => task.destroy()),
+      ({ destroy }) => Effect.promise(destroy),
     );
     const document = yield* Effect.tryPromise({
-      try: () => loadingTask.promise,
+      try: () => loading.task.promise,
       catch: (cause) => new PdfValidationFailure({
         cause,
         message: cause instanceof Error ? cause.message : String(cause),
@@ -148,7 +151,15 @@ async function validatePdf(
       const pageData = yield* scoped(Effect.gen(function* () {
         const page = yield* Effect.acquireRelease(
           Effect.tryPromise({
-            try: () => document.getPage(index),
+            try: (signal) => {
+              const destroy = () => {
+                void loading.destroy().catch(() => {});
+              };
+              signal.addEventListener("abort", destroy, { once: true });
+              return document.getPage(index).finally(() => {
+                signal.removeEventListener("abort", destroy);
+              });
+            },
             catch: (cause) => new PdfValidationFailure({
               cause,
               message: `Cannot load PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
@@ -158,6 +169,7 @@ async function validatePdf(
           (loadedPage) => Effect.sync(() => {
             loadedPage.cleanup();
           }),
+          { interruptible: true },
         );
         const viewport = page.getViewport({ scale: 1 });
         const textContent = yield* Effect.tryPromise({

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import { getDocument, VerbosityLevel } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { Data, Effect } from "effect";
-import { runScoped, scoped, type LifecycleRunOptions } from "./lifecycle.js";
+import { onceAsync, runScoped, scoped, type LifecycleRunOptions } from "./lifecycle.js";
 import { replacePageImages } from "./page-images.js";
 
 const RASTER_DPI = 96;
@@ -45,23 +45,26 @@ export async function inspectPdfPages(
 
   const pages = await replacePageImages(outputDirectory, "images", async (stagingDirectory) => {
     const inspect = Effect.gen(function* () {
-      const loadingTask = yield* Effect.acquireRelease(
+      const loading = yield* Effect.acquireRelease(
         Effect.try({
-          try: () => getDocument({
-            data: new Uint8Array(bytes),
-            stopAtErrors: true,
-            verbosity: VerbosityLevel.ERRORS,
-          }),
+          try: () => {
+            const task = getDocument({
+              data: new Uint8Array(bytes),
+              stopAtErrors: true,
+              verbosity: VerbosityLevel.ERRORS,
+            });
+            return { destroy: onceAsync(() => task.destroy()), task };
+          },
           catch: (cause) => new PdfInspectionFailure({
             cause,
             message: cause instanceof Error ? cause.message : String(cause),
             phase: "load",
           }),
         }),
-        (task) => Effect.promise(() => task.destroy()),
+        ({ destroy }) => Effect.promise(destroy),
       );
       const document = yield* Effect.tryPromise({
-        try: () => loadingTask.promise,
+        try: () => loading.task.promise,
         catch: (cause) => new PdfInspectionFailure({
           cause,
           message: cause instanceof Error ? cause.message : String(cause),
@@ -81,7 +84,15 @@ export async function inspectPdfPages(
         const renderedPage = yield* scoped(Effect.gen(function* () {
           const page = yield* Effect.acquireRelease(
             Effect.tryPromise({
-              try: () => document.getPage(index),
+              try: (signal) => {
+                const destroy = () => {
+                  void loading.destroy().catch(() => {});
+                };
+                signal.addEventListener("abort", destroy, { once: true });
+                return document.getPage(index).finally(() => {
+                  signal.removeEventListener("abort", destroy);
+                });
+              },
               catch: (cause) => new PdfInspectionFailure({
                 cause,
                 message: `Cannot load PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
@@ -91,6 +102,7 @@ export async function inspectPdfPages(
             (loadedPage) => Effect.sync(() => {
               loadedPage.cleanup();
             }),
+            { interruptible: true },
           );
           const viewport = page.getViewport({ scale: RASTER_DPI / POINTS_PER_INCH });
           const width = Math.ceil(viewport.width);
@@ -158,22 +170,22 @@ export async function inspectPdfPages(
             }),
           });
           const fileName = `page-${String(index).padStart(digits, "0")}.png`;
-          const png = yield* Effect.tryPromise({
+          const png = yield* Effect.uninterruptible(Effect.tryPromise({
             try: () => canvas.encode("png"),
             catch: (cause) => new PdfInspectionFailure({
               cause,
               message: `Cannot encode PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
               phase: "encode",
             }),
-          });
-          yield* Effect.tryPromise({
+          }));
+          yield* Effect.uninterruptible(Effect.tryPromise({
             try: () => writeFile(resolve(stagingDirectory, fileName), png, { flag: "wx" }),
             catch: (cause) => new PdfInspectionFailure({
               cause,
               message: `Cannot write PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
               phase: "write",
             }),
-          });
+          }));
           return { index, width, height, outputPath: resolve(outputDirectory, fileName) };
         }));
         rendered.push(renderedPage);

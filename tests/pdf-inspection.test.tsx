@@ -48,6 +48,7 @@ async function pdfRuntimePrototypes(bytes: Uint8Array) {
   const canvas = createCanvas(1, 1);
   const prototypes = {
     canvas: Object.getPrototypeOf(canvas) as object,
+    document: Object.getPrototypeOf(document) as object,
     loadingTask: Object.getPrototypeOf(loadingTask) as object,
     page: Object.getPrototypeOf(page) as object,
   };
@@ -191,6 +192,51 @@ test("interrupting PDF rendering cancels and releases every owned resource", asy
     pagePrototype.render = originalRender;
     Object.defineProperty(prototypes.canvas, "width", width);
     Object.defineProperty(prototypes.canvas, "height", height);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("interrupting PDF page acquisition destroys its loading task exactly once", async () => {
+  const directory = await temporaryDirectory("unslide interrupted PDF page load ");
+  const inputHtml = resolve(directory, "report.html");
+  const inputPdf = resolve(directory, "report.pdf");
+  const outputDirectory = resolve(directory, "pdf pages");
+  await writeFile(inputHtml, fixtureHtml());
+  await exportHtmlPdf(inputHtml, inputPdf);
+  await mkdir(outputDirectory);
+  await writeFile(resolve(outputDirectory, "page-01.png"), "prior inspection");
+
+  const prototypes = await pdfRuntimePrototypes(await readFile(inputPdf));
+  const documentPrototype = prototypes.document as { getPage: (index: number) => Promise<unknown> };
+  const loadingTaskPrototype = prototypes.loadingTask as { destroy: () => Promise<void> };
+  const originalGetPage = documentPrototype.getPage;
+  const originalDestroy = loadingTaskPrototype.destroy;
+  let destroyCalls = 0;
+  let startPageLoad: (() => void) | undefined;
+  const pageLoadStarted = new Promise<void>((resolveStarted) => {
+    startPageLoad = resolveStarted;
+  });
+  const controller = new AbortController();
+  try {
+    documentPrototype.getPage = async function() {
+      startPageLoad?.();
+      return new Promise<never>(() => {});
+    };
+    loadingTaskPrototype.destroy = async function() {
+      destroyCalls += 1;
+      await originalDestroy.call(this);
+    };
+
+    const pending = inspectPdfPages(inputPdf, outputDirectory, { signal: controller.signal });
+    await pageLoadStarted;
+    controller.abort();
+    await assert.rejects(pending, /Operation interrupted/);
+    assert.equal(destroyCalls, 1);
+    assert.equal(await readFile(resolve(outputDirectory, "page-01.png"), "utf8"), "prior inspection");
+    assert.equal((await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")), false);
+  } finally {
+    documentPrototype.getPage = originalGetPage;
+    loadingTaskPrototype.destroy = originalDestroy;
     await rm(directory, { recursive: true, force: true });
   }
 });
