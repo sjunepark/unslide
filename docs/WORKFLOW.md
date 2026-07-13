@@ -7,18 +7,18 @@ also implemented and verified through the packed consumer workflow.
 
 ## Supported Development Environment
 
-The workflow is verified on macOS with Apple silicon, Node.js 24, pnpm 11, and the
-Playwright-managed Chromium build. Chromium is the canonical preview and print
-engine. The delivered HTML needs only a modern local browser; it does not need
-Node.js, Playwright, a server, or a running application.
+The workflow is verified on macOS with Apple silicon, Node.js 24.15, pnpm 11,
+and the Playwright-managed Chromium build. Chromium is the canonical preview
+and print engine. The delivered HTML needs only a modern local browser; it does
+not need Node.js, Playwright, a server, or a running application.
 
 The repository does not claim cross-browser pixel parity or support multiple
 capture engines.
 
-The packaged 0.1.0 contract supports Node.js 24.x, pnpm 11.12, and the pinned
-Playwright 1.61.1 Chromium on the verified macOS arm64 environment. Other Node
-versions, package managers, operating systems, and browser engines are not yet
-claimed.
+The packaged 0.1.0 contract supports Node.js 24.15 or newer within the Node 24
+release line, pnpm 11.12, and the pinned Playwright 1.61.1 Chromium on the
+verified macOS arm64 environment. Other Node versions, package managers,
+operating systems, and browser engines are not yet claimed.
 
 ## Install
 
@@ -41,7 +41,8 @@ The verified local-package workflow starts by packing this repository:
 pnpm pack --pack-destination .tmp/package
 ```
 
-In an existing pnpm project, configure `allowBuilds.esbuild: true` in
+In an existing pnpm project, configure `engineStrict: true`,
+`allowBuilds.esbuild: true`, and `allowBuilds.msgpackr-extract: false` in
 `pnpm-workspace.yaml`, install the resulting tarball, and run:
 
 ```sh
@@ -136,12 +137,12 @@ packed 0.1.0 tooling. See
 ## Repository Evidence
 
 The workflow was verified on 13 July 2026 on macOS 26.5.1 arm64 with Node.js
-24.11.0, pnpm 11.12.0, Playwright 1.61.1,
+24.15.0, pnpm 11.12.0, Playwright 1.61.1,
 and its managed Chromium build:
 
 - `pnpm install --frozen-lockfile` completed from the committed lockfile;
 - `pnpm exec playwright install chromium` completed successfully;
-- `pnpm run validate` passed all 33 focused protocol, authoring, CLI, PDF, and
+- `pnpm run validate` passed all 37 focused protocol, authoring, CLI, PDF, and
   clean-consumer tests and generated both delivery artifacts plus their HTML and
   PDF-native capture sets;
 - every generated page image was visually inspected;

@@ -3,9 +3,11 @@ import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { relative, resolve, sep } from "node:path";
 import { encode } from "@toon-format/toon";
+import { Cause, Effect, Exit } from "effect";
 import { buildReport } from "./unslide/build.js";
 import { captureHtmlPages } from "./unslide/capture.js";
-import { CONFIG_FILE_NAME, getReport, loadProjectConfig, type ProjectConfig } from "./unslide/config.js";
+import { getReport, loadProjectConfig, type ProjectConfig } from "./unslide/config.js";
+import { CommandFailure, type CliFailure } from "./unslide/failures.js";
 import { initializeProject } from "./unslide/init.js";
 import { inspectHtmlArtifact } from "./unslide/inspect.js";
 
@@ -88,31 +90,62 @@ function usageError(message: string, help: JsonValue): number {
   return 2;
 }
 
-function runtimeError(error: unknown): number {
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function defectError(error: unknown): number {
   const message = error instanceof Error ? error.message : String(error);
   writeOutput({ error: { code: "operation-failed", message } });
   return 1;
+}
+
+function formatCliFailure(error: CliFailure): number {
+  switch (error._tag) {
+    case "ProjectNotFound":
+      writeOutput({
+        error: { code: "project-not-found", message: error.message },
+        help: [`Run ${CLI_INVOCATION} init to plan a new project`],
+      });
+      return 1;
+    case "ProjectConfigFailure":
+    case "ReportNotFound":
+    case "CommandFailure":
+      writeOutput({ error: { code: "operation-failed", message: error.message } });
+      return 1;
+    default: {
+      const exhaustive: never = error;
+      return exhaustive;
+    }
+  }
+}
+
+function commandOperation<A>(
+  command: string,
+  operation: () => Promise<A>,
+  context: { path?: string; report?: string } = {},
+) {
+  // Goal 1 bridges each legacy Promise command here; later goals remove this
+  // transition as those implementations acquire their own typed channels.
+  return Effect.tryPromise({
+    try: operation,
+    catch: (cause) => new CommandFailure({
+      cause,
+      command,
+      message: errorMessage(cause),
+      path: context.path,
+      report: context.report,
+    }),
+  });
 }
 
 function projectPath(config: ProjectConfig, absolutePath: string): string {
   return relative(config.projectRoot, absolutePath) || ".";
 }
 
-async function home(): Promise<number> {
-  let config: ProjectConfig;
-  try {
-    config = await loadProjectConfig();
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith(`No ${CONFIG_FILE_NAME} found`)) {
-      writeOutput({
-        error: { code: "project-not-found", message: error.message },
-        help: [`Run ${CLI_INVOCATION} init to plan a new project`],
-      });
-      return 1;
-    }
-    throw error;
-  }
-  const reports = await Promise.all(Object.values(config.reports).map(async (report) => {
+const home = Effect.fn("cli.home")(function* () {
+  const config = yield* loadProjectConfig();
+  const reports = yield* Effect.promise(() => Promise.all(Object.values(config.reports).map(async (report) => {
     let status = "built";
     try {
       await access(report.htmlPath);
@@ -125,7 +158,7 @@ async function home(): Promise<number> {
       html: projectPath(config, report.htmlPath),
       status,
     };
-  }));
+  })));
   writeOutput({
     bin: displayExecutable(),
     description: "Build and inspect explicit-page HTML and PDF reports",
@@ -134,10 +167,10 @@ async function home(): Promise<number> {
     help: [`Run ${CLI_INVOCATION} build <name>`, `Run ${CLI_INVOCATION} inspect <name>`, `Run ${CLI_INVOCATION} capture <name>`, `Run ${CLI_INVOCATION} export <name>`, `Run ${CLI_INVOCATION} inspect-pdf <name>`],
   });
   return 0;
-}
+});
 
-async function runCommand(argv: string[]): Promise<number> {
-  if (argv.length === 0) return home();
+const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
+  if (argv.length === 0) return yield* home();
   if (argv[0] === "--help") {
     writeOutput(topHelp());
     return 0;
@@ -192,7 +225,7 @@ async function runCommand(argv: string[]): Promise<number> {
       return usageError(`Invalid report name "${reportName}"; use lower-kebab case.`, commandHelp("init"));
     }
 
-    const result = await initializeProject(process.cwd(), reportName, write);
+    const result = yield* commandOperation("init", () => initializeProject(process.cwd(), reportName, write), { report: reportName });
     const init = {
       root: result.projectRoot,
       report: result.reportName,
@@ -218,7 +251,7 @@ async function runCommand(argv: string[]): Promise<number> {
     if (argv.length !== 3 || !argv[2]) {
       return usageError("--artifact requires exactly one HTML path.", commandHelp("inspect"));
     }
-    const result = await inspectHtmlArtifact(argv[2]);
+    const result = yield* commandOperation("inspect", () => inspectHtmlArtifact(argv[2] as string), { path: argv[2] });
     writeOutput({
       artifact: { path: result.inputPath, pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
@@ -242,8 +275,10 @@ async function runCommand(argv: string[]): Promise<number> {
     ) {
       return usageError("Explicit PDF inspection requires --artifact <path> and --output <directory> exactly once.", commandHelp("inspect-pdf"));
     }
-    const { inspectPdfPages } = await import("./unslide/pdf-inspection.js");
-    const result = await inspectPdfPages(artifactPath, outputDirectory);
+    const result = yield* commandOperation("inspect-pdf", async () => {
+      const { inspectPdfPages } = await import("./unslide/pdf-inspection.js");
+      return inspectPdfPages(artifactPath, outputDirectory);
+    }, { path: artifactPath });
     writeOutput({
       pdf: { path: result.inputPath, output: result.outputDirectory, pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, file: page.outputPath, width: page.width, height: page.height })),
@@ -255,15 +290,15 @@ async function runCommand(argv: string[]): Promise<number> {
     return usageError(`${command} requires exactly one report name.`, commandHelp(command));
   }
 
-  const config = await loadProjectConfig();
-  const report = getReport(config, argv[1]);
+  const config = yield* loadProjectConfig();
+  const report = yield* getReport(config, argv[1]);
   if (command === "build") {
-    const result = await buildReport(report);
+    const result = yield* commandOperation(command, () => buildReport(report), { path: report.sourcePath, report: report.name });
     writeOutput({ report: { name: result.name, status: "built", html: projectPath(config, result.htmlPath) } });
     return 0;
   }
   if (command === "inspect") {
-    const result = await inspectHtmlArtifact(report.htmlPath);
+    const result = yield* commandOperation(command, () => inspectHtmlArtifact(report.htmlPath), { path: report.htmlPath, report: report.name });
     writeOutput({
       report: { name: report.name, status: "valid", html: projectPath(config, result.inputPath), pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
@@ -272,8 +307,10 @@ async function runCommand(argv: string[]): Promise<number> {
   }
 
   if (command === "export") {
-    const { exportHtmlPdf } = await import("./unslide/pdf.js");
-    const result = await exportHtmlPdf(report.htmlPath, report.pdfPath);
+    const result = yield* commandOperation(command, async () => {
+      const { exportHtmlPdf } = await import("./unslide/pdf.js");
+      return exportHtmlPdf(report.htmlPath, report.pdfPath);
+    }, { path: report.htmlPath, report: report.name });
     const firstPage = result.pages[0];
     writeOutput({
       report: {
@@ -289,8 +326,10 @@ async function runCommand(argv: string[]): Promise<number> {
   }
 
   if (command === "inspect-pdf") {
-    const { inspectPdfPages } = await import("./unslide/pdf-inspection.js");
-    const result = await inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory);
+    const result = yield* commandOperation(command, async () => {
+      const { inspectPdfPages } = await import("./unslide/pdf-inspection.js");
+      return inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory);
+    }, { path: report.pdfPath, report: report.name });
     writeOutput({
       report: {
         name: report.name,
@@ -309,18 +348,18 @@ async function runCommand(argv: string[]): Promise<number> {
     return 0;
   }
 
-  const result = await captureHtmlPages(report.htmlPath, report.captureDirectory);
+  const result = yield* commandOperation(command, () => captureHtmlPages(report.htmlPath, report.captureDirectory), { path: report.htmlPath, report: report.name });
   writeOutput({
     report: { name: report.name, status: "captured", pageCount: result.pages.length },
     pages: result.pages.map((page) => ({ id: page.id, file: projectPath(config, page.outputPath), width: page.width, height: page.height })),
   });
   return 0;
-}
+});
 
-let exitCode: number;
-try {
-  exitCode = await runCommand(process.argv.slice(2));
-} catch (error) {
-  exitCode = runtimeError(error);
-}
+const exit = await Effect.runPromiseExit(
+  runCommand(process.argv.slice(2)).pipe(
+    Effect.catch((failure) => Effect.sync(() => formatCliFailure(failure))),
+  ),
+);
+const exitCode = Exit.isSuccess(exit) ? exit.value : defectError(Cause.squash(exit.cause));
 process.exitCode = exitCode;

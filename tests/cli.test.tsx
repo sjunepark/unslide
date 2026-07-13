@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
-import { decode } from "@toon-format/toon";
+import { decode, encode } from "@toon-format/toon";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(".");
 const cliPath = resolve("src/cli.ts");
+const tsxImport = import.meta.resolve("tsx");
 
 interface CliResult {
   exitCode: number;
@@ -17,12 +19,12 @@ interface CliResult {
   value: Record<string, unknown>;
 }
 
-async function runCli(arguments_: string[], cwd = repositoryRoot): Promise<CliResult> {
+async function runCli(arguments_: string[], cwd = repositoryRoot, environment: NodeJS.ProcessEnv = {}): Promise<CliResult> {
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
-      ["--import", "tsx", cliPath, ...arguments_],
-      { cwd },
+      ["--import", tsxImport, cliPath, ...arguments_],
+      { cwd, env: { ...process.env, ...environment } },
     );
     return { exitCode: 0, stderr, stdout, value: decode(stdout) as Record<string, unknown> };
   } catch (error) {
@@ -34,6 +36,30 @@ async function runCli(arguments_: string[], cwd = repositoryRoot): Promise<CliRe
       value: decode(failure.stdout) as Record<string, unknown>,
     };
   }
+}
+
+const stableCliEnvironment = {
+  UNSLIDE_BIN: "/opt/unslide/bin/unslide",
+  UNSLIDE_INVOCATION: "unslide",
+};
+
+function stableTopHelp() {
+  return {
+    bin: "/opt/unslide/bin/unslide",
+    description: "Build and inspect explicit-page HTML and PDF reports",
+    usage: "unslide <command>",
+    commands: [
+      { command: "build <name>", description: "Build a named report to standalone HTML" },
+      { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
+      { command: "inspect --artifact <path>", description: "Validate any existing HTML artifact" },
+      { command: "capture <name>", description: "Capture a named report's HTML pages" },
+      { command: "export <name>", description: "Export a named report's existing HTML artifact to PDF" },
+      { command: "inspect-pdf <name>", description: "Render a named report's existing PDF to page images" },
+      { command: "inspect-pdf --artifact <path> --output <directory>", description: "Render any existing PDF to page images" },
+      { command: "init", description: "Plan or create a minimal report project" },
+    ],
+    help: ["Run unslide <command> --help for command details"],
+  };
 }
 
 async function runPackageCli(arguments_: string[]): Promise<CliResult> {
@@ -126,6 +152,99 @@ test("silent package-script invocation preserves structured stdout on failure", 
   assert.equal(result.exitCode, 2);
   assert.equal(result.stderr, "");
   assert.equal((result.value.error as Record<string, unknown>).code, "usage");
+});
+
+test("CLI root preserves exact TOON bytes and maps every tagged failure", async () => {
+  const externalRoot = await mkdtemp(resolve(tmpdir(), "unslide-cli-boundary-"));
+  const canonicalExternalRoot = await realpath(externalRoot);
+  const projectRoot = await createProject("unslide failure mapping ");
+  try {
+    const help = await runCli(["--help"], repositoryRoot, stableCliEnvironment);
+    assert.deepEqual(
+      { exitCode: help.exitCode, stderr: help.stderr, stdout: help.stdout },
+      { exitCode: 0, stderr: "", stdout: encode(stableTopHelp()) },
+    );
+
+    const usage = await runCli(["build"], repositoryRoot, stableCliEnvironment);
+    assert.deepEqual(
+      { exitCode: usage.exitCode, stderr: usage.stderr, stdout: usage.stdout },
+      {
+        exitCode: 2,
+        stderr: "",
+        stdout: encode({
+          error: { code: "usage", message: "build requires exactly one report name." },
+          help: {
+            command: "build",
+            usage: "unslide build <name>",
+            flags: [],
+            examples: ["unslide build spike", "unslide build operating-review"],
+          },
+        }),
+      },
+    );
+
+    const missingProject = await runCli([], externalRoot, stableCliEnvironment);
+    const missingMessage = `No unslide.json found from ${canonicalExternalRoot} or its parent directories.`;
+    assert.deepEqual(
+      { exitCode: missingProject.exitCode, stderr: missingProject.stderr, stdout: missingProject.stdout },
+      {
+        exitCode: 1,
+        stderr: "",
+        stdout: encode({
+          error: { code: "project-not-found", message: missingMessage },
+          help: ["Run unslide init to plan a new project"],
+        }),
+      },
+    );
+
+    await writeFile(resolve(externalRoot, "unslide.json"), JSON.stringify({ version: 2, reports: {} }));
+    const invalidConfig = await runCli([], externalRoot, stableCliEnvironment);
+    assert.deepEqual(
+      { exitCode: invalidConfig.exitCode, stderr: invalidConfig.stderr, stdout: invalidConfig.stdout },
+      {
+        exitCode: 1,
+        stderr: "",
+        stdout: encode({
+          error: {
+            code: "operation-failed",
+            message: "Unsupported unslide.json version 2. This release supports version 1; update the configuration manually because automatic migration is not available.",
+          },
+        }),
+      },
+    );
+
+    const missingReport = await runCli(["build", "missing"], projectRoot, stableCliEnvironment);
+    assert.deepEqual(
+      { exitCode: missingReport.exitCode, stderr: missingReport.stderr, stdout: missingReport.stdout },
+      {
+        exitCode: 1,
+        stderr: "",
+        stdout: encode({ error: { code: "operation-failed", message: 'Unknown report "missing". Available reports: fixture.' } }),
+      },
+    );
+
+    const invalidArtifact = await runCli(
+      ["inspect", "--artifact", resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html")],
+      repositoryRoot,
+      stableCliEnvironment,
+    );
+    assert.deepEqual(
+      { exitCode: invalidArtifact.exitCode, stderr: invalidArtifact.stderr, stdout: invalidArtifact.stdout },
+      {
+        exitCode: 1,
+        stderr: "",
+        stdout: encode({
+          error: {
+            code: "operation-failed",
+            message: 'Artifact readiness failed:\nNo report pages found. Expected at least one element with data-unslide-page="<id>".',
+          },
+        }),
+      },
+    );
+  } finally {
+    await rm(externalRoot, { recursive: true, force: true });
+    await rm(projectRoot, { recursive: true, force: true });
+  }
 });
 
 test("CLI init plans writes, applies explicit confirmation, and refuses conflicts", async () => {

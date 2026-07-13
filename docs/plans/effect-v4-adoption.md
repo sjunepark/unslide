@@ -1,6 +1,6 @@
 # Effect v4 Internal Runtime Plan
 
-Status: **planned; Runtime Goal 1 is next.**
+Status: **Runtime Goal 1 complete; Runtime Goal 2 is next.**
 
 This is an internal maintenance track governed by
 [D5](../decisions/0005-effect-v4-internal-runtime.md). It does not reopen
@@ -40,7 +40,7 @@ product scope or change Unslide's public authoring and artifact contracts.
 
 ## Runtime Goal 1 — Foundation and Typed Failure Boundary
 
-Status: **planned**
+Status: **complete**
 
 Depends on: completed V2 scope and D5
 
@@ -103,6 +103,38 @@ preserving every observable CLI and package behavior.
   per-function dual API exists.
 - `PLAN.md` points to Runtime Goal 2.
 
+### Completion Evidence
+
+- `effect@4.0.0-beta.97` is an exact runtime dependency and
+  `@effect/language-service@0.87.0` is an exact development dependency. The
+  pinned local plugin schema and `check` script enable build diagnostics without
+  adding an install lifecycle. The workspace enforces dependency engine ranges;
+  the active release-age policy has one exact exception for the newly published
+  tool.
+- One named root Effect program owns CLI execution. Four internal
+  `Data.TaggedError` cases describe project discovery, configuration, report
+  lookup, and bridged command failures; one exhaustive formatter preserves the
+  existing TOON payloads and 0/1/2 exits. Unknown exceptions in the migrated
+  configuration slice remain defects at the outer boundary.
+- Project discovery, JSON/schema validation, safe path resolution, canonical
+  path checks, and report lookup use typed Effect channels. Remaining
+  Promise-native commands cross one orchestration bridge rather than gaining
+  parallel APIs; no service, Layer, unstable import, or public Effect type was
+  introduced.
+- Tests assert exact help and failure bytes, empty stderr, all exit codes, and
+  every tagged failure mapping. On the canonical Node 24.15 environment,
+  frozen installation, build diagnostics, package compilation, and full
+  validation with all 37 repository tests passed; all 22 regenerated HTML and
+  PDF page images were inspected without defects.
+- The final tarball retained only the established exports and two public
+  declaration files. A clean packed consumer installed with a frozen lockfile
+  and completed initialization, HTML build/inspection/capture, PDF export, and
+  PDF inspection; no Effect type appeared in the packed declarations.
+- The production audit found no known vulnerabilities. Effect and its added
+  transitive dependencies use MIT, ISC, BSD-3-Clause, or Apache-2.0 licenses.
+  The implementation review and bounded recheck, including the diet lens,
+  ended with no remaining safe finding or decision.
+
 ### Suggested `/goal` Objective
 
 > Implement Runtime Goal 1 from `docs/plans/effect-v4-adoption.md`: add the
@@ -112,7 +144,7 @@ preserving every observable CLI and package behavior.
 
 ## Runtime Goal 2 — Scoped Browser and PDF Lifecycles
 
-Status: **pending**
+Status: **next**
 
 Depends on: Runtime Goal 1
 

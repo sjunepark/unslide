@@ -8,14 +8,16 @@ than what the underlying browser and libraries may happen to support.
 | Component | Verified version |
 |---|---|
 | Host | macOS 26.5.1 arm64 |
-| Node.js | 24.11.0 |
+| Node.js | 24.15.0 |
 | pnpm | 11.12.0 |
 | Playwright | 1.61.1 |
 | Managed Chromium | Chrome for Testing 149.0.7827.55 |
 | PDF parser/rasterizer | PDF.js 6.1.200 |
 | Node canvas | `@napi-rs/canvas` 1.0.2 |
 
-Other operating systems, architectures, Node versions, package managers,
+The package accepts Node.js 24.15 or newer within the Node 24 release line; the
+table records the exact environment used for complete validation. Other
+operating systems, architectures, Node major versions, package managers,
 browsers, PDF engines, and rasterizers are not currently claimed.
 
 ## Supported Behavior
