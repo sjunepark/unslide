@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Page } from "./page.js";
 import type { SpikeReportData } from "./data.js";
 
 function SectionTitle({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
@@ -12,18 +11,10 @@ function SectionTitle({ eyebrow, children }: { eyebrow: string; children: ReactN
 }
 
 export function SpikeReport({ data }: { data: SpikeReportData }) {
-  const totalPages = 3;
-  const reportLabel = `${data.company} · ${data.period}`;
-  const chrome = {
-    headerLeft: reportLabel,
-    headerRight: "Confidential",
-    footerLeft: `${reportLabel} · Operating review`,
-  };
-
   return (
     <main className="report">
-      <Page number={1} total={totalPages} className="cover">
-        <div className="cover-mark">N</div>
+      <section className="page cover" data-unslide-page="cover">
+        <p className="cover-index">FIELD NOTE / 01</p>
         <div className="cover-copy">
           <p className="eyebrow">{data.company} · {data.period}</p>
           <h1>{data.title}</h1>
@@ -33,9 +24,9 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
           <span>Prepared for {data.preparedFor}</span>
           <span>13 July 2026</span>
         </div>
-      </Page>
+      </section>
 
-      <Page number={2} total={totalPages} chrome={chrome}>
+      <section className="page snapshot" data-unslide-page="signals">
         <SectionTitle eyebrow="Executive snapshot">Performance remained resilient</SectionTitle>
         <p className="lead">{data.summary}</p>
         <div className="metric-grid">
@@ -51,9 +42,9 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
           <p className="eyebrow">Management focus</p>
           <p>Protect enterprise momentum while addressing regional margin dispersion.</p>
         </div>
-      </Page>
+      </section>
 
-      <Page number={3} total={totalPages} chrome={chrome}>
+      <section className="page regions" data-unslide-page="regions">
         <SectionTitle eyebrow="Regional detail">Growth is broad, with uneven economics</SectionTitle>
         <table>
           <thead>
@@ -78,7 +69,7 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
           </tbody>
         </table>
         <p className="table-note">Revenue contribution by reporting region; management reporting basis.</p>
-      </Page>
+      </section>
     </main>
   );
 }

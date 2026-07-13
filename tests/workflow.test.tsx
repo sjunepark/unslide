@@ -1,20 +1,17 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { promisify } from "node:util";
 import test from "node:test";
 import { chromium } from "playwright";
+import { captureHtmlPages } from "../src/unslide/capture.js";
 import { validateArtifact } from "../src/unslide/protocol.js";
 import {
   inlineAsset,
   readTextAsset,
   writeReportHtml,
 } from "../src/unslide/render.js";
-
-const execFileAsync = promisify(execFile);
 
 function TestDocument({ styles = "" }: { styles?: string }) {
   return (
@@ -162,18 +159,10 @@ test("captures one PNG per page without deleting unrelated output", async () => 
 
   try {
     const inputPath = await createTestReport(directory);
-    await execFileAsync(
-      process.execPath,
-      ["--import", "tsx", "scripts/capture.ts", inputPath, outputDirectory],
-      { cwd: resolve(".") },
-    );
+    await captureHtmlPages(inputPath, outputDirectory);
     await writeFile(resolve(outputDirectory, "keep.txt"), "keep this file");
     await writeFile(resolve(outputDirectory, "page-99.png"), "stale capture");
-    await execFileAsync(
-      process.execPath,
-      ["--import", "tsx", "scripts/capture.ts", inputPath, outputDirectory],
-      { cwd: resolve(".") },
-    );
+    await captureHtmlPages(inputPath, outputDirectory);
 
     assert.deepEqual(
       (await readdir(outputDirectory)).sort(),

@@ -1,6 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readTextAsset } from "../../unslide/render.js";
+import { readTextAsset } from "unslide/react";
 import { operatingReviewData } from "./data.js";
 import { OperatingReview } from "./report.js";
 

@@ -1,9 +1,9 @@
 # Architecture
 
-Status: **V1 and the V2 Core track are implemented and verified. Artifact
-protocol v1, headless full-document React authoring, and canonical HTML capture
-are current; packaged adoption and PDF delivery remain planned.** See `PLAN.md`
-for the current migration step.
+Status: **V1, V2 Core, and Adoption Goals 1–2 are implemented and verified.**
+Artifact protocol v1, headless full-document React authoring, installed CLI and
+scaffolding, and canonical HTML capture are current; package hardening and PDF
+delivery remain planned. See `PLAN.md` for the current migration step.
 
 ## Purpose and Boundaries
 
@@ -165,11 +165,13 @@ documentation are insufficient.
   versioned operational schema, and resolves safe project-relative paths.
 - `src/unslide/build.ts` and `src/unslide/inspect.ts` provide the named React
   build and canonical artifact-inspection operations used by the CLI.
-- `src/cli.ts` exposes build, inspect, and capture with TOON output and stable
-  exit codes. Repository scripts delegate through it; `scripts/capture.ts`
-  remains only as a temporary V1 wrapper over the same capture module.
+- `src/cli.ts` exposes initialization, build, inspect, and capture with TOON
+  output and stable exit codes. Repository scripts delegate through it.
+- `src/unslide/init.ts` plans and safely writes the minimal user-owned project
+  scaffold; `src/unslide/react.ts` is the narrow installed authoring entry.
 - `src/spike/` and `src/reports/operating-review/` own their full documents,
-  page composition, A4 geometry, repeated material, and print rules.
+  page composition, unrelated portrait and A4 landscape geometries, optional
+  repeated material, and print rules.
 - `tests/workflow.test.tsx` is the current end-to-end test surface.
 
 Generated HTML stays under `artifacts/`; disposable captures stay under

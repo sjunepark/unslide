@@ -8,9 +8,9 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1, V2 Core, and the first V2 adoption slice are complete.** The
-repository CLI discovers schema-validated projects and builds, inspects, and
-captures named reports. Scaffolding, package hardening, and HTML-first PDF
+Status: **V1, V2 Core, and the first two V2 adoption slices are complete.** The
+CLI initializes schema-validated projects and builds, inspects, and captures
+named reports through installed tooling. Package hardening and HTML-first PDF
 export remain. See [`PLAN.md`](PLAN.md) before starting work.
 
 ## Rendering Spike
@@ -66,9 +66,39 @@ unknown fields and overlapping or escaping paths. Configuration contains only
 source and derived-artifact locations—visual choices remain in report source.
 
 The `--silent` package-manager flag keeps CLI stdout as structured TOON for
-automation. Exit code 0 means success, 1 an
-operational failure, and 2 invalid command usage. `unslide --help` and each
-command's `--help` form are noninteractive.
+automation. Exit code 0 means success, 1 an operational failure, and 2 invalid
+command usage. Top-level and per-command `--help` forms are noninteractive.
+
+## Adopt from the Local Package
+
+The verified pre-release path uses a packed tarball. From this repository:
+
+```sh
+pnpm pack --pack-destination .tmp/package
+```
+
+In an existing pnpm project, allow the pinned `esbuild` install script in
+`pnpm-workspace.yaml`, then install that tarball:
+
+```yaml
+allowBuilds:
+  esbuild: true
+```
+
+```sh
+pnpm add /path/to/unslide/.tmp/package/unslide-0.0.0.tgz
+pnpm dlx playwright@1.61.1 install chromium
+pnpm exec unslide init
+pnpm exec unslide init --yes
+pnpm exec unslide build report
+pnpm exec unslide inspect report
+pnpm exec unslide capture report
+```
+
+The first `init` is a dry run. `--yes` creates only `unslide.json`,
+`report.tsx`, and an optional `report.css`; it never overwrites differing
+files. The generated source owns its complete document and styling and imports
+only the nonvisual React authoring entry from the installed package.
 
 ## Current Authoring Path
 
@@ -76,8 +106,9 @@ command's `--help` form are noninteractive.
 writes standalone HTML. It supplies explicit local-asset helpers and rejects
 unresolved resource dependencies, but injects no document shell, stylesheet,
 page wrapper, geometry, chrome, or typography. Each proof report owns those
-choices beside its source. The repository CLI is implemented; a packed public
-package remains a later adoption goal.
+choices beside its source. Local tarball installation is proven; the package's
+final file list, compatibility contract, and public release state remain the
+next adoption goal.
 
 ## Start Here
 

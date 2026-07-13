@@ -1,6 +1,6 @@
 # V2 Adoption Plan
 
-Status: **Goal 1 complete; Goal 2 ready; Goal 3 pending.**
+Status: **Goals 1–2 complete; Goal 3 ready.**
 
 This plan replaces manual source copying with installed, versioned tooling while
 keeping report design in user-owned source. Use the `axi` skill when implementing
@@ -83,7 +83,7 @@ HTML capture, backed by deterministic schema-validated JSON configuration.
 
 ## Adoption Goal 2 — Scaffolding and Report Migration
 
-Status: **ready**
+Status: **complete**
 
 Depends on: Adoption Goal 1
 
@@ -131,6 +131,25 @@ tooling while owning all report design source.
 - Current docs no longer recommend the V1 copy-in path.
 - `PLAN.md` points to Adoption Goal 3.
 
+### Completion Evidence
+
+- `init` uses an AXI-compatible dry-run/`--yes` flow instead of prompting. It
+  creates only `unslide.json`, one complete React document, and one removable
+  CSS file; repeats are no-ops and conflicts never overwrite existing paths.
+- A locally packed tarball was installed in an external temporary project. The
+  installed executable initialized, built, inspected, and captured a 960×540
+  report without copied runtime files or workspace imports.
+- The spike now proves three 900×1200 portrait, chrome-free pages with distinct
+  typography and spacing; the operating review retains eight report-owned A4
+  landscape pages. All 12 proof and consumer page images were inspected without
+  defects.
+- The V1 copy-in guide and capture wrapper were removed. Current README and
+  workflow documentation describe only the verified installed path.
+- Frozen install, type checking, all 25 focused tests, both proof-report CLI
+  workflows, and Markdown links passed. The required implementation review
+  applied race-safe recovery, executable identity, and documentation fixes and
+  found no remaining safe issues.
+
 ### Suggested `/goal` Objective
 
 > Implement Adoption Goal 2 from `docs/plans/v2-adoption.md`: add safe minimal
@@ -140,7 +159,7 @@ tooling while owning all report design source.
 
 ## Adoption Goal 3 — Packaging and Upgrade Hardening
 
-Status: **pending**
+Status: **ready**
 
 Depends on: Adoption Goal 2
 

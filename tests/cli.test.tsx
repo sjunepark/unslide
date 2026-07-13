@@ -88,7 +88,7 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
   const help = await runCli(["--help"]);
   assert.equal(help.exitCode, 0);
   assert.equal(help.stderr, "");
-  assert.equal(help.value.bin, "pnpm --silent run unslide");
+  assert.match(String(help.value.bin), /src\/cli\.ts$/);
   assert.equal(help.value.usage, "pnpm --silent run unslide <command>");
 
   const commandHelp = await runCli(["capture", "--help"]);
@@ -116,6 +116,51 @@ test("silent package-script invocation preserves structured stdout on failure", 
   assert.equal(result.exitCode, 2);
   assert.equal(result.stderr, "");
   assert.equal((result.value.error as Record<string, unknown>).code, "usage");
+});
+
+test("CLI init plans writes, applies explicit confirmation, and refuses conflicts", async () => {
+  await mkdir(resolve(repositoryRoot, ".tmp"), { recursive: true });
+  const projectRoot = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide init project "));
+  try {
+    const plan = await runCli(["init", "--name", "quarterly-review"], projectRoot);
+    assert.equal(plan.exitCode, 0);
+    assert.equal(plan.stderr, "");
+    assert.equal((plan.value.init as Record<string, unknown>).status, "planned");
+    await assert.rejects(readFile(resolve(projectRoot, "unslide.json"), "utf8"), /ENOENT/);
+
+    const creation = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
+    assert.equal(creation.exitCode, 0);
+    assert.equal(creation.stderr, "");
+    assert.equal((creation.value.init as Record<string, unknown>).status, "created");
+    assert.match(await readFile(resolve(projectRoot, "quarterly-review.tsx"), "utf8"), /data-unslide-page="welcome"/);
+    assert.match(await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8"), /Optional starter styling/);
+
+    const repeat = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
+    assert.equal(repeat.exitCode, 0);
+    assert.equal((repeat.value.init as Record<string, unknown>).status, "unchanged");
+
+    await writeFile(resolve(projectRoot, "quarterly-review.css"), "user-owned change\n");
+    const conflict = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
+    assert.equal(conflict.exitCode, 1);
+    assert.equal(conflict.stderr, "");
+    assert.equal((conflict.value.error as Record<string, unknown>).code, "file-conflict");
+    assert.equal(await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8"), "user-owned change\n");
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("CLI init rejects unsupported arguments and invalid report names", async () => {
+  for (const result of [
+    await runCli(["init", "--name"]),
+    await runCli(["init", "--name", "Quarterly Review"]),
+    await runCli(["init", "--yes", "--yes"]),
+    await runCli(["init", "--unknown"]),
+  ]) {
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.stderr, "");
+    assert.ok(result.value.help);
+  }
 });
 
 test("CLI discovers a project from nested paths and handles spaces end to end", async () => {

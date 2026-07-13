@@ -5,19 +5,15 @@ artifact protocol, headless full-document authoring, and canonical capture path
 are active in these commands; follow [`PLAN.md`](../PLAN.md) for the remaining
 migration state.
 
-For an interactive overview and authoring guide to the V1 implementation, open
-[`docs/index.html`](index.html) directly in a browser. Its copy-in recipe is
-historical guidance for V1, not the accepted V2 adoption model.
-
 ## Supported Development Environment
 
-V1 is verified on macOS with Apple silicon, Node.js 24, pnpm 11, and the
+The workflow is verified on macOS with Apple silicon, Node.js 24, pnpm 11, and the
 Playwright-managed Chromium build. Chromium is the canonical preview and print
 engine. The delivered HTML needs only a modern local browser; it does not need
 Node.js, Playwright, a server, or a running application.
 
 The repository does not claim cross-browser pixel parity or support multiple
-capture engines in v1.
+capture engines.
 
 ## Install
 
@@ -31,6 +27,32 @@ pnpm exec playwright install chromium
 The frozen install uses the committed lockfile, and pnpm is pinned through
 `package.json`. Browser installation is development-only and does not add
 anything to generated reports.
+
+## Initialize a Consumer
+
+The verified local-package workflow starts by packing this repository:
+
+```sh
+pnpm pack --pack-destination .tmp/package
+```
+
+In an existing pnpm project, configure `allowBuilds.esbuild: true` in
+`pnpm-workspace.yaml`, install the resulting tarball, and run:
+
+```sh
+pnpm add /path/to/unslide-0.0.0.tgz
+pnpm dlx playwright@1.61.1 install chromium
+pnpm exec unslide init
+pnpm exec unslide init --yes
+pnpm exec unslide build report
+pnpm exec unslide inspect report
+pnpm exec unslide capture report
+```
+
+The first `init` command shows the planned file writes. The confirmed command
+creates a minimal `unslide.json`, a complete React document, and one clearly
+removable CSS file. A repeated run is an unchanged no-op; differing files
+produce a structured conflict without being overwritten.
 
 ## Author, Render, and Inspect
 
@@ -83,12 +105,11 @@ The repository-local React writer serializes a complete author-owned document,
 provides explicit local-asset inlining, and injects no visual source. Each
 report owns page geometry, chrome or its absence, styles, and print behavior.
 The protocol-only capture module is implemented, and current repository render
-and capture commands delegate through the CLI. The older capture script remains
-only as a temporary V1 compatibility wrapper around the same module.
+and capture commands delegate through the CLI.
 
-The accepted V2 direction supersedes copy-in as the adoption model. Stable
-build, validation, capture, and export behavior will move to versioned tooling;
-there is not yet a published package interface. See
+The accepted V2 direction supersedes copy-in as the adoption model. Build,
+validation, and capture now run from locally packed tooling; package hardening
+and export remain. See
 [D3](decisions/0003-headless-artifact-protocol.md) and the
 [V2 adoption plan](plans/v2-adoption.md).
 
@@ -100,10 +121,13 @@ and its managed Chromium build:
 
 - `pnpm install --frozen-lockfile` completed from the committed lockfile;
 - `pnpm exec playwright install chromium` completed successfully;
-- `pnpm run validate` passed both focused tests and generated 3 fixture pages
-  plus 8 operating-report pages;
+- `pnpm run validate` passed focused protocol, authoring, CLI, and clean-consumer
+  tests and generated 3 fixture pages plus 8 operating-report pages;
 - every generated page image was visually inspected;
 - both HTML artifacts contained no external URLs, scripts, or linked styles;
 - direct local opening required no server or Playwright runtime;
-- Chromium print output contained exactly 3 and 8 A4 landscape pages; and
+- the contrasting fixture captured as three 900×1200 portrait pages while the
+  operating review retained eight A4 landscape pages;
+- a packed tarball initialized, built, inspected, and captured a standalone
+  960×540 consumer report outside the repository; and
 - every repository-local Markdown link resolved.
