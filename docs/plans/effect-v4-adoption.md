@@ -210,8 +210,13 @@ without changing the serializable artifact protocol or output artifacts.
 - A small internal scope runner retains primary and cleanup causes together at
   the Promise boundary. The existing `Set<Request>` identity accounting and
   its same-URL regression test remain unchanged and pass.
-- `pnpm run check` and all 18 protocol tests pass on Node 24.15.0. Scoped PDF.js
-  loading, page, render-task, and canvas ownership is the next slice.
+- PDF loading tasks, pages, unsettled render tasks, and native canvases now have
+  explicit scoped destruction, cleanup, cancellation, and release. Per-page
+  scopes preserve sequential ordering and release each page before the next.
+- `pnpm run check` and all 43 tests pass on Node 24.15.0. Real Chromium and
+  PDF.js evidence covers success, operation failure, interruption, cleanup
+  failure, combined diagnostics, same-URL readiness, rollback, and staging
+  cleanup. Full report regeneration/inspection and review remain.
 
 ### Suggested `/goal` Objective
 

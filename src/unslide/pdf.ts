@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { Data, Effect } from "effect";
 import { withLoadedArtifact } from "./browser.js";
+import { runScoped, scoped, type LifecycleRunOptions } from "./lifecycle.js";
 import { PAGE_MARKER_SELECTOR } from "./protocol.js";
 
 // Chromium quantizes CSS print geometry below one point; observed absolute
@@ -31,6 +33,12 @@ interface PageGeometry {
   widthPoints: number;
   heightPoints: number;
 }
+
+class PdfValidationFailure extends Data.TaggedError("PdfValidationFailure")<{
+  readonly cause?: unknown;
+  readonly message: string;
+  readonly phase: "load" | "page" | "text" | "validate";
+}> {}
 
 const ABSOLUTE_LENGTH_POINTS: Readonly<Record<string, number>> = {
   px: 0.75,
@@ -103,71 +111,128 @@ async function validatePdf(
   expectedPageCount: number,
   expectedGeometry: PageGeometry,
   expectedText: ExpectedPageText[],
+  options: LifecycleRunOptions,
 ): Promise<PdfPage[]> {
   if (bytes.byteLength === 0) throw new Error("Chromium produced an empty PDF.");
 
-  const loadingTask = getDocument({ data: bytes, stopAtErrors: true });
-  try {
-    const document = await loadingTask.promise;
+  const validate = Effect.gen(function* () {
+    const loadingTask = yield* Effect.acquireRelease(
+      Effect.try({
+        try: () => getDocument({ data: bytes, stopAtErrors: true }),
+        catch: (cause) => new PdfValidationFailure({
+          cause,
+          message: cause instanceof Error ? cause.message : String(cause),
+          phase: "load",
+        }),
+      }),
+      (task) => Effect.promise(() => task.destroy()),
+    );
+    const document = yield* Effect.tryPromise({
+      try: () => loadingTask.promise,
+      catch: (cause) => new PdfValidationFailure({
+        cause,
+        message: cause instanceof Error ? cause.message : String(cause),
+        phase: "load",
+      }),
+    });
     if (document.numPages !== expectedPageCount) {
-      throw new Error(
-        `PDF page count ${document.numPages} does not match the ${expectedPageCount} marked HTML pages. Check authored print page breaks and content overflow.`,
-      );
+      return yield* new PdfValidationFailure({
+        message: `PDF page count ${document.numPages} does not match the ${expectedPageCount} marked HTML pages. Check authored print page breaks and content overflow.`,
+        phase: "validate",
+      });
     }
 
     const pages: PdfPage[] = [];
     const extractedText: string[] = [];
     for (let index = 1; index <= document.numPages; index += 1) {
-      const page = await document.getPage(index);
-      const viewport = page.getViewport({ scale: 1 });
-      const textContent = await page.getTextContent();
-      const textItems = textContent.items
-        .filter((item): item is typeof item & { str: string } => "str" in item)
-        .map((item) => item.str);
-      const text = textItems.join(" ");
-      extractedText.push(compactText(text));
-      pages.push({
-        index,
-        widthPoints: viewport.width,
-        heightPoints: viewport.height,
-        textSample: text.replace(/\s+/g, " ").trim().slice(0, 120),
-      });
+      const pageData = yield* scoped(Effect.gen(function* () {
+        const page = yield* Effect.acquireRelease(
+          Effect.tryPromise({
+            try: () => document.getPage(index),
+            catch: (cause) => new PdfValidationFailure({
+              cause,
+              message: `Cannot load PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
+              phase: "page",
+            }),
+          }),
+          (loadedPage) => Effect.sync(() => {
+            loadedPage.cleanup();
+          }),
+        );
+        const viewport = page.getViewport({ scale: 1 });
+        const textContent = yield* Effect.tryPromise({
+          try: () => page.getTextContent(),
+          catch: (cause) => new PdfValidationFailure({
+            cause,
+            message: `Cannot extract PDF page ${index} text: ${cause instanceof Error ? cause.message : String(cause)}`,
+            phase: "text",
+          }),
+        });
+        const textItems = textContent.items
+          .filter((item): item is typeof item & { str: string } => "str" in item)
+          .map((item) => item.str);
+        const text = textItems.join(" ");
+        return {
+          compactText: compactText(text),
+          page: {
+            index,
+            widthPoints: viewport.width,
+            heightPoints: viewport.height,
+            textSample: text.replace(/\s+/g, " ").trim().slice(0, 120),
+          },
+        };
+      }));
+      extractedText.push(pageData.compactText);
+      pages.push(pageData.page);
     }
 
     const first = pages[0];
-    if (!first) throw new Error("Chromium produced a PDF with no pages.");
+    if (!first) {
+      return yield* new PdfValidationFailure({
+        message: "Chromium produced a PDF with no pages.",
+        phase: "validate",
+      });
+    }
     if (
       Math.abs(first.widthPoints - expectedGeometry.widthPoints) > GEOMETRY_TOLERANCE_POINTS
       || Math.abs(first.heightPoints - expectedGeometry.heightPoints) > GEOMETRY_TOLERANCE_POINTS
     ) {
-      throw new Error(
-        `PDF page geometry ${displayGeometry(first.widthPoints, first.heightPoints)} does not match the authored @page size ${displayGeometry(expectedGeometry.widthPoints, expectedGeometry.heightPoints)}. Refusing a possible Chromium fallback.`,
-      );
+      return yield* new PdfValidationFailure({
+        message: `PDF page geometry ${displayGeometry(first.widthPoints, first.heightPoints)} does not match the authored @page size ${displayGeometry(expectedGeometry.widthPoints, expectedGeometry.heightPoints)}. Refusing a possible Chromium fallback.`,
+        phase: "validate",
+      });
     }
     for (const page of pages.slice(1)) {
       if (
         Math.abs(page.widthPoints - first.widthPoints) > GEOMETRY_TOLERANCE_POINTS
         || Math.abs(page.heightPoints - first.heightPoints) > GEOMETRY_TOLERANCE_POINTS
       ) {
-        throw new Error(
-          `PDF uses mixed page geometry: page 1 is ${displayGeometry(first.widthPoints, first.heightPoints)}, but page ${page.index} is ${displayGeometry(page.widthPoints, page.heightPoints)}. Initial PDF export supports one geometry per report.`,
-        );
+        return yield* new PdfValidationFailure({
+          message: `PDF uses mixed page geometry: page 1 is ${displayGeometry(first.widthPoints, first.heightPoints)}, but page ${page.index} is ${displayGeometry(page.widthPoints, page.heightPoints)}. Initial PDF export supports one geometry per report.`,
+          phase: "validate",
+        });
       }
     }
 
     for (const expected of expectedText) {
       const actual = extractedText[expected.index - 1] ?? "";
       if (!expected.tokens.every((token) => actual.includes(compactText(token)))) {
-        throw new Error(
-          `PDF page ${expected.index} does not preserve expected extractable text (${expected.tokens.join(" ")}). Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`,
-        );
+        return yield* new PdfValidationFailure({
+          message: `PDF page ${expected.index} does not preserve expected extractable text (${expected.tokens.join(" ")}). Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`,
+          phase: "validate",
+        });
       }
     }
     return pages;
+  });
+
+  try {
+    return await runScoped(validate, options);
   } catch (error) {
-    throw new Error(`Cannot validate generated PDF: ${error instanceof Error ? error.message : String(error)}`);
-  } finally {
-    await loadingTask.destroy();
+    throw new Error(
+      `Cannot validate generated PDF: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
   }
 }
 
@@ -175,7 +240,11 @@ async function validatePdf(
  * Prints canonical HTML with report-owned paged CSS, validates the actual PDF,
  * and publishes it only after every delivery invariant passes.
  */
-export async function exportHtmlPdf(input: string, output: string): Promise<PdfExportResult> {
+export async function exportHtmlPdf(
+  input: string,
+  output: string,
+  options: LifecycleRunOptions = {},
+): Promise<PdfExportResult> {
   const inputPath = resolve(input);
   const outputPath = resolve(output);
 
@@ -252,13 +321,14 @@ export async function exportHtmlPdf(input: string, output: string): Promise<PdfE
       tagged: true,
     });
     return { bytes, expectedPageCount: pages.length, expectedGeometry, expectedText };
-  });
+  }, options);
 
   const pdfPages = await validatePdf(
     new Uint8Array(printed.bytes),
     printed.expectedPageCount,
     printed.expectedGeometry,
     printed.expectedText,
+    options,
   );
   await mkdir(dirname(outputPath), { recursive: true });
   const stagingPath = resolve(dirname(outputPath), `.unslide-pdf-${randomUUID()}-${basename(outputPath)}`);
