@@ -1,16 +1,16 @@
 # Plan
 
-Status: **V1 complete; V2 architecture accepted and execution-ready.**
+Status: **V1 complete; V2 Core Goal 1 complete.**
 
-Current next action: **Run Core Goal 1 — establish the headless artifact
-protocol and validator.** See [`docs/plans/v2-core.md`](docs/plans/v2-core.md).
+Current next action: **Run Core Goal 2 — implement headless React authoring.**
+See [`docs/plans/v2-core.md`](docs/plans/v2-core.md).
 
 Suggested `/goal` objective:
 
-> Implement Core Goal 1 from `docs/plans/v2-core.md`. Keep `PLAN.md` and the
-> detailed plan current, preserve V1 behavior unless the goal explicitly
-> migrates it, run the required validation and code-review pass, and stop only
-> when the goal's exit criteria are satisfied or a concrete blocker is recorded.
+> Implement Core Goal 2 from `docs/plans/v2-core.md`. Keep `PLAN.md` and the
+> detailed plan current, preserve the artifact protocol and intended V1 report
+> output, run the required validation and code-review pass, and stop only when
+> the goal's exit criteria are satisfied or a concrete blocker is recorded.
 
 This file is the live execution state. Update statuses, decisions, blockers,
 validation, and the current next action in place. Do not append session logs.
@@ -64,8 +64,8 @@ Keep these outside V2 unless a later decision changes scope:
 |---|---|---|---|---|
 | Foundation | V1 phases 0–4 | Complete | — | Clean install and full V1 validation |
 | Planning | V2 architecture and goal plans | Complete | V1 evidence | PRODUCT, DESIGN, ARCHITECTURE, D3, D4, and detailed plans agree |
-| Core | 1. Artifact protocol and validator | Ready | V2 planning | Arbitrary HTML fixtures validate through one nonvisual page contract |
-| Core | 2. Headless React authoring | Pending | Core 1 | Full-document rendering injects no visual policy |
+| Core | 1. Artifact protocol and validator | Complete | V2 planning | Protocol v1, shared validator, independent fixtures, and unchanged V1 captures |
+| Core | 2. Headless React authoring | Ready | Core 1 | Full-document rendering injects no visual policy |
 | Core | 3. Canonical HTML capture | Pending | Core 2 | Unrelated geometries capture through the protocol |
 | Adoption | 1. CLI and project configuration | Pending | Core 3 | Named reports build, inspect, and capture through one CLI |
 | Adoption | 2. Project scaffolding and migration | Pending | Adoption 1 | Clean consumer uses installed tooling; both reports are source-owned |
@@ -126,6 +126,5 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Begin Core Goal 1. When it completes, change the current next action to Core
-Goal 2 and update both the progress table here and the goal status in
-`docs/plans/v2-core.md`.
+Begin Core Goal 2. Replace the V1 visual authoring foundation with a full-
+document React path while preserving the now-implemented artifact protocol.

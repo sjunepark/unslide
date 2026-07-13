@@ -47,7 +47,7 @@ test("writes a standalone fixed-page HTML artifact", async () => {
 
     assert.match(html, /^<!doctype html>/);
     assert.match(html, /<title>Test &lt;\/title&gt; report<\/title>/);
-    assert.equal((html.match(/data-page=/g) ?? []).length, 2);
+    assert.equal((html.match(/data-unslide-page=/g) ?? []).length, 2);
     assert.match(html, /width: 297mm/);
     assert.doesNotMatch(html, /<script|<link[^>]+stylesheet|https?:\/\//);
   } finally {

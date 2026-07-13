@@ -448,7 +448,7 @@ await writeReportHtml({
           </div>
           <div class="api-row">
             <div><h3><code>capture.ts</code></h3><span class="api-meta">development command</span></div>
-            <div><p>Usage: <code>tsx scripts/capture.ts &lt;report.html&gt; &lt;output-directory&gt;</code>. It finds <code>[data-page]</code> elements and captures one PNG per page in isolated Chromium.</p></div>
+            <div><p>Usage: <code>tsx scripts/capture.ts &lt;report.html&gt; &lt;output-directory&gt;</code>. It validates and captures <code>[data-unslide-page]</code> elements, writing one PNG per page in isolated Chromium.</p></div>
           </div>
         </section>
 
@@ -475,14 +475,14 @@ await writeReportHtml({
 
         <section class="doc-section" id="troubleshooting" data-search="troubleshooting no pages capture missing Chromium overflow imports NodeNext styles output">
           <h2>Troubleshooting</h2>
-          <div class="api-row"><div><h3>No report pages found</h3></div><div><p>The capture script looks for <code>[data-page]</code>. Render pages with the shared <code>Page</code> component and wrap them in <code>&lt;main className="report"&gt;</code>.</p></div></div>
+          <div class="api-row"><div><h3>No report pages found</h3></div><div><p>The capture script looks for elements with a nonempty, unique <code>data-unslide-page</code> ID. The V1 <code>Page</code> component supplies this marker; arbitrary HTML may supply it directly.</p></div></div>
           <div class="api-row"><div><h3>Chromium is missing</h3></div><div><p>Run <code>pnpm exec playwright install chromium</code>. Playwright is needed only for capture, not to open the generated artifact.</p></div></div>
           <div class="api-row"><div><h3>TSX imports fail</h3></div><div><p>Use the committed NodeNext settings and keep <code>.js</code> extensions in relative TypeScript imports, as shown by the working reports.</p></div></div>
           <div class="api-row"><div><h3>Content leaves the page</h3></div><div><p>This is visible by design. Change report content, page allocation, or report CSS. Do not hide overflow or add automatic shrinking.</p></div></div>
           <div class="api-row"><div><h3>Output needs a server</h3></div><div><p>Assets or styles were probably linked externally. Keep required CSS and assets local or embedded so the generated report remains standalone.</p></div></div>
         </section>
 
-        <footer class="footer"><span>Unslide V1 guide · V2 planned · 13 July 2026</span><a href="WORKFLOW.md">Current workflow</a><a href="DESIGN.md">Target design</a><a href="../PLAN.md">Live plan</a></footer>
+        <footer class="footer"><span>Unslide V1 guide · V2 underway · 13 July 2026</span><a href="WORKFLOW.md">Current workflow</a><a href="DESIGN.md">Target design</a><a href="../PLAN.md">Live plan</a></footer>
       </main>
     </div>
 

@@ -1,7 +1,8 @@
 # Architecture
 
-Status: **V1 is implemented and verified. V2 target architecture is accepted
-but not yet implemented.** See `PLAN.md` for the current migration step.
+Status: **V1 is implemented and verified. V2 artifact protocol v1 and its
+validator are implemented; the remaining target architecture is accepted and
+planned.** See `PLAN.md` for the current migration step.
 
 ## Purpose and Boundaries
 
@@ -53,9 +54,10 @@ policy from Unslide.
 ### Artifact protocol and validator
 
 The protocol is the stable seam between arbitrary report output and Unslide
-tooling. It defines standalone HTML, ordered unique page markers, and visual
-readiness. The validator reports missing or duplicate pages, failed resources,
-and target-specific invariant failures without changing layout.
+tooling. Protocol v1 uses `data-unslide-page="<id>"` for ordered unique page
+markers and defines static visual readiness. The implemented validator reports
+missing, empty, or duplicate page IDs and failed font or image readiness
+without changing layout. See [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 
 The marker is behavioral and nonvisual. It does not require a particular
 element, class, wrapper, page size, or page-frame module.
@@ -157,8 +159,10 @@ The migration starts from a working but visually opinionated implementation:
   stops automatic injection and moves visual rules to reports or recipes.
 - `src/unslide/render.tsx` currently owns the HTML shell and combines foundation
   and report CSS. V2 evolves it into the headless React authoring path.
-- `scripts/capture.ts` currently locates `[data-page]` elements and captures
-  them in Chromium. V2 moves it behind the artifact protocol and CLI.
+- `src/unslide/protocol.ts` defines protocol v1 metadata, validation, and static
+  readiness independently of React and the V1 visual foundation.
+- `scripts/capture.ts` validates `[data-unslide-page]` elements and captures
+  them in Chromium. V2 later moves the capture workflow behind the CLI.
 - `src/spike/` and `src/reports/operating-review/` are migration fixtures.
 - `tests/workflow.test.tsx` is the current end-to-end test surface.
 

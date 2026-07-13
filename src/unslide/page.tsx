@@ -15,7 +15,7 @@ interface PageProps extends PropsWithChildren {
 
 export function Page({ number, total, chrome, className = "", children }: PageProps) {
   return (
-    <section className={`page ${className}`} data-page={number}>
+    <section className={`page ${className}`} data-unslide-page={String(number)}>
       {chrome && (
         <header className="page-header">
           <span>{chrome.headerLeft}</span>

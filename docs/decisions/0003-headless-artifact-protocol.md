@@ -2,7 +2,7 @@
 
 Date: 2026-07-13
 
-Status: accepted for V2; implementation pending
+Status: accepted for V2; artifact protocol v1 implemented
 
 ## Context
 

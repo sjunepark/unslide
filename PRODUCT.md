@@ -1,7 +1,8 @@
 # Product
 
-Status: **V1 is implemented; the V2 headless authoring and export direction is
-accepted and planned.** Current commands still exercise the V1 implementation.
+Status: **V1 is implemented; V2 Core Goal 1 has established the headless HTML
+artifact protocol.** Current reports still use the V1 visual foundation while
+the remaining V2 authoring and export work proceeds.
 
 ## Product Idea
 

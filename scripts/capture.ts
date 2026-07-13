@@ -3,6 +3,11 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Browser } from "playwright";
 import { chromium } from "playwright";
+import {
+  formatArtifactIssues,
+  PAGE_MARKER_SELECTOR,
+  validateArtifact,
+} from "../src/unslide/protocol.js";
 
 const [, , inputArgument, outputArgument] = process.argv;
 
@@ -32,15 +37,14 @@ try {
   });
   const page = await context.newPage();
   await page.goto(pathToFileURL(inputPath).href, { waitUntil: "load" });
-  await page.evaluate(() => document.fonts.ready);
+  const validation = await page.evaluate(validateArtifact);
 
-  const pages = page.locator("[data-page]");
-  const pageCount = await pages.count();
-
-  if (pageCount === 0) {
-    throw new Error("No report pages found. Expected elements with a data-page attribute.");
+  if (!validation.ok) {
+    throw new Error(`Artifact protocol validation failed:\n${formatArtifactIssues(validation.issues)}`);
   }
 
+  const pages = page.locator(PAGE_MARKER_SELECTOR);
+  const pageCount = validation.pages.length;
   for (let index = 0; index < pageCount; index += 1) {
     const outputPath = resolve(outputDirectory, `page-${String(index + 1).padStart(2, "0")}.png`);
     await pages.nth(index).screenshot({ path: outputPath, animations: "disabled" });

@@ -1,13 +1,13 @@
 # V2 Core Plan
 
-Status: **Goal 1 ready; Goals 2–3 pending.**
+Status: **Goal 1 complete; Goal 2 ready; Goal 3 pending.**
 
 This plan establishes the durable HTML seam before packaging or PDF work. Keep
 `PLAN.md` synchronized whenever a goal changes state.
 
 ## Core Goal 1 — Artifact Protocol and Validator
 
-Status: **ready**
+Status: **complete**
 
 ### Objective
 
@@ -70,6 +70,24 @@ observable contract and exit criteria must not.
 - No visual rule is required by the protocol.
 - `PLAN.md` points to Core Goal 2.
 
+### Completion Evidence
+
+- Protocol v1 is documented in `docs/PROTOCOL.md` and implemented by the shared
+  `src/unslide/protocol.ts` browser validator.
+- The V1 page component and capture consumer use only
+  `data-unslide-page="<id>"`; repository source and tests contain no old marker
+  path.
+- Independent HTML fixtures prove ordered metadata for unrelated semantic
+  elements, non-A4 chrome-free capture, missing/empty and duplicate ID
+  diagnostics, failed-font reporting, and bounded page-scoped image failure
+  context without importing `Page` or `foundation.css`.
+- `pnpm run check`, `pnpm test`, and `pnpm run validate` pass. Regenerated V1
+  capture hashes match the pre-migration images, and all 3 spike pages, all 8
+  operating-review pages, and both independent fixture pages were inspected.
+- The required implementation reviews fixed a serialized-browser handler
+  defect, bounded font and image readiness, and added failed-resource coverage;
+  the final bounded recheck reported no remaining safe findings or decisions.
+
 ### Suggested `/goal` Objective
 
 > Implement Core Goal 1 from `docs/plans/v2-core.md`: establish protocol v1,
@@ -78,7 +96,7 @@ observable contract and exit criteria must not.
 
 ## Core Goal 2 — Headless React Authoring
 
-Status: **pending**
+Status: **ready**
 
 ### Objective
 

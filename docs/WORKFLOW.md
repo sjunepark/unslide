@@ -1,7 +1,8 @@
 # V1 Workflow
 
-This document records commands that work in the current implementation. V2 is
-planned but not yet available; follow [`PLAN.md`](../PLAN.md) for its live state.
+This document records commands that work in the current implementation. The V2
+artifact protocol is now active in the V1 commands; follow
+[`PLAN.md`](../PLAN.md) for the remaining migration state.
 
 For an interactive overview and authoring guide to the V1 implementation, open
 [`docs/index.html`](index.html) directly in a browser. Its copy-in recipe is
@@ -52,6 +53,10 @@ open artifacts/operating-review/report.html
 The authoring loop is intentionally manual: change typed data or report TSX,
 render, capture, inspect every page image, and correct wording or layout in
 source. The commands do not detect, redistribute, shrink, or repair overflow.
+
+Capture discovers pages through the implemented
+[`data-unslide-page` protocol](PROTOCOL.md), validates their IDs and static
+visual resources, and then captures marked elements in document order.
 
 ## Artifact Ownership
 

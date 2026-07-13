@@ -8,10 +8,11 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1 complete; V2 planned.** The current repository verifies explicit
-pages, standalone HTML, and isolated capture. The accepted V2 direction moves
-all visual policy into report-owned source, packages stable tooling, and adds
-HTML-first PDF export. See [`PLAN.md`](PLAN.md) before starting work.
+Status: **V1 complete; V2 Core Goal 1 complete.** The repository now verifies
+explicit pages through a headless HTML artifact protocol as well as standalone
+HTML and isolated capture. The remaining V2 work moves all visual policy into
+report-owned source, packages stable tooling, and adds HTML-first PDF export.
+See [`PLAN.md`](PLAN.md) before starting work.
 
 ## Rendering Spike
 
@@ -71,6 +72,8 @@ chrome, document wrappers, and injected CSS from reusable tooling.
 - [PLAN.md](PLAN.md) — current progress and the next implementation slice.
 - [docs/WORKFLOW.md](docs/WORKFLOW.md) — verified install, render, capture,
   validation, and artifact paths.
+- [docs/PROTOCOL.md](docs/PROTOCOL.md) — implemented HTML page-marker and static
+  readiness contract.
 - [Explicit pages decision](docs/decisions/0001-explicit-pages.md) — why v1
   deliberately avoids automatic pagination.
 - [Rendered preview decision](docs/decisions/0002-rendered-preview.md) — why

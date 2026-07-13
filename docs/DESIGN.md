@@ -1,7 +1,8 @@
 # Product Design
 
-Status: **V1 behavior is proven; V2 removes visual policy from the reusable
-interface and adds package-based adoption plus HTML-first PDF export.**
+Status: **V1 behavior is proven and artifact protocol v1 is implemented. V2
+continues by removing visual policy from the reusable authoring interface and
+adding package-based adoption plus HTML-first PDF export.**
 
 This document describes the intended authoring experience and ownership model.
 Exact TypeScript names and command syntax remain implementation outcomes unless
