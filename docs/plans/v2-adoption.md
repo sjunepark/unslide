@@ -1,6 +1,6 @@
 # V2 Adoption Plan
 
-Status: **pending on V2 Core.**
+Status: **Goal 1 ready; Goals 2–3 pending.**
 
 This plan replaces manual source copying with installed, versioned tooling while
 keeping report design in user-owned source. Use the `axi` skill when implementing
@@ -8,7 +8,7 @@ the CLI.
 
 ## Adoption Goal 1 — CLI and Project Configuration
 
-Status: **pending**
+Status: **ready**
 
 Depends on: Core Goal 3
 

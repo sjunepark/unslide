@@ -1,9 +1,9 @@
 # Product Design
 
-Status: **V1 behavior is proven, artifact protocol v1 is implemented, and the
-React authoring interface now renders report-owned complete documents without
-visual policy. V2 continues with canonical capture, package-based adoption,
-and HTML-first PDF export.**
+Status: **V1 behavior and the V2 Core track are proven. Artifact protocol v1,
+full-document React authoring, and protocol-only canonical capture are
+implemented. V2 continues with package-based adoption and HTML-first PDF
+export.**
 
 This document describes the intended authoring experience and ownership model.
 Exact TypeScript names and command syntax remain implementation outcomes unless

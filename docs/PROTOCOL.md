@@ -27,14 +27,15 @@ duplicate ID as invalid.
 
 ## Static visual readiness
 
-A protocol consumer waits for document load before validation. The shared
-validator then waits for `document.fonts.ready` and for every HTML image to
-finish loading and decode successfully. A failure identifies the affected
-resource and its marked page when the image is inside one.
+A protocol consumer bounds DOM parsing, then the shared validator bounds full
+document load, waits for `document.fonts.ready`, and waits for every HTML image
+to finish loading and decode successfully. A failure identifies pending or
+failed browser resources and the marked page when an image is inside one.
 
-Font readiness, image loading, and image decode waits are bounded to five
+Document, font, image-loading, and image-decode waits are bounded to five
 seconds each so a stalled resource produces an explicit diagnostic instead of
-hanging capture.
+hanging capture. A resource that blocks DOM parsing is reported by the shared
+browser loader with its URL.
 
 Protocol v1 has no author-controlled asynchronous readiness signal. The
 current fixtures need only static fonts, images, and markup; an additional
@@ -49,8 +50,10 @@ design.
 
 - [`src/unslide/protocol.ts`](../src/unslide/protocol.ts) defines protocol
   metadata, validation, readiness, and diagnostics.
-- [`scripts/capture.ts`](../scripts/capture.ts) validates the loaded artifact
-  before capturing its marked elements.
+- [`src/unslide/browser.ts`](../src/unslide/browser.ts) owns canonical browser
+  loading, readiness, and browser/resource diagnostics.
+- [`src/unslide/capture.ts`](../src/unslide/capture.ts) captures marked elements
+  at their authored bounds and returns structured deterministic results.
 - [`tests/fixtures/protocol-valid.html`](../tests/fixtures/protocol-valid.html)
   proves the contract with unrelated semantic elements, non-A4 geometry, no
   V1 foundation, and no repeated chrome.

@@ -1,8 +1,9 @@
 # V1 Workflow
 
 This document records commands that work in the current implementation. The V2
-artifact protocol and headless full-document authoring path are active in these
-commands; follow [`PLAN.md`](../PLAN.md) for the remaining migration state.
+artifact protocol, headless full-document authoring, and canonical capture path
+are active in these commands; follow [`PLAN.md`](../PLAN.md) for the remaining
+migration state.
 
 For an interactive overview and authoring guide to the V1 implementation, open
 [`docs/index.html`](index.html) directly in a browser. Its copy-in recipe is
@@ -71,7 +72,8 @@ visual resources, and then captures marked elements in document order.
 The repository-local React writer serializes a complete author-owned document,
 provides explicit local-asset inlining, and injects no visual source. Each
 report owns page geometry, chrome or its absence, styles, and print behavior.
-The capture script still awaits the canonical protocol-only module and CLI.
+The protocol-only capture module is implemented; the script remains a thin
+repository wrapper until the CLI replaces it.
 
 The accepted V2 direction supersedes copy-in as the adoption model. Stable
 build, validation, capture, and export behavior will move to versioned tooling;

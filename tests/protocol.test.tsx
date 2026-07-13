@@ -1,19 +1,19 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { createServer } from "node:http";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { promisify } from "node:util";
 import test from "node:test";
 import { chromium } from "playwright";
+import { captureHtmlPages } from "../src/unslide/capture.js";
 import {
   PAGE_MARKER_ATTRIBUTE,
   UNSLIDE_PROTOCOL_VERSION,
   validateArtifact,
 } from "../src/unslide/protocol.js";
 
-const execFileAsync = promisify(execFile);
 const fixtureDirectory = resolve("tests/fixtures");
 
 async function validateFixture(fileName: string) {
@@ -157,25 +157,136 @@ test("capture consumes the protocol for a non-A4 chrome-free fixture", async () 
   const directory = await mkdtemp(resolve(tmpdir(), "unslide-protocol-capture-"));
 
   try {
-    await execFileAsync(
-      process.execPath,
-      [
-        "--import",
-        "tsx",
-        "scripts/capture.ts",
-        resolve(fixtureDirectory, "protocol-valid.html"),
-        directory,
-      ],
-      { cwd: resolve(".") },
-    );
+    const inputPath = resolve(fixtureDirectory, "protocol-valid.html");
+    const firstResult = await captureHtmlPages(inputPath, directory);
 
     assert.deepEqual((await readdir(directory)).sort(), ["page-01.png", "page-02.png"]);
+    assert.deepEqual(firstResult, {
+      inputPath,
+      outputDirectory: directory,
+      pages: [
+        { id: "summary", index: 0, width: 480, height: 300, outputPath: resolve(directory, "page-01.png") },
+        { id: "observation", index: 1, width: 320, height: 420, outputPath: resolve(directory, "page-02.png") },
+      ],
+    });
 
     const firstPage = await readFile(resolve(directory, "page-01.png"));
     const secondPage = await readFile(resolve(directory, "page-02.png"));
     assert.deepEqual([firstPage.readUInt32BE(16), firstPage.readUInt32BE(20)], [480, 300]);
     assert.deepEqual([secondPage.readUInt32BE(16), secondPage.readUInt32BE(20)], [320, 420]);
+
+    await writeFile(resolve(directory, "page-99.png"), "stale capture");
+    await writeFile(resolve(directory, "keep.txt"), "unrelated evidence");
+    const hashes = [firstPage, secondPage].map((contents) => createHash("sha256").update(contents).digest("hex"));
+    await captureHtmlPages(inputPath, directory);
+    assert.deepEqual((await readdir(directory)).sort(), ["keep.txt", "page-01.png", "page-02.png"]);
+    assert.deepEqual(
+      await Promise.all(["page-01.png", "page-02.png"].map(async (name) =>
+        createHash("sha256").update(await readFile(resolve(directory, name))).digest("hex"))),
+      hashes,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("capture preserves prior output when artifact validation or capture fails", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-capture-failure-"));
+  try {
+    const priorCapture = resolve(directory, "page-01.png");
+    await writeFile(priorCapture, "prior evidence");
+
+    await assert.rejects(
+      captureHtmlPages(resolve(fixtureDirectory, "protocol-duplicate-id.html"), directory),
+      /Artifact readiness failed:[\s\S]*duplicated/,
+    );
+    assert.equal(await readFile(priorCapture, "utf8"), "prior evidence");
+
+    await assert.rejects(
+      captureHtmlPages(resolve(fixtureDirectory, "protocol-hidden-page.html"), directory),
+      /Page "hidden".*no visible capture area/,
+    );
+    assert.equal(await readFile(priorCapture, "utf8"), "prior evidence");
+
+    const conflictingDirectory = resolve(directory, "page-02.png");
+    await mkdir(conflictingDirectory);
+    await assert.rejects(
+      captureHtmlPages(resolve(fixtureDirectory, "protocol-valid.html"), directory),
+      /Cannot publish page captures; previous captures were restored/,
+    );
+    assert.equal(await readFile(priorCapture, "utf8"), "prior evidence");
+    assert.equal((await stat(conflictingDirectory)).isDirectory(), true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("capture reports console and failed local resource errors", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-capture-diagnostics-"));
+  try {
+    await assert.rejects(
+      captureHtmlPages(resolve(fixtureDirectory, "protocol-console-error.html"), directory),
+      /Console error: fixture exploded/,
+    );
+    await assert.rejects(
+      captureHtmlPages(resolve(fixtureDirectory, "protocol-broken-style.html"), directory),
+      /Resource failed: .*missing-style\.css/,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("capture bounds document loading and names a pending resource", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-capture-timeout-"));
+  const server = createServer(() => {});
+  try {
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const resourceUrl = `http://127.0.0.1:${address.port}/never.css`;
+    const inputPath = resolve(directory, "pending.html");
+    await writeFile(inputPath, `<!doctype html><html><head><link rel="stylesheet" href="${resourceUrl}"></head><body><main data-unslide-page="pending">Pending</main></body></html>`);
+
+    const startedAt = Date.now();
+    await assert.rejects(
+      captureHtmlPages(inputPath, resolve(directory, "captures")),
+      /Document did not finish loading within 5000ms[\s\S]*Resource still pending: .*never\.css/,
+    );
+    assert.ok(Date.now() - startedAt < 7_000);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("capture names a resource that blocks DOM parsing", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-navigation-timeout-"));
+  const server = createServer(() => {});
+  try {
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const resourceUrl = `http://127.0.0.1:${address.port}/never.js`;
+    const inputPath = resolve(directory, "pending-script.html");
+    await writeFile(inputPath, `<!doctype html><html><head><script src="${resourceUrl}"></script></head><body><main data-unslide-page="pending">Pending</main></body></html>`);
+
+    await assert.rejects(
+      captureHtmlPages(inputPath, resolve(directory, "captures")),
+      /Cannot load HTML artifact .*Pending resources: .*never\.js/,
+    );
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("capture implementation is independent of React authoring", async () => {
+  const sources = await Promise.all([
+    readFile(resolve("src/unslide/browser.ts"), "utf8"),
+    readFile(resolve("src/unslide/capture.ts"), "utf8"),
+  ]);
+  assert.doesNotMatch(sources.join("\n"), /react|\.\/render\.js/i);
 });

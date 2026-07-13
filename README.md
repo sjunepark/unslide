@@ -8,11 +8,12 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1 complete; V2 Core Goals 1–2 complete.** The repository now verifies
-explicit pages through a headless HTML artifact protocol and renders
-report-owned complete React documents without injecting visual policy. The
-remaining V2 work hardens canonical capture, packages stable tooling, and adds
-HTML-first PDF export. See [`PLAN.md`](PLAN.md) before starting work.
+Status: **V1 and V2 Core complete.** The repository now verifies explicit pages
+through a headless HTML artifact protocol, renders report-owned complete React
+documents without visual policy, and captures arbitrary authored page bounds
+through a protocol-only browser path. The remaining V2 work packages stable
+tooling and adds HTML-first PDF export. See [`PLAN.md`](PLAN.md) before starting
+work.
 
 ## Rendering Spike
 

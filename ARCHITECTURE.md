@@ -1,9 +1,9 @@
 # Architecture
 
-Status: **V1 is implemented and verified. V2 artifact protocol v1, its
-validator, and headless full-document React authoring are implemented; the
-remaining target architecture is accepted and planned.** See `PLAN.md` for the
-current migration step.
+Status: **V1 and the V2 Core track are implemented and verified. Artifact
+protocol v1, headless full-document React authoring, and canonical HTML capture
+are current; packaged adoption and PDF delivery remain planned.** See `PLAN.md`
+for the current migration step.
 
 ## Purpose and Boundaries
 
@@ -157,8 +157,11 @@ documentation are insufficient.
   visual source.
 - `src/unslide/protocol.ts` defines protocol v1 metadata, validation, and static
   readiness independently of React.
-- `scripts/capture.ts` validates `[data-unslide-page]` elements and captures
-  them in Chromium. Core Goal 3 makes this a protocol-only structured module.
+- `src/unslide/browser.ts` owns canonical Chromium loading, shared protocol
+  readiness, and browser/resource diagnostics without importing React.
+- `src/unslide/capture.ts` captures authored page bounds through that browser
+  seam and returns deterministic structured results. `scripts/capture.ts` is a
+  temporary repository command wrapper until the CLI replaces it.
 - `src/spike/` and `src/reports/operating-review/` own their full documents,
   page composition, A4 geometry, repeated material, and print rules.
 - `tests/workflow.test.tsx` is the current end-to-end test surface.

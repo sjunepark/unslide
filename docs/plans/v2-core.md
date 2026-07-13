@@ -1,6 +1,6 @@
 # V2 Core Plan
 
-Status: **Goals 1–2 complete; Goal 3 ready.**
+Status: **complete**
 
 This plan establishes the durable HTML seam before packaging or PDF work. Keep
 `PLAN.md` synchronized whenever a goal changes state.
@@ -179,7 +179,7 @@ visual policy.
 
 ## Core Goal 3 — Canonical HTML Capture
 
-Status: **ready**
+Status: **complete**
 
 ### Objective
 
@@ -220,6 +220,24 @@ the React authoring implementation and of page design.
 - Browser and resource failures are actionable.
 - No page-size or visual assumptions remain in capture.
 - `PLAN.md` points to Adoption Goal 1.
+
+### Completion Evidence
+
+- `src/unslide/browser.ts` owns canonical Chromium launch, artifact loading,
+  protocol readiness, and concise console, page, request, and launch
+  diagnostics. The shared path imports no React authoring code.
+- `src/unslide/capture.ts` returns ordered page IDs, authored dimensions, and
+  output paths while staging all screenshots before replacing prior evidence;
+  unrelated files are preserved and only stale page images are removed.
+- Tests cover structured mixed-geometry capture, byte-identical repeated runs,
+  deterministic names, safe stale cleanup, preservation after validation and
+  hidden-page failures, console errors, and failed local resources.
+- `pnpm run check` and all 17 tests pass. Repeated captures of the eight-page
+  A4 operating review and two-page unrelated semantic fixture produced
+  identical SHA-256 hashes, and every resulting image was inspected without
+  fit or visual defects.
+- The required implementation review found no remaining safe or
+  decision-level issue after its bounded recheck.
 
 ### Suggested `/goal` Objective
 

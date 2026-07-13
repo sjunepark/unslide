@@ -1,16 +1,16 @@
 # Plan
 
-Status: **V1 complete; V2 Core Goals 1–2 complete.**
+Status: **V1 and V2 Core complete.**
 
-Current next action: **Run Core Goal 3 — harden canonical HTML capture.**
-See [`docs/plans/v2-core.md`](docs/plans/v2-core.md).
+Current next action: **Run Adoption Goal 1 — implement the CLI and project
+configuration.** See [`docs/plans/v2-adoption.md`](docs/plans/v2-adoption.md).
 
 Suggested `/goal` objective:
 
-> Implement Core Goal 3 from `docs/plans/v2-core.md`. Make capture a
-> protocol-only structured module, prove deterministic outputs for contrasting
-> report geometries, keep plans current, and satisfy every validation and
-> review criterion.
+> Implement Adoption Goal 1 from `docs/plans/v2-adoption.md` using the `axi`
+> skill: add schema-validated operational configuration and the agent-friendly
+> CLI, route both proof reports through it, keep plans current, and complete all
+> validation and review criteria.
 
 This file is the live execution state. Update statuses, decisions, blockers,
 validation, and the current next action in place. Do not append session logs.
@@ -66,8 +66,8 @@ Keep these outside V2 unless a later decision changes scope:
 | Planning | V2 architecture and goal plans | Complete | V1 evidence | PRODUCT, DESIGN, ARCHITECTURE, D3, D4, and detailed plans agree |
 | Core | 1. Artifact protocol and validator | Complete | V2 planning | Protocol v1, shared validator, independent fixtures, and unchanged V1 captures |
 | Core | 2. Headless React authoring | Complete | Core 1 | Full-document rendering injects no visual policy |
-| Core | 3. Canonical HTML capture | Ready | Core 2 | Unrelated geometries capture through the protocol |
-| Adoption | 1. CLI and project configuration | Pending | Core 3 | Named reports build, inspect, and capture through one CLI |
+| Core | 3. Canonical HTML capture | Complete | Core 2 | Unrelated geometries capture through the protocol |
+| Adoption | 1. CLI and project configuration | Ready | Core 3 | Named reports build, inspect, and capture through one CLI |
 | Adoption | 2. Project scaffolding and migration | Pending | Adoption 1 | Clean consumer uses installed tooling; both reports are source-owned |
 | Adoption | 3. Packaging hardening | Pending | Adoption 2 | Versioned package workflow passes from a clean consumer fixture |
 | PDF | 1. Chromium PDF export | Pending | Adoption 1 | Canonical HTML produces validated searchable PDF |
@@ -126,6 +126,5 @@ evidence from the canonical Chromium version.
 
 ## Next Action
 
-Begin Core Goal 3. Refactor capture into a protocol-only structured module and
-prove deterministic inspection for the A4 operating review and unrelated
-non-A4 artifact.
+Begin Adoption Goal 1. Add the operational JSON configuration and one coherent
+CLI for named build, artifact inspection, and HTML capture.

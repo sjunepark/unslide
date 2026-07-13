@@ -10,6 +10,7 @@ export interface ArtifactPage {
 
 export interface ArtifactValidationIssue {
   code:
+    | "document-readiness"
     | "missing-pages"
     | "empty-page-id"
     | "duplicate-page-id"
@@ -33,14 +34,29 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
   const markerAttribute = "data-unslide-page";
   const markerSelector = `[${markerAttribute}]`;
   const resourceTimeoutMs = 5_000;
+  const issues: ArtifactValidationIssue[] = [];
+  const fontReadinessPromise = Promise.race([
+    document.fonts.ready.then(() => "ready" as const),
+    new Promise<"timeout">((resolve) => {
+      window.setTimeout(() => resolve("timeout"), resourceTimeoutMs);
+    }),
+  ]);
 
   if (document.readyState !== "complete") {
-    await new Promise<void>((resolve) => window.addEventListener("load", () => resolve(), { once: true }));
+    const documentReadiness = await Promise.race([
+      new Promise<"loaded">((resolve) => window.addEventListener("load", () => resolve("loaded"), { once: true })),
+      new Promise<"timeout">((resolve) => window.setTimeout(() => resolve("timeout"), resourceTimeoutMs)),
+    ]);
+    if (documentReadiness === "timeout") {
+      issues.push({
+        code: "document-readiness",
+        message: `Document did not finish loading within ${resourceTimeoutMs}ms.`,
+      });
+    }
   }
 
   const pageElements = Array.from(document.querySelectorAll<HTMLElement>(markerSelector));
   const pages: ArtifactPage[] = [];
-  const issues: ArtifactValidationIssue[] = [];
   const positionsById = new Map<string, number[]>();
 
   if (pageElements.length === 0) {
@@ -78,12 +94,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
   }
 
   try {
-    const fontReadiness = await Promise.race([
-      document.fonts.ready.then(() => "ready" as const),
-      new Promise<"timeout">((resolve) => {
-        window.setTimeout(() => resolve("timeout"), resourceTimeoutMs);
-      }),
-    ]);
+    const fontReadiness = await fontReadinessPromise;
 
     if (fontReadiness === "timeout") {
       const resource = Array.from(document.fonts)
