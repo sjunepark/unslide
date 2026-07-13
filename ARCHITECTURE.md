@@ -1,152 +1,199 @@
 # Architecture
 
-Status: **V1 implemented and verified**. The spike and operating report prove
-the repository-local page foundation, static output, and capture workflow.
+Status: **V1 and the accepted V2 delivery architecture are verified.**
+Artifact protocol v1, headless full-document React authoring, installed CLI and
+scaffolding, canonical HTML capture, and the minimal 0.1.0 package are current;
+the packaged HTML/PDF workflow passes end to end. See `PLAN.md` for the current
+evidence gate.
 
-## Purpose and Boundary
+## Purpose and Boundaries
 
-Unslide turns user-owned report source plus user-owned data into a static HTML
-document composed of explicit fixed pages. A development-only capture path
-renders that HTML in a real browser and saves page images for inspection.
+Unslide turns user-owned report source and data into a standalone HTML document
+made of explicit pages. Development tooling renders delivery artifacts for
+inspection and may derive a PDF from the same HTML.
 
-Unslide owns page structure, shared document styling, static rendering, and the
-preview workflow. It does not own the calculations that produce report values,
-the meaning of a report's domain, or automatic decisions about where content
-should move.
+Unslide owns compilation, artifact validation, standalone output, deterministic
+browser operation, capture, and export. Report source owns the complete DOM,
+page geometry, styling, fonts, assets, repeated material, print rules, and
+content fit. Callers own business calculations and domain models.
 
-## System Shape
+## Target System Shape
 
 ```text
-user data + report source
-            |
-            v
-      static report renderer
-            |
-            v
-        report.html --------------------> ordinary browser
-            |
-            | development only
-            v
-   isolated browser capture
-            |
-            v
-     page-01.png, page-02.png, ...
+user data + user-owned report source
+                  |
+                  v
+        first-party React authoring
+                  |
+                  v
+       standalone HTML artifact <------ artifact protocol
+                  |
+          +-------+--------+
+          |                |
+          v                v
+   HTML page capture   Chromium PDF export
+          |                |
+          v                v
+     page PNGs         report.pdf
+                           |
+                           v
+                    PDF page capture
 ```
 
-The HTML artifact is the product output. Page images are temporary observation
-artifacts used while authoring.
+HTML is canonical. Screenshots and PDF are derived delivery or inspection
+artifacts. PDF export uses the same generated HTML rather than a parallel layout
+implementation.
 
-## Major Responsibilities
+## Major Modules
 
 ### Report source
 
-User-owned typed source determines:
+User-owned typed source determines the complete document, page sequence, DOM,
+CSS, assets, conditional pages, print behavior, and any repeated structure. It
+marks capturable pages through the artifact protocol but does not inherit visual
+policy from Unslide.
 
-- which pages exist and their order;
-- which data appears on each page;
-- page-specific structure and wording; and
-- intentional conditional pages.
+### Artifact protocol and validator
 
-The exact source syntax and rendering runtime are not architecture decisions
-yet. TypeScript and TSX are the starting direction because they provide ordinary
-data flow and agent-readable markup.
+The protocol is the stable seam between arbitrary report output and Unslide
+tooling. Protocol v1 uses `data-unslide-page="<id>"` for ordered unique page
+markers and defines static visual readiness. The implemented validator reports
+missing, empty, or duplicate page IDs and failed font or image readiness
+without changing layout. See [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 
-### Page foundation
+The marker is behavioral and nonvisual. It does not require a particular
+element, class, wrapper, page size, or page-frame module.
 
-The shared page foundation establishes only the mechanics repeated by every
-report:
+### React authoring module
 
-- fixed page geometry;
-- the content region;
-- optional repeated page chrome such as headers and footers;
-- page position and total-page context where needed; and
-- screen and print presentation of page boundaries.
+The first-party authoring module evaluates typed TSX and produces the canonical
+HTML artifact. It hides compilation, static rendering, local asset inclusion,
+document serialization, and actionable errors behind a small interface.
 
-It does not decide report-specific layout or automatically fit content.
+React is the only proven source implementation. Do not expose a generalized
+renderer plugin seam until a second real source adapter exists.
 
-### Static renderer
+### CLI
 
-The static renderer evaluates the report source against supplied data and emits
-an HTML artifact. It owns the document shell and the inclusion of the styles and
-assets required by the output.
+The CLI is the normal user and agent interface for project initialization,
+build, artifact inspection, HTML capture, PDF export, and PDF inspection. It reads
+schema-validated operational configuration and delegates to internal modules.
 
-The renderer must not require a client application, application state, or a
-network request to display the completed report.
+Configuration may select entries, outputs, inspection locations, and supported
+export behavior. It must not define page geometry, typography, padding, chrome,
+or other visual policy.
 
-### Browser capture
+### Chromium tooling
 
-Browser capture is a development adapter. It launches an isolated browser,
-loads the generated HTML, waits until the page is visually ready, and creates
-images suitable for human or agent inspection.
+One pinned Playwright-managed Chromium build is the canonical browser for HTML
+capture and PDF printing. Browser automation stays in development tooling and
+is never required to open the completed HTML.
 
-Playwright with Chromium is the initial direction because it is programmable,
-cross-platform, and independent of a user's browser profile. It remains outside
-the generated report and outside the report's public runtime interface.
+HTML capture screenshots each marked element after readiness. PDF export uses
+print media and author-owned paged CSS, prefers CSS page geometry, and then
+validates the produced file.
 
-## Authoring Flow
+### PDF inspection
 
-1. The author or agent changes report data, wording, or layout source.
-2. The renderer produces the current HTML artifact.
-3. The capture adapter renders the artifact in Chromium.
-4. The adapter saves the whole document or individual pages as images.
-5. The author or agent inspects those images.
-6. If content overflows or the composition is weak, the source is revised.
+PDF inspection uses PDF.js and its pinned Node canvas to rasterize the actual
+generated PDF into one ordered image per page at 96 DPI. It never loads source
+HTML or substitutes HTML screenshots for PDF evidence.
 
-There is no second preview layout. Inspection exercises the same HTML and CSS
-that a recipient opens.
+### Optional scaffolds and recipes
 
-## Page Behavior
+Project scaffolding may create editable report source and configuration.
+Optional visual recipes may later be distributed as user-owned source. They are
+not dependencies of the artifact protocol, renderer, or exporters.
 
-A report is an ordered collection of pages. Each page has a fixed width and
-height. Content belongs to the page on which the source places it.
+Stable mechanics remain versioned package code. A managed recipe registry is a
+future module only if real adoption demonstrates that one-time scaffolding and
+documentation are insufficient.
 
-The browser may lay out content within a page using normal HTML and CSS, but
-Unslide does not fragment a page's content or move it to a later page. This
-keeps page count and page composition under source control.
+## Dominant Flows
 
-Conditional source may add or remove an entire page. When that happens, page
-numbering follows the final ordered collection.
+### Build and HTML inspection
+
+1. The caller prepares display-ready data.
+2. Report source composes and marks explicit pages.
+3. The authoring module emits standalone HTML.
+4. The validator checks the artifact protocol.
+5. Chromium loads the artifact and waits for visual readiness.
+6. HTML capture writes one image for each marked page.
+7. The author or agent inspects the images and revises source.
+
+### PDF export and inspection
+
+1. The exporter consumes a valid canonical HTML artifact.
+2. Chromium applies the report's print CSS and creates a PDF.
+3. The exporter verifies that marked HTML page count equals PDF page count.
+4. PDF inspection renders the PDF itself to one image per page.
+5. The author or agent judges the PDF images and revises the same report source.
 
 ## Invariants
 
-- The HTML artifact remains viewable without Playwright.
-- Page images are derived artifacts and never become authoring source.
-- Browser capture uses the generated report rather than a preview-only copy.
-- V1 never moves content between pages automatically.
-- Overflow is corrected by changing report source; it is not silently repaired,
-  shrunk, or truncated by the framework.
-- User data remains ordinary caller-owned data.
-- Business calculations stay outside Unslide.
-- Preview automation stays outside the runtime required by report recipients.
-- A new reusable concept requires evidence from real report repetition.
-- Exact syntax is decided from implementation experience, then documented.
-
-## Renderer Scope
-
-One browser engine is sufficient for v1. Chromium is the canonical development
-preview engine. Unslide does not promise identical rendering across every
-browser or operating system.
-
-This is a preview contract, not a claim that screenshots are the report format.
-Recipients still receive HTML.
+- HTML is the canonical artifact and opens without Unslide, Node.js,
+  Playwright, a server, or a network request.
+- Report source owns every visual and structural design decision.
+- Runtime modules inject no reset, foundation CSS, page geometry, wrapper,
+  chrome, numbering, typography, or design tokens.
+- Every artifact page has one stable unique marker and is discovered in document
+  order.
+- Unslide never moves content between pages or silently repairs overflow.
+- Capture and PDF export consume the canonical HTML, not a preview-only copy.
+- PDF export does not assemble raster screenshots into a document.
+- One marked HTML page produces one PDF page for supported exports.
+- PDF visual inspection renders the produced PDF, not the source HTML.
+- Business calculations and domain models stay outside Unslide.
+- Project configuration is operational and never becomes a design schema.
+- Stable behavior is upgraded through versioned tooling; optional visual recipes
+  remain user-owned source.
+- New public adapter or plugin seams require at least two proven
+  implementations.
 
 ## Current Code Map
 
-- `src/unslide/` contains the proven page foundation and static HTML writer.
-- `src/spike/` contains the deliberately small three-page fixture.
-- `src/reports/operating-review/` contains the credible eight-page report and
-  its caller-owned typed data.
-- `scripts/capture.ts` loads either generated HTML artifact in isolated
-  Chromium and writes one image per explicit page.
-- `artifacts/` is generated standalone HTML; `.tmp/captures/` is disposable
-  visual evidence. Both are untracked.
+- `src/unslide/render.tsx` serializes a report-owned complete React document,
+  inlines explicitly selected local assets, rejects unresolved resource
+  dependencies, and writes standalone HTML atomically. It injects no shell or
+  visual source.
+- `src/unslide/protocol.ts` defines protocol v1 metadata, validation, and static
+  readiness independently of React.
+- `src/unslide/browser.ts` owns canonical Chromium loading, shared protocol
+  readiness, and browser/resource diagnostics without importing React.
+- `src/unslide/capture.ts` captures authored page bounds through that browser
+  seam and returns deterministic structured results.
+- `src/unslide/page-images.ts` atomically replaces managed page PNG sets while
+  preserving unrelated files and prior evidence on failure.
+- `src/unslide/config.ts` discovers the nearest `unslide.json`, validates its
+  versioned operational schema, and resolves safe project-relative paths.
+- `src/unslide/pdf.ts` prints canonical HTML through the shared browser seam,
+  requires authored page geometry, validates page count, common geometry, and
+  extractable text with PDF.js, and publishes the PDF atomically.
+- `src/unslide/pdf-inspection.ts` reads only an existing PDF and rasterizes each
+  page through PDF.js and `@napi-rs/canvas` into deterministic 96-DPI PNGs.
+- `src/unslide/build.ts` and `src/unslide/inspect.ts` provide the named React
+  build and canonical artifact-inspection operations used by the CLI.
+- `src/cli.ts` exposes initialization, HTML build/inspection/capture, PDF export,
+  and PDF inspection with TOON output and stable exit codes.
+- `src/unslide/init.ts` plans and safely writes the minimal user-owned project
+  scaffold; `src/unslide/react.ts` is the narrow installed authoring entry.
+- `src/spike/` and `src/reports/operating-review/` own their full documents,
+  page composition, unrelated portrait and A4 landscape geometries, optional
+  repeated material, and print rules.
+- `tests/*.test.tsx` exercises the public CLI and the protocol, HTML capture,
+  PDF export, PDF inspection, authoring, and clean-consumer seams.
 
-The shared foundation owns only the document shell, A4 landscape geometry,
-chrome/numbering structure, and screen/print page behavior. Report-specific
-composition, tables, figures, typography, and styling remain owned by each
-report.
+Generated HTML and PDF stay under `artifacts/`; disposable HTML and PDF-native
+captures stay under `.tmp/captures/` and `.tmp/pdf-captures/`. These locations
+are explicit report entries in the root `unslide.json`, not visual policy.
 
-## Related Decisions
+## Related Decisions and Plans
 
-- [D1 — Explicit fixed pages in v1](docs/decisions/0001-explicit-pages.md)
+- [D1 — Explicit fixed pages in V1](docs/decisions/0001-explicit-pages.md)
 - [D2 — Repository-owned rendered preview](docs/decisions/0002-rendered-preview.md)
+- [D3 — Headless artifact protocol and author-owned design](docs/decisions/0003-headless-artifact-protocol.md)
+- [D4 — HTML-first PDF export](docs/decisions/0004-html-first-pdf-export.md)
+- [Supported delivery contract](docs/SUPPORT.md)
+- [V2 core plan](docs/plans/v2-core.md)
+- [V2 adoption plan](docs/plans/v2-adoption.md)
+- [V2 PDF plan](docs/plans/v2-pdf.md)

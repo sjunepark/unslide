@@ -1,0 +1,52 @@
+import { resolve } from "node:path";
+import { PAGE_MARKER_SELECTOR } from "./protocol.js";
+import { withLoadedArtifact } from "./browser.js";
+import { replacePageImages } from "./page-images.js";
+
+export interface CapturedPage {
+  id: string;
+  index: number;
+  width: number;
+  height: number;
+  outputPath: string;
+}
+
+export interface CaptureResult {
+  inputPath: string;
+  outputDirectory: string;
+  pages: CapturedPage[];
+}
+
+export async function captureHtmlPages(input: string, output: string): Promise<CaptureResult> {
+  const inputPath = resolve(input);
+  const outputDirectory = resolve(output);
+  const stagedPages = await replacePageImages(outputDirectory, "captures", async (stagingDirectory) =>
+    withLoadedArtifact(inputPath, async ({ page, pages }) => {
+      const digits = Math.max(2, String(pages.length).length);
+      const pageElements = page.locator(PAGE_MARKER_SELECTOR);
+
+      const captures: CapturedPage[] = [];
+      for (const [index, metadata] of pages.entries()) {
+        const element = pageElements.nth(index);
+        const bounds = await element.boundingBox();
+        if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
+          throw new Error(`Page "${metadata.id}" at position ${index + 1} has no visible capture area.`);
+        }
+
+        const fileName = `page-${String(index + 1).padStart(digits, "0")}.png`;
+        const stagedPath = resolve(stagingDirectory, fileName);
+        await element.screenshot({ path: stagedPath, animations: "disabled" });
+        captures.push({
+          id: metadata.id,
+          index,
+          width: Math.round(bounds.width),
+          height: Math.round(bounds.height),
+          outputPath: resolve(outputDirectory, fileName),
+        });
+      }
+      return captures;
+    }),
+  );
+
+  return { inputPath, outputDirectory, pages: stagedPages };
+}

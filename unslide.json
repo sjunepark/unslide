@@ -1,0 +1,20 @@
+{
+  "$schema": "./schema/unslide.schema.json",
+  "version": 1,
+  "reports": {
+    "spike": {
+      "source": "src/spike/render.tsx",
+      "html": "artifacts/spike/report.html",
+      "pdf": "artifacts/spike/report.pdf",
+      "captures": ".tmp/captures/spike",
+      "pdfCaptures": ".tmp/pdf-captures/spike"
+    },
+    "operating-review": {
+      "source": "src/reports/operating-review/render.tsx",
+      "html": "artifacts/operating-review/report.html",
+      "pdf": "artifacts/operating-review/report.pdf",
+      "captures": ".tmp/captures/operating-review",
+      "pdfCaptures": ".tmp/pdf-captures/operating-review"
+    }
+  }
+}

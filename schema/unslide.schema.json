@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "unslide://schema/project-config/v1",
+  "title": "Unslide project configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "reports"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "reports": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "html", "captures"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "html": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\.html$"
+          },
+          "pdf": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\.pdf$"
+          },
+          "captures": {
+            "type": "string",
+            "minLength": 1
+          },
+          "pdfCaptures": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

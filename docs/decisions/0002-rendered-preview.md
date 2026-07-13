@@ -4,6 +4,10 @@ Date: 2026-07-13
 
 Status: accepted for the first implementation
 
+V2 clarification: the isolated browser path remains accepted behind packaged
+tooling and the headless artifact protocol. PDF-native inspection is specified
+separately by [D4](0004-html-first-pdf-export.md).
+
 ## Context
 
 Neither people nor agents can reliably judge a visual report from source alone.

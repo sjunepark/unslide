@@ -4,6 +4,10 @@ Date: 2026-07-13
 
 Status: accepted
 
+V2 clarification: explicit page membership remains accepted, but page geometry,
+padding, repeated material, and numbering are report-owned design. See
+[D3](0003-headless-artifact-protocol.md).
+
 ## Context
 
 Static reports need predictable page dimensions, padding, headers, footers, and

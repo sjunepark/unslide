@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Unslide — Interactive Project Guide</title>
+    <style>
+      :root {
+        color: oklch(0.24 0.025 155);
+        background: oklch(0.985 0.004 155);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-synthesis: none;
+        --ink: oklch(0.24 0.025 155);
+        --muted: oklch(0.47 0.025 155);
+        --faint: oklch(0.49 0.018 155);
+        --surface: oklch(0.985 0.004 155);
+        --surface-2: oklch(0.955 0.012 155);
+        --surface-3: oklch(0.91 0.023 155);
+        --green: oklch(0.35 0.09 155);
+        --green-dark: oklch(0.27 0.07 155);
+        --green-soft: oklch(0.93 0.035 155);
+        --coral: oklch(0.64 0.17 35);
+        --coral-text: oklch(0.48 0.16 35);
+        --coral-soft: oklch(0.94 0.04 35);
+        --rule: oklch(0.84 0.015 155);
+        --focus: oklch(0.58 0.16 245);
+        --sidebar: 17rem;
+        --content: 76rem;
+        --radius: 12px;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { margin: 0; }
+      button, select { font: inherit; }
+      button { color: inherit; }
+      a { color: var(--green); text-underline-offset: 0.2em; }
+      a:hover { color: var(--green-dark); }
+      :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+      ::selection { color: var(--ink); background: var(--coral-soft); }
+
+      .reading-progress {
+        position: fixed;
+        z-index: 30;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: var(--surface-3);
+      }
+      .reading-progress span {
+        display: block;
+        width: 0;
+        height: 100%;
+        background: var(--coral);
+      }
+
+      .app-shell { min-height: 100vh; }
+      .sidebar {
+        position: fixed;
+        z-index: 20;
+        inset: 4px auto 0 0;
+        width: var(--sidebar);
+        padding: 2rem 1.5rem;
+        color: oklch(0.96 0.01 155);
+        background: var(--green-dark);
+        overflow-y: auto;
+      }
+      .brand {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        color: inherit;
+        text-decoration: none;
+      }
+      .brand-mark {
+        display: grid;
+        width: 2.3rem;
+        height: 2.3rem;
+        place-items: center;
+        border: 2px solid var(--coral);
+        border-radius: 50%;
+        color: var(--coral);
+        font-weight: 800;
+      }
+      .brand strong { display: block; font-size: 0.98rem; }
+      .brand small { display: block; margin-top: 0.1rem; color: oklch(0.77 0.025 155); }
+      .sidebar nav { margin-top: 2.5rem; }
+      .sidebar nav a {
+        display: block;
+        padding: 0.55rem 0;
+        color: oklch(0.76 0.025 155);
+        font-size: 0.88rem;
+        text-decoration: none;
+        transition: color 180ms ease, transform 180ms ease;
+      }
+      .sidebar nav a:hover { color: white; }
+      .sidebar nav a[aria-current="location"] {
+        color: white;
+        font-weight: 700;
+        transform: translateX(0.35rem);
+      }
+      .sidebar-note {
+        margin-top: 2rem;
+        padding-top: 1.2rem;
+        border-top: 1px solid oklch(0.55 0.04 155 / 60%);
+        color: oklch(0.76 0.025 155);
+        font-size: 0.78rem;
+        line-height: 1.55;
+      }
+
+      main { margin-left: var(--sidebar); }
+      .section {
+        max-width: var(--content);
+        margin: 0 auto;
+        padding: 6rem clamp(1.5rem, 5vw, 5rem);
+        border-bottom: 1px solid var(--rule);
+        scroll-margin-top: 1rem;
+      }
+      .section:last-child { border-bottom: 0; }
+      .section h2 {
+        max-width: 18ch;
+        margin: 0 0 1rem;
+        font-size: 2.25rem;
+        line-height: 1.08;
+        letter-spacing: -0.035em;
+        text-wrap: balance;
+      }
+      .section-intro {
+        max-width: 68ch;
+        margin: 0 0 2.5rem;
+        color: var(--muted);
+        font-size: 1.08rem;
+        line-height: 1.7;
+        text-wrap: pretty;
+      }
+      .hero {
+        position: relative;
+        min-height: 94vh;
+        display: grid;
+        align-content: center;
+        overflow: hidden;
+        background: var(--surface);
+      }
+      .hero::after {
+        position: absolute;
+        right: -13rem;
+        bottom: -16rem;
+        width: 34rem;
+        height: 34rem;
+        border: 7rem solid var(--coral);
+        border-radius: 50%;
+        content: "";
+        opacity: 0.9;
+        pointer-events: none;
+      }
+      .status-line {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 1.7rem;
+        color: var(--green);
+        font-size: 0.88rem;
+        font-weight: 750;
+      }
+      .status-dot { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: var(--green); }
+      .hero h1 {
+        max-width: 12ch;
+        margin: 0;
+        font-size: clamp(3.2rem, 7.2vw, 5.8rem);
+        line-height: 0.96;
+        letter-spacing: -0.04em;
+        text-wrap: balance;
+      }
+      .hero .lede {
+        max-width: 58ch;
+        margin: 2rem 0 0;
+        color: var(--muted);
+        font-size: 1.25rem;
+        line-height: 1.65;
+        text-wrap: pretty;
+      }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2.2rem; }
+      .button {
+        display: inline-flex;
+        min-height: 2.75rem;
+        padding: 0.75rem 1rem;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--green);
+        border-radius: 8px;
+        color: white;
+        background: var(--green);
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .button:hover { color: white; background: var(--green-dark); }
+      .button.secondary { color: var(--green); background: transparent; }
+      .button.secondary:hover { color: var(--green-dark); background: var(--green-soft); }
+      .hero-summary {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        margin-top: 4rem;
+      }
+      .hero-summary div { min-width: 9rem; padding-top: 0.7rem; border-top: 2px solid var(--green); }
+      .hero-summary strong { display: block; font-size: 1.45rem; }
+      .hero-summary span { color: var(--muted); font-size: 0.85rem; }
+
+      .thesis {
+        max-width: 27ch;
+        margin: 0 0 3rem;
+        font-size: 1.8rem;
+        line-height: 1.35;
+        letter-spacing: -0.025em;
+        text-wrap: pretty;
+      }
+      .not-this {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+      }
+      .not-this > div { padding: 2rem 0; }
+      .not-this > div + div { padding-left: 2rem; border-left: 1px solid var(--rule); }
+      .not-this h3 { margin: 0 0 0.65rem; font-size: 1.1rem; }
+      .not-this p { max-width: 52ch; margin: 0; color: var(--muted); line-height: 1.6; }
+
+      .ownership-controls { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-bottom: 1.2rem; }
+      .segmented-button {
+        padding: 0.65rem 0.9rem;
+        border: 1px solid var(--rule);
+        border-radius: 999px;
+        color: var(--muted);
+        background: transparent;
+        cursor: pointer;
+      }
+      .segmented-button:hover { color: var(--ink); border-color: var(--green); }
+      .segmented-button[aria-pressed="true"] { color: white; border-color: var(--green); background: var(--green); }
+      .ownership-stage {
+        min-height: 18rem;
+        display: grid;
+        grid-template-columns: 0.8fr 1.2fr;
+        gap: clamp(2rem, 5vw, 5rem);
+        align-items: center;
+        padding: 2.5rem;
+        border-radius: var(--radius);
+        background: var(--surface-2);
+      }
+      .ownership-stage .owner-name { margin: 0 0 0.5rem; color: var(--green); font-size: 1.75rem; }
+      .ownership-stage .owner-role { margin: 0; color: var(--muted); line-height: 1.6; }
+      .ownership-stage ul { margin: 0; padding-left: 1.2rem; columns: 2; column-gap: 2.5rem; }
+      .ownership-stage li { margin-bottom: 0.75rem; line-height: 1.45; break-inside: avoid; }
+      .ownership-rule {
+        margin-top: 1.2rem;
+        padding: 1rem 1.15rem;
+        border: 1px solid var(--coral);
+        border-radius: 8px;
+        background: var(--coral-soft);
+        line-height: 1.5;
+      }
+
+      .pipeline {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin: 2rem 0 1rem;
+      }
+      .pipeline-node {
+        position: relative;
+        min-height: 9.5rem;
+        padding: 1.2rem;
+        border: 1px solid var(--rule);
+        border-radius: 10px;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+      }
+      .pipeline-node:not(:last-child)::after {
+        position: absolute;
+        z-index: 2;
+        top: 50%;
+        right: -0.85rem;
+        width: 0.9rem;
+        color: var(--coral);
+        content: "→";
+        font-size: 1.2rem;
+        font-weight: 800;
+        text-align: center;
+      }
+      .pipeline-node:hover { border-color: var(--green); background: var(--green-soft); }
+      .pipeline-node[aria-pressed="true"] { color: white; border-color: var(--green-dark); background: var(--green-dark); }
+      .pipeline-node span { display: block; color: var(--faint); font-size: 0.76rem; }
+      .pipeline-node[aria-pressed="true"] span { color: oklch(0.78 0.025 155); }
+      .pipeline-node strong { display: block; margin: 1.5rem 0 0.35rem; font-size: 1.05rem; }
+      .pipeline-node small { line-height: 1.4; }
+      .pipeline-detail {
+        display: grid;
+        grid-template-columns: 0.85fr 1.15fr;
+        gap: 2rem;
+        min-height: 12rem;
+        padding: 1.8rem;
+        background: var(--surface-2);
+      }
+      .pipeline-detail h3 { margin: 0 0 0.6rem; font-size: 1.35rem; }
+      .pipeline-detail p { margin: 0; color: var(--muted); line-height: 1.65; }
+      .pipeline-detail ul { margin: 0; padding-left: 1.1rem; }
+      .pipeline-detail li { margin-bottom: 0.7rem; line-height: 1.5; }
+      .pipeline-warning { margin-top: 1rem; color: var(--green-dark); font-weight: 700; }
+
+      .protocol-lab {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(17rem, 0.9fr);
+        gap: 1rem;
+      }
+      .code-window { overflow: hidden; border-radius: var(--radius); background: oklch(0.22 0.028 155); }
+      .code-toolbar { display: flex; gap: 0.4rem; padding: 0.85rem 1rem; border-bottom: 1px solid oklch(0.42 0.03 155); }
+      .code-toolbar i { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: var(--coral); }
+      .code-toolbar i:nth-child(2) { background: oklch(0.76 0.12 88); }
+      .code-toolbar i:nth-child(3) { background: oklch(0.65 0.12 155); }
+      pre {
+        margin: 0;
+        padding: 1.4rem;
+        overflow: auto;
+        color: oklch(0.91 0.015 155);
+        font: 0.85rem/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        white-space: pre-wrap;
+      }
+      .lab-controls { padding: 1.5rem; border: 1px solid var(--rule); border-radius: var(--radius); }
+      .lab-controls label { display: block; margin-bottom: 0.45rem; font-size: 0.85rem; font-weight: 700; }
+      .lab-controls select { width: 100%; padding: 0.7rem; border: 1px solid var(--rule); border-radius: 7px; background: white; }
+      .validation-result { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--rule); }
+      .validation-result strong { display: block; margin-bottom: 0.45rem; }
+      .validation-result p { margin: 0; color: var(--muted); line-height: 1.55; }
+      .result-ok strong { color: var(--green); }
+      .result-error strong { color: oklch(0.48 0.16 30); }
+      .protocol-notes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+      .protocol-notes span { padding: 0.45rem 0.65rem; border-radius: 999px; background: var(--green-soft); font-size: 0.8rem; }
+
+      .repo-explorer {
+        display: grid;
+        grid-template-columns: minmax(17rem, 0.8fr) minmax(0, 1.2fr);
+        min-height: 34rem;
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+      }
+      .file-tree { padding: 1rem 1.2rem 1rem 0; border-right: 1px solid var(--rule); }
+      .file-group { margin: 1rem 0 0.35rem; color: var(--faint); font-size: 0.76rem; font-weight: 750; }
+      .file-button {
+        display: block;
+        width: 100%;
+        padding: 0.5rem 0.65rem;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+      }
+      .file-button:hover { background: var(--surface-2); }
+      .file-button[aria-pressed="true"] { color: white; background: var(--green); font-weight: 700; }
+      .file-detail { display: grid; align-content: start; padding: 2rem; }
+      .file-detail .path { margin: 0 0 1.4rem; color: var(--green); font: 0.82rem/1.4 ui-monospace, monospace; }
+      .file-detail h3 { margin: 0 0 0.75rem; font-size: 1.65rem; letter-spacing: -0.025em; }
+      .file-detail .summary { max-width: 62ch; margin: 0; color: var(--muted); line-height: 1.7; }
+      .file-detail dl { display: grid; grid-template-columns: 8rem 1fr; gap: 0.85rem; margin-top: 2rem; }
+      .file-detail dt { color: var(--faint); }
+      .file-detail dd { margin: 0; line-height: 1.5; }
+      .source-link { display: inline-flex; margin-top: 1.6rem; font-weight: 700; }
+
+      .proof-pair {
+        display: grid;
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+        gap: 3rem;
+        align-items: end;
+      }
+      .report-proof { display: grid; grid-template-columns: auto 1fr; gap: 1.2rem; align-items: end; }
+      .page-shape { position: relative; overflow: hidden; border: 1px solid oklch(0.3 0.03 155); }
+      .page-shape::after { position: absolute; content: ""; border: 1rem solid var(--coral); border-radius: 50%; }
+      .page-shape.portrait { width: 9rem; aspect-ratio: 3 / 4; background: oklch(0.22 0.04 270); }
+      .page-shape.portrait::after { width: 8rem; height: 8rem; right: -4rem; top: 3rem; }
+      .page-shape.landscape { width: 16rem; aspect-ratio: 1.414 / 1; background: var(--green-dark); }
+      .page-shape.landscape::after { width: 7rem; height: 7rem; right: -3.5rem; top: 2rem; border-width: 3rem; }
+      .page-shape span { position: absolute; z-index: 1; bottom: 1rem; left: 1rem; color: white; font-size: 0.76rem; font-weight: 800; }
+      .proof-copy h3 { margin: 0 0 0.4rem; }
+      .proof-copy p { margin: 0; color: var(--muted); line-height: 1.55; }
+      .proof-copy strong { display: block; margin-top: 0.7rem; color: var(--green); }
+      .proof-conclusion { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid var(--green); font-size: 1.15rem; line-height: 1.55; }
+
+      .decision-list { margin-top: 2.5rem; }
+      .decision {
+        display: grid;
+        grid-template-columns: 4rem 12rem 1fr;
+        gap: 1.2rem;
+        padding: 1.35rem 0;
+        border-top: 1px solid var(--rule);
+        align-items: start;
+      }
+      .decision:last-child { border-bottom: 1px solid var(--rule); }
+      .decision .number { color: var(--coral-text); font-weight: 800; }
+      .decision h3 { margin: 0; font-size: 1rem; }
+      .decision p { max-width: 58ch; margin: 0; color: var(--muted); line-height: 1.6; }
+
+      .test-map { display: grid; grid-template-columns: repeat(6, minmax(7rem, 1fr)); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+      .test-cell { min-height: 11rem; padding: 1.1rem; border-right: 1px solid var(--rule); }
+      .test-cell:last-child { border-right: 0; }
+      .test-cell strong { display: block; margin-bottom: 0.6rem; font-size: 0.95rem; }
+      .test-cell span { color: var(--coral-text); font-weight: 800; }
+      .test-cell p { margin: 1rem 0 0; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+      .commands { margin-top: 2.5rem; }
+      .command-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 1rem;
+        align-items: center;
+        padding: 0.8rem 0;
+        border-top: 1px solid var(--rule);
+      }
+      .command-row:last-child { border-bottom: 1px solid var(--rule); }
+      .command-row code { overflow-wrap: anywhere; font: 0.88rem/1.5 ui-monospace, monospace; }
+      .copy-button { padding: 0.45rem 0.7rem; border: 1px solid var(--rule); border-radius: 7px; background: white; cursor: pointer; }
+      .copy-button:hover { border-color: var(--green); background: var(--green-soft); }
+
+      .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
+      .review-list { margin: 0; padding: 0; list-style: none; }
+      .review-list li { display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.75rem; padding: 0.85rem 0; border-top: 1px solid var(--rule); line-height: 1.55; }
+      .review-list li::before { color: var(--green); content: "✓"; font-weight: 800; }
+      .limits { padding: 1.5rem; background: var(--surface-2); }
+      .limits h3 { margin: 0 0 1rem; }
+      .limits ul { margin: 0; padding-left: 1.1rem; }
+      .limits li { margin-bottom: 0.65rem; line-height: 1.45; }
+
+      .status-track { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 2rem 0; }
+      .status-step { padding: 1.2rem; border-top: 4px solid var(--green); background: var(--green-soft); }
+      .status-step strong { display: block; margin-bottom: 0.4rem; }
+      .status-step span { color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+      .next-action { padding: 1.8rem; color: white; background: var(--green-dark); }
+      .next-action h3 { margin: 0 0 0.7rem; }
+      .next-action p { max-width: 62ch; margin: 0; color: oklch(0.82 0.025 155); line-height: 1.6; }
+      .gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem; }
+      .gate { padding-top: 1rem; border-top: 1px solid var(--rule); }
+      .gate strong { display: block; margin-bottom: 0.5rem; }
+      .gate p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+
+      details.confusion { border-top: 1px solid var(--rule); }
+      details.confusion:last-of-type { border-bottom: 1px solid var(--rule); }
+      details.confusion summary { padding: 1rem 0; font-weight: 700; cursor: pointer; }
+      details.confusion p { max-width: 70ch; margin: 0 0 1.2rem 1.5rem; color: var(--muted); line-height: 1.65; }
+      .remember { color: white; background: var(--green-dark); }
+      .remember .section-intro { color: oklch(0.78 0.025 155); }
+      .remember-points { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+      .remember-points div { padding-top: 1rem; border-top: 2px solid var(--coral); }
+      .remember-points strong { display: block; margin-bottom: 0.6rem; font-size: 1.15rem; }
+      .remember-points p { margin: 0; color: oklch(0.8 0.025 155); line-height: 1.55; }
+      .footer-links { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 3rem; }
+      .footer-links a { color: white; }
+
+      .mobile-jump { display: none; }
+      @media (max-width: 980px) {
+        :root { --sidebar: 0rem; }
+        .sidebar { display: none; }
+        main { margin-left: 0; }
+        .mobile-jump {
+          position: fixed;
+          z-index: 25;
+          right: 1rem;
+          bottom: 1rem;
+          display: block;
+          max-width: calc(100vw - 2rem);
+          padding: 0.7rem;
+          border: 1px solid var(--green);
+          border-radius: 8px;
+          color: white;
+          background: var(--green-dark);
+        }
+        .hero::after { opacity: 0.35; }
+        .pipeline { grid-template-columns: 1fr 1fr; }
+        .pipeline-node:nth-child(2)::after { display: none; }
+        .test-map { grid-template-columns: repeat(3, 1fr); }
+        .test-cell:nth-child(3) { border-right: 0; }
+        .test-cell:nth-child(-n + 3) { border-bottom: 1px solid var(--rule); }
+      }
+      @media (max-width: 720px) {
+        .section { padding: 4.5rem 1.25rem; }
+        .section h2 { font-size: 1.9rem; }
+        .hero { min-height: auto; padding-top: 7rem; padding-bottom: 7rem; }
+        .hero h1 { font-size: clamp(3rem, 16vw, 4.4rem); }
+        .hero::after { right: -18rem; bottom: -20rem; }
+        .not-this,
+        .ownership-stage,
+        .pipeline-detail,
+        .protocol-lab,
+        .repo-explorer,
+        .proof-pair,
+        .review-grid { grid-template-columns: 1fr; }
+        .not-this > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--rule); }
+        .ownership-stage { padding: 1.4rem; }
+        .ownership-stage ul { columns: 1; }
+        .pipeline { grid-template-columns: 1fr; }
+        .pipeline-node:not(:last-child)::after { display: block; top: auto; right: 50%; bottom: -1rem; content: "↓"; }
+        .repo-explorer { border-top: 0; }
+        .file-tree { border-right: 0; border-bottom: 1px solid var(--rule); }
+        .file-detail { padding: 1.5rem 0; }
+        .file-detail dl { grid-template-columns: 1fr; gap: 0.3rem; }
+        .decision { grid-template-columns: 3rem 1fr; }
+        .decision p { grid-column: 2; }
+        .test-map { grid-template-columns: 1fr 1fr; }
+        .test-cell:nth-child(3) { border-right: 1px solid var(--rule); }
+        .test-cell:nth-child(even) { border-right: 0; }
+        .test-cell:nth-child(-n + 4) { border-bottom: 1px solid var(--rule); }
+        .status-track, .gates, .remember-points { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 460px) {
+        .test-map { grid-template-columns: 1fr; }
+        .test-cell { min-height: 0; border-right: 0 !important; border-bottom: 1px solid var(--rule); }
+        .proof-pair { gap: 2rem; }
+        .report-proof { grid-template-columns: 1fr; }
+        .page-shape.landscape { width: 100%; max-width: 18rem; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+      }
+      @media print {
+        .reading-progress, .sidebar, .mobile-jump, .hero-actions, .copy-button { display: none !important; }
+        main { margin: 0; }
+        .section { max-width: none; padding: 1.5cm; break-inside: avoid; }
+        .hero { min-height: auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="reading-progress" aria-hidden="true"><span id="reading-progress"></span></div>
+    <select class="mobile-jump" id="mobile-jump" aria-label="Jump to section">
+      <option value="start">Start</option>
+      <option value="big-picture">Big picture</option>
+      <option value="ownership">Ownership</option>
+      <option value="flow">Runtime flow</option>
+      <option value="protocol">Protocol</option>
+      <option value="code-map">Code map</option>
+      <option value="proof">Proof reports</option>
+      <option value="decisions">Decisions</option>
+      <option value="tests">Tests</option>
+      <option value="review">Review focus</option>
+      <option value="status">Current status</option>
+      <option value="confusion">Confusion points</option>
+      <option value="remember">Remember</option>
+    </select>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#start">
+          <span class="brand-mark">U</span>
+          <span><strong>Unslide</strong><small>First-review guide</small></span>
+        </a>
+        <nav aria-label="Guide sections">
+          <a href="#big-picture">Big picture</a>
+          <a href="#ownership">Who owns what</a>
+          <a href="#flow">How it works</a>
+          <a href="#protocol">Protocol v1</a>
+          <a href="#code-map">Code map</a>
+          <a href="#proof">Proof reports</a>
+          <a href="#decisions">Key decisions</a>
+          <a href="#tests">Tests &amp; evidence</a>
+          <a href="#review">Reviewer focus</a>
+          <a href="#status">Current status</a>
+          <a href="#remember">What to remember</a>
+        </nav>
+        <p class="sidebar-note">Built from the repository’s product, design, architecture, plans, decisions, source, and 33-test suite on 13 July 2026.</p>
+      </aside>
+
+      <main>
+        <section class="section hero" id="start">
+          <div class="status-line"><span class="status-dot"></span> Version 0.1.0 · V1 and accepted V2 complete</div>
+          <h1>Understand Unslide.</h1>
+          <p class="lede">A guided mental model of the product, its boundaries, the HTML-to-PDF delivery pipeline, and the code that makes the contract trustworthy.</p>
+          <div class="hero-actions">
+            <a class="button" href="#big-picture">Start the tour</a>
+            <a class="button secondary" href="#code-map">Open the code map</a>
+          </div>
+          <div class="hero-summary" aria-label="Project facts">
+            <div><strong>1</strong><span>canonical artifact</span></div>
+            <div><strong>3</strong><span>ownership layers</span></div>
+            <div><strong>6</strong><span>CLI workflows</span></div>
+            <div><strong>33</strong><span>focused tests</span></div>
+          </div>
+        </section>
+
+        <section class="section" id="big-picture">
+          <h2>Big picture</h2>
+          <p class="section-intro">Unslide replaces binary presentation authoring with ordinary TypeScript, React, HTML, and CSS for reports whose pages are composed deliberately.</p>
+          <p class="thesis">Unslide is a strict delivery pipeline around report-owned HTML—not a presentation framework and not a design system.</p>
+          <div class="not-this">
+            <div>
+              <h3>What it does</h3>
+              <p>Builds a complete standalone HTML document, validates a tiny page/readiness protocol, captures real browser output, derives a validated PDF, and rasterizes the actual PDF for inspection.</p>
+            </div>
+            <div>
+              <h3>What it deliberately does not do</h3>
+              <p>It does not paginate, move overflowing content, calculate business metrics, prescribe page chrome, inject a theme, provide a visual editor, or hide report design in configuration.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="ownership">
+          <h2>Who owns what</h2>
+          <p class="section-intro">This three-way boundary explains almost every architectural choice. Select an owner to see its responsibilities.</p>
+          <div class="ownership-controls" role="group" aria-label="Choose an ownership layer">
+            <button type="button" class="segmented-button owner-button" data-owner="caller" aria-pressed="false">Caller</button>
+            <button type="button" class="segmented-button owner-button" data-owner="report" aria-pressed="true">Report source</button>
+            <button type="button" class="segmented-button owner-button" data-owner="unslide" aria-pressed="false">Unslide</button>
+          </div>
+          <div class="ownership-stage" aria-live="polite">
+            <div>
+              <h3 class="owner-name" id="owner-name">Report source</h3>
+              <p class="owner-role" id="owner-role">The visual author. It produces the complete document that Unslide will deliver.</p>
+            </div>
+            <ul id="owner-list">
+              <li>Complete HTML tree and semantics</li><li>Explicit page sequence</li><li>Geometry and content fit</li><li>Typography and colors</li><li>Fonts and local assets</li><li>Headers, footers, numbering</li><li>Screen presentation</li><li>Print CSS and page breaks</li>
+            </ul>
+          </div>
+          <p class="ownership-rule"><strong>The rule:</strong> lifecycle mechanics belong in versioned tooling; every visual decision remains readable and editable in the report’s own source.</p>
+        </section>
+
+        <section class="section" id="flow">
+          <h2>How it works</h2>
+          <p class="section-intro">Click through the pipeline. HTML is the center of gravity: every downstream command consumes it or an artifact derived from it.</p>
+          <div class="pipeline" role="group" aria-label="Runtime pipeline">
+            <button type="button" class="pipeline-node" data-stage="source" aria-pressed="false"><span>AUTHOR</span><strong>Data + TSX</strong><small>Display-ready values and a complete document</small></button>
+            <button type="button" class="pipeline-node" data-stage="html" aria-pressed="true"><span>CANONICAL</span><strong>Standalone HTML</strong><small>The durable artifact and protocol boundary</small></button>
+            <button type="button" class="pipeline-node" data-stage="html-proof" aria-pressed="false"><span>SCREEN MEDIA</span><strong>HTML page PNGs</strong><small>Chromium captures authored page bounds</small></button>
+            <button type="button" class="pipeline-node" data-stage="pdf" aria-pressed="false"><span>PRINT MEDIA</span><strong>PDF + page PNGs</strong><small>Validated export, then PDF-native inspection</small></button>
+          </div>
+          <div class="pipeline-detail" aria-live="polite">
+            <div><h3 id="stage-title">Standalone HTML is canonical</h3><p id="stage-summary">The build step serializes the caller’s complete React document, rejects unresolved dependencies, and publishes one self-contained file.</p></div>
+            <div><ul id="stage-points"><li>React and Playwright are not needed to open the result.</li><li>No Unslide wrapper, CSS reset, geometry, or chrome is injected.</li><li>Protocol validation happens when browser-based commands consume the HTML.</li></ul><p class="pipeline-warning" id="stage-warning">Important: build does not automatically run capture or export.</p></div>
+          </div>
+        </section>
+
+        <section class="section" id="protocol">
+          <h2>The tiny HTML contract</h2>
+          <p class="section-intro">Protocol v1 is intentionally smaller than the React authoring implementation. Try a scenario to see what the browser gate accepts.</p>
+          <div class="protocol-lab">
+            <div class="code-window" aria-label="Protocol example">
+              <div class="code-toolbar" aria-hidden="true"><i></i><i></i><i></i></div>
+              <pre id="protocol-code">&lt;meta name="unslide-protocol" content="1"&gt;
+
+&lt;article data-unslide-page="summary"&gt;...&lt;/article&gt;
+&lt;figure data-unslide-page="analysis"&gt;...&lt;/figure&gt;</pre>
+            </div>
+            <div class="lab-controls">
+              <label for="protocol-scenario">Artifact scenario</label>
+              <select id="protocol-scenario">
+                <option value="valid">Valid two-page artifact</option>
+                <option value="duplicate">Duplicate page ID</option>
+                <option value="missing">No marked pages</option>
+                <option value="version">Unsupported protocol</option>
+                <option value="resource">Image fails to decode</option>
+              </select>
+              <div class="validation-result result-ok" id="protocol-result" aria-live="polite">
+                <strong>Valid · 2 pages in DOM order</strong>
+                <p>IDs are nonempty and unique; fonts and images are ready.</p>
+              </div>
+            </div>
+          </div>
+          <div class="protocol-notes" aria-label="What protocol validation does not do">
+            <span>No required element</span><span>No required class</span><span>No page size</span><span>No overflow check</span><span>No visual repair</span>
+          </div>
+        </section>
+
+        <section class="section" id="code-map">
+          <h2>Code map</h2>
+          <p class="section-intro">Browse by responsibility, not file order. The selected module shows what it owns and what it intentionally keeps outside its boundary.</p>
+          <div class="repo-explorer">
+            <div class="file-tree" role="group" aria-label="Project modules">
+              <p class="file-group">ENTRY &amp; ORCHESTRATION</p>
+              <button type="button" class="file-button" data-file="cli" aria-pressed="true">src/cli.ts</button>
+              <button type="button" class="file-button" data-file="config" aria-pressed="false">src/unslide/config.ts</button>
+              <button type="button" class="file-button" data-file="init" aria-pressed="false">src/unslide/init.ts</button>
+              <p class="file-group">AUTHORING</p>
+              <button type="button" class="file-button" data-file="build" aria-pressed="false">src/unslide/build.ts</button>
+              <button type="button" class="file-button" data-file="render" aria-pressed="false">src/unslide/render.tsx</button>
+              <button type="button" class="file-button" data-file="react" aria-pressed="false">src/unslide/react.ts</button>
+              <p class="file-group">HTML PROTOCOL &amp; CAPTURE</p>
+              <button type="button" class="file-button" data-file="protocol" aria-pressed="false">src/unslide/protocol.ts</button>
+              <button type="button" class="file-button" data-file="browser" aria-pressed="false">src/unslide/browser.ts</button>
+              <button type="button" class="file-button" data-file="capture" aria-pressed="false">src/unslide/capture.ts</button>
+              <p class="file-group">PDF DELIVERY</p>
+              <button type="button" class="file-button" data-file="pdf" aria-pressed="false">src/unslide/pdf.ts</button>
+              <button type="button" class="file-button" data-file="pdf-inspection" aria-pressed="false">src/unslide/pdf-inspection.ts</button>
+              <button type="button" class="file-button" data-file="images" aria-pressed="false">src/unslide/page-images.ts</button>
+              <p class="file-group">PROOF REPORTS</p>
+              <button type="button" class="file-button" data-file="spike" aria-pressed="false">src/spike/</button>
+              <button type="button" class="file-button" data-file="report" aria-pressed="false">src/reports/operating-review/</button>
+            </div>
+            <div class="file-detail" aria-live="polite">
+              <p class="path" id="file-path">src/cli.ts</p>
+              <h3 id="file-title">The user-facing orchestrator</h3>
+              <p class="summary" id="file-summary">Parses the six workflows, loads named reports, delegates to internal modules, and returns structured TOON output with stable exit codes.</p>
+              <dl>
+                <dt>Owns</dt><dd id="file-owns">Command grammar, help, result shaping, exit codes 0/1/2</dd>
+                <dt>Calls</dt><dd id="file-calls">Config, build, inspect, capture, export, PDF inspection, init</dd>
+                <dt>Does not own</dt><dd id="file-excludes">Rendering logic, browser behavior, visual policy</dd>
+              </dl>
+              <a class="source-link" id="file-link" href="../src/cli.ts">Open source file →</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="proof">
+          <h2>Why there are two proof reports</h2>
+          <p class="section-intro">The fixtures demonstrate that the runtime understands protocol behavior, not one house style.</p>
+          <div class="proof-pair">
+            <div class="report-proof">
+              <div class="page-shape portrait"><span>900 × 1200</span></div>
+              <div class="proof-copy"><h3>Spike</h3><p>Three portrait pages, no repeated chrome, a distinct type and spacing system.</p><strong>Contrasting fixture</strong></div>
+            </div>
+            <div class="report-proof">
+              <div class="page-shape landscape"><span>A4 landscape</span></div>
+              <div class="proof-copy"><h3>Operating review</h3><p>Eight authored pages with charts, tables, bilingual content, repeated material, and print rules.</p><strong>Credible real-report trial</strong></div>
+            </div>
+          </div>
+          <p class="proof-conclusion">Both travel through the same build, protocol, Chromium capture, PDF export, and PDF-native inspection path. The differences stay entirely in report-owned source.</p>
+        </section>
+
+        <section class="section" id="decisions">
+          <h2>Key decisions</h2>
+          <p class="section-intro">These are accepted constraints, not unfinished conveniences. Future work should revisit them only with the evidence each record asks for.</p>
+          <div class="decision-list">
+            <article class="decision"><span class="number">D1</span><h3>Explicit fixed pages</h3><p>Page membership is authored. Long content and large tables are split manually after rendered inspection; Unslide never redistributes content.</p></article>
+            <article class="decision"><span class="number">D2</span><h3>Rendered preview</h3><p>Source is editable intent; isolated Chromium output is visual truth. Review does not depend on a maintainer’s personal browser session.</p></article>
+            <article class="decision"><span class="number">D3</span><h3>Headless protocol</h3><p>A nonvisual HTML marker separates stable tooling from report design. React is proven authoring, but HTML is the durable seam.</p></article>
+            <article class="decision"><span class="number">D4</span><h3>HTML-first PDF</h3><p>PDF is printed from canonical HTML and inspected from the produced PDF. There is no screenshot-to-PDF or parallel layout path.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="tests">
+          <h2>Tests and evidence</h2>
+          <p class="section-intro">The suite proves each boundary separately, then installs the packed product in a clean external consumer and exercises the whole lifecycle.</p>
+          <div class="test-map" aria-label="Test suite map">
+            <div class="test-cell"><strong>Workflow</strong><span>5</span><p>Complete documents, no injected design, embedded assets, capture safety.</p></div>
+            <div class="test-cell"><strong>Protocol</strong><span>13</span><p>Markers, readiness, browser diagnostics, geometry independence.</p></div>
+            <div class="test-cell"><strong>CLI</strong><span>7</span><p>TOON output, discovery, safe paths, config, commands, init.</p></div>
+            <div class="test-cell"><strong>PDF export</strong><span>5</span><p>Authored geometry, text, page parity, atomic publication.</p></div>
+            <div class="test-cell"><strong>PDF inspect</strong><span>2</span><p>Actual-PDF rasterization, repeatability, rollback.</p></div>
+            <div class="test-cell"><strong>Adoption</strong><span>1</span><p>Packed clean consumer, minimal exports, full delivery workflow.</p></div>
+          </div>
+          <div class="commands">
+            <h3>Commands you will actually use</h3>
+            <div class="command-row"><code>pnpm run check</code><button type="button" class="copy-button" data-copy="pnpm run check">Copy</button></div>
+            <div class="command-row"><code>pnpm test</code><button type="button" class="copy-button" data-copy="pnpm test">Copy</button></div>
+            <div class="command-row"><code>pnpm run validate</code><button type="button" class="copy-button" data-copy="pnpm run validate">Copy</button></div>
+            <div class="command-row"><code>pnpm --silent run unslide build operating-review</code><button type="button" class="copy-button" data-copy="pnpm --silent run unslide build operating-review">Copy</button></div>
+            <div class="command-row"><code>pnpm --silent run unslide capture operating-review</code><button type="button" class="copy-button" data-copy="pnpm --silent run unslide capture operating-review">Copy</button></div>
+            <div class="command-row"><code>pnpm --silent run unslide export operating-review</code><button type="button" class="copy-button" data-copy="pnpm --silent run unslide export operating-review">Copy</button></div>
+            <div class="command-row"><code>pnpm --silent run unslide inspect-pdf operating-review</code><button type="button" class="copy-button" data-copy="pnpm --silent run unslide inspect-pdf operating-review">Copy</button></div>
+          </div>
+        </section>
+
+        <section class="section" id="review">
+          <h2>Reviewer and maintenance focus</h2>
+          <p class="section-intro">Use these questions to judge future changes against the project’s actual design.</p>
+          <div class="review-grid">
+            <ul class="review-list">
+              <li>Does the change preserve HTML as the one canonical artifact?</li>
+              <li>Does visual policy remain entirely in report-owned source?</li>
+              <li>Does config stay operational rather than becoming a design schema?</li>
+              <li>Does browser and PDF behavior remain behind private seams?</li>
+              <li>Are prior good artifacts preserved when generation fails?</li>
+              <li>Were both screen-media HTML and print-media PDF inspected?</li>
+              <li>Is a new public abstraction backed by two proven implementations?</li>
+            </ul>
+            <div class="limits">
+              <h3>Know the support boundary</h3>
+              <ul>
+                <li>Verified environment: macOS arm64, Node 24, pnpm 11.12.</li>
+                <li>One common page geometry per PDF.</li>
+                <li>No automatic pagination or overflow repair.</li>
+                <li>No async-ready author signal in protocol v1.</li>
+                <li>No PDF/A, signing, encryption, forms, or alternate engines.</li>
+                <li>Tagged output is evidence—not PDF/UA or WCAG certification.</li>
+                <li>Version 0.1.0 is a private pre-stable contract.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="status">
+          <h2>Where the project stands</h2>
+          <p class="section-intro">All accepted V2 delivery work is complete. The project is now waiting for real adoption evidence, not another speculative subsystem.</p>
+          <div class="status-track">
+            <div class="status-step"><strong>Core · complete</strong><span>Artifact protocol, headless React authoring, canonical HTML capture.</span></div>
+            <div class="status-step"><strong>Adoption · complete</strong><span>CLI/config, safe scaffold, migration, hardened 0.1.0 package.</span></div>
+            <div class="status-step"><strong>PDF · complete</strong><span>Chromium export, PDF-native inspection, packed-consumer hardening.</span></div>
+          </div>
+          <div class="next-action"><h3>Current next action</h3><p>Exercise Unslide in a second real consumer report. Record repeated visual source, adapter needs, or mixed-geometry needs—and reopen scope only if that evidence satisfies an existing gate.</p></div>
+          <div class="gates">
+            <div class="gate"><strong>Recipe registry</strong><p>Wait for the same editable visual source to recur across independent consumers.</p></div>
+            <div class="gate"><strong>Source adapters</strong><p>Wait for a second generator to reveal which authoring behavior truly varies.</p></div>
+            <div class="gate"><strong>Mixed PDF geometry</strong><p>Wait for a real mixed-size report and canonical Chromium integration evidence.</p></div>
+          </div>
+        </section>
+
+        <section class="section" id="confusion">
+          <h2>Important confusion points</h2>
+          <p class="section-intro">These distinctions save the most time during a first review.</p>
+          <details class="confusion"><summary>Does “standalone HTML” allow external resources?</summary><p>No. Report code explicitly inlines selected local CSS, images, SVG, and font assets. The renderer rejects unresolved file or network dependencies.</p></details>
+          <details class="confusion"><summary>Does a passing protocol check mean the page looks good?</summary><p>No. The protocol checks page identity and static readiness. It does not judge layout, measure overflow, or approve visual quality. Every page image still needs inspection.</p></details>
+          <details class="confusion"><summary>Does `export` rebuild the HTML first?</summary><p>No. Commands are composable and explicit. `capture` and `export` consume existing HTML; `inspect-pdf` consumes an existing PDF. Rebuild upstream artifacts when source changes.</p></details>
+          <details class="confusion"><summary>Is the report-local `Page` component part of Unslide?</summary><p>No. The operating review owns that helper because its headers, footers, numbering, and A4 geometry are specific to that report. The spike proves those concepts are optional.</p></details>
+          <details class="confusion"><summary>Why does PRODUCT.md discuss V1 limits if PDF exists now?</summary><p>V1 is historical baseline evidence. Accepted V2 added the headless protocol, package adoption, and validated HTML-first PDF workflow. Current behavior is summarized by PLAN.md and ARCHITECTURE.md.</p></details>
+        </section>
+
+        <section class="section remember" id="remember">
+          <h2>What to remember</h2>
+          <p class="section-intro">If these three ideas stay clear, the rest of the codebase becomes predictable.</p>
+          <div class="remember-points">
+            <div><strong>HTML is canonical.</strong><p>Capture and PDF export consume the same standalone artifact. PDF inspection consumes the actual PDF.</p></div>
+            <div><strong>Design stays upstream.</strong><p>Caller owns calculations; report owns the complete document and fit; Unslide owns mechanics.</p></div>
+            <div><strong>Rendered evidence closes the loop.</strong><p>A valid source file is not a visually approved report. Inspect every target-native page.</p></div>
+          </div>
+          <div class="footer-links">
+            <a href="../PRODUCT.md">PRODUCT.md</a><a href="DESIGN.md">DESIGN.md</a><a href="../ARCHITECTURE.md">ARCHITECTURE.md</a><a href="../PLAN.md">PLAN.md</a><a href="PROTOCOL.md">Protocol</a><a href="SUPPORT.md">Support</a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const ownership = {
+        caller: {
+          name: "Caller",
+          role: "The domain owner. It decides what the report means before Unslide sees it.",
+          items: ["Business calculations", "Domain models", "Data provenance", "Conclusions", "Ready-to-display values", "Chart positions when precomputed"]
+        },
+        report: {
+          name: "Report source",
+          role: "The visual author. It produces the complete document that Unslide will deliver.",
+          items: ["Complete HTML tree and semantics", "Explicit page sequence", "Geometry and content fit", "Typography and colors", "Fonts and local assets", "Headers, footers, numbering", "Screen presentation", "Print CSS and page breaks"]
+        },
+        unslide: {
+          name: "Unslide",
+          role: "The lifecycle tool. It makes compilation, validation, rendering, and publication predictable.",
+          items: ["TSX compilation", "Static serialization", "Standalone enforcement", "Protocol validation", "Isolated Chromium", "HTML page capture", "Validated PDF export", "PDF-native rasterization", "Atomic publication"]
+        }
+      };
+
+      const stages = {
+        source: {
+          title: "Authoring begins with ordinary code",
+          summary: "The caller prepares display-ready values; report source composes a complete React document and marks its explicit pages.",
+          points: ["Business logic stays outside Unslide.", "The default export must be a complete <html> React element.", "Local CSS and assets are explicitly read and inlined by report source."],
+          warning: "A chart position can be caller-prepared data; Unslide calculates nothing."
+        },
+        html: {
+          title: "Standalone HTML is canonical",
+          summary: "The build step serializes the caller’s complete React document, rejects unresolved dependencies, and publishes one self-contained file.",
+          points: ["React and Playwright are not needed to open the result.", "No Unslide wrapper, CSS reset, geometry, or chrome is injected.", "Protocol validation happens when browser-based commands consume the HTML."],
+          warning: "Important: build does not automatically run capture or export."
+        },
+        "html-proof": {
+          title: "HTML capture judges screen-media output",
+          summary: "Pinned Chromium loads the canonical file, waits for bounded font and image readiness, then screenshots each marked element at its authored bounds.",
+          points: ["DOM order becomes capture order.", "Invisible or zero-area pages fail with context.", "A staging-and-rollback publisher preserves prior good images on failure."],
+          warning: "Protocol success is not visual approval; inspect every image for fit."
+        },
+        pdf: {
+          title: "PDF is derived, validated, then inspected natively",
+          summary: "Chromium applies report-owned print CSS. PDF.js checks the produced bytes before publication, and a separate renderer reads only the PDF to make 96-DPI page images.",
+          points: ["An explicit concrete @page size is required.", "Marked HTML page count must equal PDF page count.", "Geometry must match and remain common; expected text must stay extractable."],
+          warning: "HTML screenshots cannot substitute for PDF inspection evidence."
+        }
+      };
+
+      const files = {
+        cli: ["src/cli.ts", "The user-facing orchestrator", "Parses the six workflows, loads named reports, delegates to internal modules, and returns structured TOON output with stable exit codes.", "Command grammar, help, result shaping, exit codes 0/1/2", "Config, build, inspect, capture, export, PDF inspection, init", "Rendering logic, browser behavior, visual policy", "../src/cli.ts"],
+        config: ["src/unslide/config.ts", "The operational safety boundary", "Finds the nearest unslide.json, validates schema v1, resolves project-relative paths, and prevents escapes, symlink escapes, and source/output overlap.", "Project discovery, schema validation, safe path resolution", "Ajv, filesystem metadata", "Any visual setting", "../src/unslide/config.ts"],
+        init: ["src/unslide/init.ts", "The safe one-time scaffold", "Plans or creates exactly three user-owned files. Identical files are unchanged; differing files are conflicts and are never overwritten.", "Dry run, deterministic source, conflict safety", "Filesystem primitives", "Managed recipes or source upgrades", "../src/unslide/init.ts"],
+        build: ["src/unslide/build.ts", "The TSX entry adapter", "Loads a named TS/TSX entry, requires its default export to be a React element, and hands the complete document to serialization.", "Source evaluation and authoring-entry validation", "tsx import API, renderer", "Artifact protocol or browser capture", "../src/unslide/build.ts"],
+        render: ["src/unslide/render.tsx", "The standalone document writer", "Renders static markup, enforces a complete <html> root, rejects unresolved resource references, and atomically replaces the HTML output.", "Serialization, asset helpers, standalone enforcement", "React server rendering, filesystem", "Document shell, CSS, page frame, geometry", "../src/unslide/render.tsx"],
+        react: ["src/unslide/react.ts", "The narrow public authoring entry", "Re-exports React plus readTextAsset and inlineAsset. It is intentionally the package’s only JavaScript authoring export.", "Minimal supported authoring API", "React and renderer helpers", "Browser, validator, capture, or PDF APIs", "../src/unslide/react.ts"],
+        protocol: ["src/unslide/protocol.ts", "The durable HTML seam", "Runs inside a loaded document to validate protocol metadata, page IDs, DOM order, fonts, and image readiness with bounded waits.", "Protocol v1 and static readiness", "Browser document APIs", "CSS judgment, overflow detection, layout repair", "../src/unslide/protocol.ts"],
+        browser: ["src/unslide/browser.ts", "The canonical Chromium gate", "Opens a file artifact in pinned Chromium, collects resource and console failures, runs protocol readiness, then exposes a short-lived operation callback.", "Browser lifecycle and shared readiness", "Playwright, protocol validator", "React or report design", "../src/unslide/browser.ts"],
+        capture: ["src/unslide/capture.ts", "The protocol-only HTML capturer", "Screenshots every marked element at its authored visible bounds and returns ordered IDs, dimensions, and paths.", "Element capture and deterministic naming", "Browser gate, page-image publisher", "Page size assumptions or React", "../src/unslide/capture.ts"],
+        pdf: ["src/unslide/pdf.ts", "The validated print pipeline", "Prints canonical HTML with Chromium, requires authored page geometry, then verifies PDF readability, count, geometry, and extractable text before publication.", "Semantic export policy and PDF validation", "Browser gate, PDF.js", "Parallel layout, screenshot assembly, raw browser options", "../src/unslide/pdf.ts"],
+        "pdf-inspection": ["src/unslide/pdf-inspection.ts", "The target-native PDF inspector", "Reads only an existing PDF and rasterizes each actual page through PDF.js and Node canvas at a fixed 96 DPI.", "PDF-to-PNG evidence", "PDF.js, @napi-rs/canvas", "HTML or browser state", "../src/unslide/pdf-inspection.ts"],
+        images: ["src/unslide/page-images.ts", "The transactional image publisher", "Generates a complete page set in isolation, swaps only managed page PNGs, preserves unrelated files, and restores prior evidence on publication failure.", "Staging, cleanup, rollback", "Filesystem primitives", "Image rendering itself", "../src/unslide/page-images.ts"],
+        spike: ["src/spike/", "The contrast proof", "A three-page portrait report with its own document, typography, spacing, CSS, data model, and no required repeated chrome.", "One complete visual system", "unslide/react only", "Runtime defaults", "../src/spike/report.tsx"],
+        report: ["src/reports/operating-review/", "The credible report trial", "An eight-page A4 landscape operating review with report-local page reuse, charts, tables, bilingual content, repeated material, and print behavior.", "A richer report-specific visual system", "unslide/react only", "Framework-owned Page or chrome concepts", "../src/reports/operating-review/report.tsx"]
+      };
+
+      const scenarios = {
+        valid: {
+          code: '<meta name="unslide-protocol" content="1">\n\n<article data-unslide-page="summary">...</article>\n<figure data-unslide-page="analysis">...</figure>',
+          title: "Valid · 2 pages in DOM order",
+          message: "IDs are nonempty and unique; fonts and images are ready.", ok: true
+        },
+        duplicate: {
+          code: '<meta name="unslide-protocol" content="1">\n\n<section data-unslide-page="summary">...</section>\n<section data-unslide-page="summary">...</section>',
+          title: "Invalid · duplicate-page-id",
+          message: 'Page ID "summary" appears at positions 1 and 2.', ok: false
+        },
+        missing: {
+          code: '<meta name="unslide-protocol" content="1">\n\n<main>There are no marked pages.</main>',
+          title: "Invalid · missing-pages",
+          message: "At least one element must carry data-unslide-page.", ok: false
+        },
+        version: {
+          code: '<meta name="unslide-protocol" content="2">\n\n<section data-unslide-page="one">...</section>',
+          title: "Invalid · protocol-version",
+          message: "This release supports version 1; migrate source manually.", ok: false
+        },
+        resource: {
+          code: '<meta name="unslide-protocol" content="1">\n\n<section data-unslide-page="one">\n  <img src="data:image/png;base64,broken">\n</section>',
+          title: "Invalid · image-readiness",
+          message: 'The image on page "one" has no decodable content.', ok: false
+        }
+      };
+
+      function selectOwner(key) {
+        const owner = ownership[key];
+        document.querySelectorAll(".owner-button").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.owner === key)));
+        document.getElementById("owner-name").textContent = owner.name;
+        document.getElementById("owner-role").textContent = owner.role;
+        document.getElementById("owner-list").innerHTML = owner.items.map((item) => `<li>${item}</li>`).join("");
+      }
+      document.querySelectorAll(".owner-button").forEach((button) => button.addEventListener("click", () => selectOwner(button.dataset.owner)));
+
+      function selectStage(key) {
+        const stage = stages[key];
+        document.querySelectorAll(".pipeline-node").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.stage === key)));
+        document.getElementById("stage-title").textContent = stage.title;
+        document.getElementById("stage-summary").textContent = stage.summary;
+        document.getElementById("stage-points").innerHTML = stage.points.map((point) => `<li>${point}</li>`).join("");
+        document.getElementById("stage-warning").textContent = stage.warning;
+      }
+      document.querySelectorAll(".pipeline-node").forEach((button) => button.addEventListener("click", () => selectStage(button.dataset.stage)));
+
+      function selectFile(key) {
+        const [path, title, summary, owns, calls, excludes, link] = files[key];
+        document.querySelectorAll(".file-button").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.file === key)));
+        document.getElementById("file-path").textContent = path;
+        document.getElementById("file-title").textContent = title;
+        document.getElementById("file-summary").textContent = summary;
+        document.getElementById("file-owns").textContent = owns;
+        document.getElementById("file-calls").textContent = calls;
+        document.getElementById("file-excludes").textContent = excludes;
+        document.getElementById("file-link").href = link;
+        document.getElementById("file-link").textContent = path.endsWith("/") ? "Open representative source →" : "Open source file →";
+      }
+      document.querySelectorAll(".file-button").forEach((button) => button.addEventListener("click", () => selectFile(button.dataset.file)));
+
+      document.getElementById("protocol-scenario").addEventListener("change", (event) => {
+        const scenario = scenarios[event.target.value];
+        document.getElementById("protocol-code").textContent = scenario.code;
+        const result = document.getElementById("protocol-result");
+        result.className = `validation-result ${scenario.ok ? "result-ok" : "result-error"}`;
+        result.querySelector("strong").textContent = scenario.title;
+        result.querySelector("p").textContent = scenario.message;
+      });
+
+      document.querySelectorAll(".copy-button").forEach((button) => button.addEventListener("click", async () => {
+        const original = button.textContent;
+        try {
+          let copied = false;
+          if (navigator.clipboard) {
+            try {
+              await navigator.clipboard.writeText(button.dataset.copy);
+              copied = true;
+            } catch {}
+          }
+          if (!copied) {
+            const textarea = document.createElement("textarea");
+            textarea.value = button.dataset.copy;
+            textarea.style.position = "fixed";
+            textarea.style.opacity = "0";
+            document.body.append(textarea);
+            textarea.select();
+            const copySucceeded = document.execCommand("copy");
+            textarea.remove();
+            if (!copySucceeded) throw new Error("Copy is unavailable");
+          }
+          button.textContent = "Copied";
+        } catch {
+          button.textContent = "Copy unavailable";
+        }
+        window.setTimeout(() => { button.textContent = original; }, 1400);
+      }));
+
+      const sections = [...document.querySelectorAll("main section[id]")];
+      const navLinks = [...document.querySelectorAll(".sidebar nav a")];
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        navLinks.forEach((link) => {
+          if (link.hash === `#${visible.target.id}`) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        });
+        document.getElementById("mobile-jump").value = visible.target.id;
+      }, { rootMargin: "-20% 0px -65%", threshold: [0, 0.2, 0.5] });
+      sections.forEach((section) => observer.observe(section));
+
+      document.getElementById("mobile-jump").addEventListener("change", (event) => document.getElementById(event.target.value)?.scrollIntoView());
+      window.addEventListener("scroll", () => {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        document.getElementById("reading-progress").style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
+      }, { passive: true });
+    </script>
+  </body>
+</html>

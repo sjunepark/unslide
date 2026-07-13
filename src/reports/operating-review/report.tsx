@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Page } from "../../unslide/page.js";
+import { Page } from "./page.js";
 import type { OperatingReviewData } from "./data.js";
 
 function Heading({ title, note }: { title: ReactNode; note?: ReactNode }) {
