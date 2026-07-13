@@ -1,16 +1,23 @@
-import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { writeReportHtml } from "../unslide/render.js";
+import { readTextAsset, writeReportHtml } from "../unslide/render.js";
 import { spikeReportData } from "./data.js";
 import { SpikeReport } from "./report.js";
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
-const styles = await readFile(resolve(sourceDirectory, "styles.css"), "utf8");
+const styles = await readTextAsset(resolve(sourceDirectory, "styles.css"));
 
 await writeReportHtml({
-  title: `${spikeReportData.company} — ${spikeReportData.period}`,
-  body: <SpikeReport data={spikeReportData} />,
-  reportStyles: styles,
+  document: (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{`${spikeReportData.company} — ${spikeReportData.period}`}</title>
+        <style>{styles}</style>
+      </head>
+      <body><SpikeReport data={spikeReportData} /></body>
+    </html>
+  ),
   outputPath: "artifacts/spike/report.html",
 });

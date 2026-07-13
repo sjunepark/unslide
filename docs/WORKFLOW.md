@@ -1,8 +1,8 @@
 # V1 Workflow
 
 This document records commands that work in the current implementation. The V2
-artifact protocol is now active in the V1 commands; follow
-[`PLAN.md`](../PLAN.md) for the remaining migration state.
+artifact protocol and headless full-document authoring path are active in these
+commands; follow [`PLAN.md`](../PLAN.md) for the remaining migration state.
 
 For an interactive overview and authoring guide to the V1 implementation, open
 [`docs/index.html`](index.html) directly in a browser. Its copy-in recipe is
@@ -64,19 +64,18 @@ visual resources, and then captures marked elements in document order.
 - `.tmp/captures/` contains disposable browser-rendered inspection images.
 - Both directories are ignored by Git and can be regenerated from source.
 - Report data and domain conclusions stay in each report's typed caller-owned
-  object. The shared foundation does not calculate them.
+  object. Unslide does not calculate them.
 
-## V1 Module Decision
+## Current Module Decision
 
-The proven foundation remains repository-local under `src/unslide/`. Two
-reports justify shared page geometry, chrome/numbering, the HTML shell, and
-capture. They do not yet justify a published package, configurable theme
-system, component catalogue, or stable public API.
+The repository-local React writer serializes a complete author-owned document,
+provides explicit local-asset inlining, and injects no visual source. Each
+report owns page geometry, chrome or its absence, styles, and print behavior.
+The capture script still awaits the canonical protocol-only module and CLI.
 
-The accepted V2 direction supersedes copy-in as the future adoption model.
-Stable build, validation, capture, and export behavior will move to versioned
-tooling, while report source owns all DOM and visual policy. Current files and
-commands do not provide that interface yet. See
+The accepted V2 direction supersedes copy-in as the adoption model. Stable
+build, validation, capture, and export behavior will move to versioned tooling;
+there is not yet a published package interface. See
 [D3](decisions/0003-headless-artifact-protocol.md) and the
 [V2 adoption plan](plans/v2-adoption.md).
 

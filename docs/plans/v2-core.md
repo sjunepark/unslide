@@ -1,6 +1,6 @@
 # V2 Core Plan
 
-Status: **Goal 1 complete; Goal 2 ready; Goal 3 pending.**
+Status: **Goals 1–2 complete; Goal 3 ready.**
 
 This plan establishes the durable HTML seam before packaging or PDF work. Keep
 `PLAN.md` synchronized whenever a goal changes state.
@@ -96,7 +96,7 @@ observable contract and exit criteria must not.
 
 ## Core Goal 2 — Headless React Authoring
 
-Status: **ready**
+Status: **complete**
 
 ### Objective
 
@@ -149,6 +149,27 @@ visual policy.
   or fixed-geometry concepts.
 - `PLAN.md` points to Core Goal 3.
 
+### Completion Evidence
+
+- `src/unslide/render.tsx` now serializes a caller-supplied complete React
+  document, injects no shell or visual source, rejects unresolved resource
+  dependencies, and atomically writes standalone HTML.
+- Both proof reports own their document metadata, page composition, A4
+  geometry, chrome, typography, screen presentation, and print CSS. The shared
+  `Page` and `foundation.css` paths were removed rather than retained as a
+  compatibility layer.
+- Interface tests prove metadata and arbitrary DOM/CSS preservation, escaping,
+  absent runtime design, complete-document enforcement, explicit CSS/raster/
+  SVG/font inlining, browser resource readiness, unresolved-resource errors,
+  and safe output behavior.
+- `pnpm run check` and all 12 tests pass. Both reports regenerate at 3 and 8
+  pages, all 11 HTML captures were inspected without fit or visual defects, and
+  generated artifacts contain no scripts, linked styles, or external URLs.
+- The implementation review and diet lens retained explicit report-local
+  duplication, fixed data-URL `srcset` handling, expanded supported resource
+  diagnostics, and replaced placeholder asset checks with real browser-loaded
+  raster and font evidence. No decision-level findings remain.
+
 ### Suggested `/goal` Objective
 
 > Implement Core Goal 2 from `docs/plans/v2-core.md`: create the headless React
@@ -158,7 +179,7 @@ visual policy.
 
 ## Core Goal 3 — Canonical HTML Capture
 
-Status: **pending**
+Status: **ready**
 
 ### Objective
 

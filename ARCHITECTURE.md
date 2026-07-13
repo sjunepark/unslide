@@ -1,8 +1,9 @@
 # Architecture
 
-Status: **V1 is implemented and verified. V2 artifact protocol v1 and its
-validator are implemented; the remaining target architecture is accepted and
-planned.** See `PLAN.md` for the current migration step.
+Status: **V1 is implemented and verified. V2 artifact protocol v1, its
+validator, and headless full-document React authoring are implemented; the
+remaining target architecture is accepted and planned.** See `PLAN.md` for the
+current migration step.
 
 ## Purpose and Boundaries
 
@@ -148,22 +149,18 @@ documentation are insufficient.
 - New public adapter or plugin seams require at least two proven
   implementations.
 
-## Current V1 Code Map
+## Current Code Map
 
-The migration starts from a working but visually opinionated implementation:
-
-- `src/unslide/page.tsx` currently owns A4 page structure and chrome. V2 removes
-  it from the required runtime and preserves any useful design as optional
-  report-owned source.
-- `src/unslide/foundation.css` currently owns geometry and print styling. V2
-  stops automatic injection and moves visual rules to reports or recipes.
-- `src/unslide/render.tsx` currently owns the HTML shell and combines foundation
-  and report CSS. V2 evolves it into the headless React authoring path.
+- `src/unslide/render.tsx` serializes a report-owned complete React document,
+  inlines explicitly selected local assets, rejects unresolved resource
+  dependencies, and writes standalone HTML atomically. It injects no shell or
+  visual source.
 - `src/unslide/protocol.ts` defines protocol v1 metadata, validation, and static
-  readiness independently of React and the V1 visual foundation.
+  readiness independently of React.
 - `scripts/capture.ts` validates `[data-unslide-page]` elements and captures
-  them in Chromium. V2 later moves the capture workflow behind the CLI.
-- `src/spike/` and `src/reports/operating-review/` are migration fixtures.
+  them in Chromium. Core Goal 3 makes this a protocol-only structured module.
+- `src/spike/` and `src/reports/operating-review/` own their full documents,
+  page composition, A4 geometry, repeated material, and print rules.
 - `tests/workflow.test.tsx` is the current end-to-end test surface.
 
 Generated HTML stays under `artifacts/`; disposable V1 captures stay under

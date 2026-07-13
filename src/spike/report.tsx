@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Page } from "../unslide/page.js";
+import { Page } from "./page.js";
 import type { SpikeReportData } from "./data.js";
 
 function SectionTitle({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {

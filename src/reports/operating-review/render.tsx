@@ -1,16 +1,23 @@
-import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { writeReportHtml } from "../../unslide/render.js";
+import { readTextAsset, writeReportHtml } from "../../unslide/render.js";
 import { operatingReviewData } from "./data.js";
 import { OperatingReview } from "./report.js";
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
-const styles = await readFile(resolve(sourceDirectory, "styles.css"), "utf8");
+const styles = await readTextAsset(resolve(sourceDirectory, "styles.css"));
 
 await writeReportHtml({
-  title: `${operatingReviewData.company} — ${operatingReviewData.period} Operating Review`,
-  body: <OperatingReview data={operatingReviewData} />,
-  reportStyles: styles,
+  document: (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{`${operatingReviewData.company} — ${operatingReviewData.period} Operating Review`}</title>
+        <style>{styles}</style>
+      </head>
+      <body><OperatingReview data={operatingReviewData} /></body>
+    </html>
+  ),
   outputPath: "artifacts/operating-review/report.html",
 });

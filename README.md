@@ -8,11 +8,11 @@ The project is intentionally narrower than a presentation framework or a
 publishing engine. V1 is for static reports that are laid out page by page. It
 does not automatically move content between pages.
 
-Status: **V1 complete; V2 Core Goal 1 complete.** The repository now verifies
-explicit pages through a headless HTML artifact protocol as well as standalone
-HTML and isolated capture. The remaining V2 work moves all visual policy into
-report-owned source, packages stable tooling, and adds HTML-first PDF export.
-See [`PLAN.md`](PLAN.md) before starting work.
+Status: **V1 complete; V2 Core Goals 1–2 complete.** The repository now verifies
+explicit pages through a headless HTML artifact protocol and renders
+report-owned complete React documents without injecting visual policy. The
+remaining V2 work hardens canonical capture, packages stable tooling, and adds
+HTML-first PDF export. See [`PLAN.md`](PLAN.md) before starting work.
 
 ## Rendering Spike
 
@@ -51,16 +51,13 @@ live in `src/reports/operating-review/`. Northstar Goods and all report values,
 commentary, and decisions are fictional examples created solely to demonstrate
 the authoring workflow.
 
-## Current V1 Foundation
+## Current Authoring Path
 
-After both reports repeated the same mechanics, `src/unslide/` centralized the
-fixed A4 page geometry, optional chrome with numbering, print separation, and
-standalone HTML writer. Report-specific TSX and CSS remain beside each report;
-there is no general component catalogue or published package interface.
-
-That foundation is a verified baseline, not the target public interface. V2
-retains the build and inspection behavior while removing required geometry,
-chrome, document wrappers, and injected CSS from reusable tooling.
+`src/unslide/render.tsx` accepts a complete report-owned React document and
+writes standalone HTML. It supplies explicit local-asset helpers and rejects
+unresolved resource dependencies, but injects no document shell, stylesheet,
+page wrapper, geometry, chrome, or typography. Each proof report owns those
+choices beside its source. There is not yet a published package interface.
 
 ## Start Here
 
@@ -107,8 +104,8 @@ file, and let a human or coding agent inspect real browser-rendered page images.
 - Optional visual recipes may generate editable source but will not be runtime
   requirements.
 
-These items are planned until their corresponding V2 goals pass. The commands
-above remain the supported V1 workflow today.
+Items not yet implemented remain planned until their corresponding V2 goals
+pass. The commands above remain the supported repository workflow today.
 
 ## Working Principle
 

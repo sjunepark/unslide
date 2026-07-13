@@ -1,8 +1,9 @@
 # Product
 
-Status: **V1 is implemented; V2 Core Goal 1 has established the headless HTML
-artifact protocol.** Current reports still use the V1 visual foundation while
-the remaining V2 authoring and export work proceeds.
+Status: **V1 is implemented; V2 Core Goals 1–2 have established the headless
+HTML artifact protocol and full-document React authoring.** Reports now own
+their complete documents and visual source; canonical capture, adoption, and
+export work remains.
 
 ## Product Idea
 
