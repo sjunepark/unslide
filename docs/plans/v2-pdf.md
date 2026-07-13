@@ -160,9 +160,9 @@ delivery review.
 - The actual three-page portrait PDF rendered to 720×960 PNGs; the actual
   eight-page A4-landscape PDF rendered to 1123×794 PNGs. Every generated page
   was inspected without content, glyph, color, chart, or clipping defects.
-- Type checking, the 33-test suite, both proof inspection commands, dependency
-  audit, and the required implementation review passed with no remaining safe
-  findings.
+- Type checking, the focused test suite, both proof inspection commands,
+  dependency audit, and the required implementation review passed with no
+  remaining safe findings.
 
 ### Suggested `/goal` Objective
 
@@ -242,11 +242,11 @@ document the supported delivery contract.
 - [`docs/SUPPORT.md`](../SUPPORT.md) records the exact canonical environment,
   supported behavior, repeatability boundary, accessibility limits, best-effort
   semantics, and deferred features.
-- Full validation passes 33 tests and regenerates both proof HTML/PDF targets
-  plus their target-native capture sets. All 22 proof pages across HTML and PDF
-  evidence were visually inspected, the dependency audit and license review are
-  clean, every local Markdown link resolves, and the final cross-module review
-  has no remaining safe findings.
+- Full validation passes and regenerates both proof HTML/PDF targets plus their
+  target-native capture sets. Every proof page across HTML and PDF evidence was
+  visually inspected, the dependency audit and license review are clean, every
+  local Markdown link resolves, and the final cross-module review has no
+  remaining safe findings.
 
 ### Suggested `/goal` Objective
 

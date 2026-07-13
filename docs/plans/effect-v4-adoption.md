@@ -124,12 +124,12 @@ preserving every observable CLI and package behavior.
 - Tests assert exact help and failure bytes, empty stderr, all exit codes, and
   every tagged failure mapping. On the canonical Node 24.15 environment,
   frozen installation, build diagnostics, package compilation, and full
-  validation with all 37 repository tests passed; all 22 regenerated HTML and
-  PDF page images were inspected without defects.
-- The final tarball retained only the established exports and two public
-  declaration files. A clean packed consumer installed with a frozen lockfile
-  and completed initialization, HTML build/inspection/capture, PDF export, and
-  PDF inspection; no Effect type appeared in the packed declarations.
+  validation passed; every regenerated HTML and PDF page image was inspected
+  without defects.
+- The final tarball retained only the established exports and public
+  declarations. A clean packed consumer installed with a frozen lockfile and
+  completed initialization, HTML build/inspection/capture, PDF export, and PDF
+  inspection; no Effect type appeared in the packed declarations.
 - The production audit found no known vulnerabilities. Effect and its added
   transitive dependencies use MIT, ISC, BSD-3-Clause, or Apache-2.0 licenses.
   The implementation review and bounded recheck, including the diet lens,
@@ -216,17 +216,17 @@ without changing the serializable artifact protocol or output artifacts.
   interruption of stalled page acquisition destroys the loading task exactly
   once, while non-cancellable native encoding and staging writes finish before
   cleanup.
-- On Node 24.15.0, full `pnpm run validate` passed with all 44 tests, including
-  the packed clean-consumer workflow. Both proof reports regenerated, captured,
-  exported, and rendered from PDF at their expected 3- and 8-page counts.
-- All 22 HTML and PDF-native page images were inspected without overflow,
+- On Node 24.15.0, full `pnpm run validate` passed, including the packed
+  clean-consumer workflow. Both proof reports regenerated, captured, exported,
+  and rendered from PDF at their authored page counts.
+- Every HTML and PDF-native page image was inspected without overflow,
   clipping, missing glyphs, blank pages, or target drift. Their hashes remained
   identical after the review fix and final validation. No Chromium process,
   PDF task, page-image staging directory, PDF staging file, or recovery
   temporary resource survived the completed or failed workflows.
-- Package build and dry-run packing retained the established 24-file surface
-  and only the two public declaration files; no Effect type escaped through a
-  package export. No unstable Effect import, service, Layer, adapter, new
+- Package build and dry-run packing retained the established package surface
+  and intended public declarations; no Effect type escaped through a package
+  export. No unstable Effect import, service, Layer, adapter, new
   timeout, or concurrent ordering path was introduced.
 - The required subagent implementation review and diet lens found no decision
   item. Its one safe finding—interrupting a stalled PDF page acquisition—was
