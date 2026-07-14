@@ -13,6 +13,10 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(".");
 
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
 async function runConsumerCli(consumerRoot: string, arguments_: string[]) {
   const { stdout, stderr } = await execFileAsync("pnpm", ["exec", "unslide", ...arguments_], {
     cwd: consumerRoot,
@@ -149,7 +153,10 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
 
     const help = await runConsumerCli(consumerRoot, ["--help"]);
     assert.match(String(help.bin), /\/bin\/unslide\.mjs$/);
-    assert.equal(help.usage, "pnpm exec unslide <command>");
+    assert.equal(
+      help.usage,
+      `${shellQuote(resolve(await realpath(consumerRoot), "node_modules/unslide/bin/unslide.mjs"))} <command>`,
+    );
     try {
       await runConsumerCli(consumerRoot, []);
       assert.fail("Consumer without configuration unexpectedly showed a project home view");

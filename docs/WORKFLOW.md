@@ -87,20 +87,19 @@ run unslide inspect <name>`, `pnpm --silent run unslide capture <name>`, `pnpm
 --silent run unslide export <name>`, and `pnpm --silent run unslide inspect-pdf
 <name>`.
 Run `pnpm --silent run unslide` from the project root or any nested directory
-to see the live report list with machine-readable TOON stdout. The nearest
+to see the live report list. The nearest
 `unslide.json` defines the project root, and its source, HTML, optional PDF,
 HTML-capture, and optional PDF-capture paths resolve relative to that directory.
 The standalone form is `unslide inspect-pdf --artifact <path> --output
 <directory>` and does not require project discovery.
 
-CLI execution logging is explicitly opt-in. Use `--log-level info` for major
-phases or `--log-level debug` for detailed page, transaction, cleanup, and
-failure-cause evidence. `UNSLIDE_LOG_LEVEL` supplies the same `off`, `info`, or
-`debug` values when the flag is absent. Logs are Effect-formatted JSON Lines on
-stderr; default stderr remains empty and stdout always remains TOON.
-Enabled logs include local paths in phase annotations. Debug output additionally
-includes full Effect causes and may repeat authored text from an existing
-failure message, so handle all logging as sensitive diagnostic data.
+See the README's [CLI automation contract](../README.md#cli-automation-contract)
+for TOON stdout, exit codes, stable failures, flags, bounded diagnostics, and
+portable recovery commands. Execution logging is opt-in and diagnostic-only.
+Treat logging as sensitive because it can include local paths and full Effect
+causes. Treat `--full` output as sensitive too: it may include complete
+report-authored messages and resource identifiers even though dependency causes
+remain excluded.
 
 Open an artifact directly on macOS:
 

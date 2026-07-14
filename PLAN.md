@@ -1,10 +1,9 @@
 # Plan
 
-Active implementation goal: **AXI CLI hardening through Goal 5.**
+Completed implementation goal: **AXI CLI hardening through Goal 5.**
 
-Current next action: **Execute Goal 5 of
-[`docs/plans/axi-cli-hardening.md`](docs/plans/axi-cli-hardening.md): align the
-documented contract, review the complete change, and run full validation.**
+Current next action: **No implementation action is active. Await an explicit
+scope decision before starting a deferred capability.**
 
 Suggested `/goal` objective:
 
@@ -19,14 +18,15 @@ product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
 
 ## Active Work
 
-- Completed: Goals 1–4. Parsing, invocation, typed public failures, bounded
+- Completed: Goals 1–5. Parsing, invocation, typed public failures, bounded
   diagnostics, contextual success help, existence-only home status, and compact
-  page-output paths now have one deterministic contract.
-- Evidence: `pnpm run check` and all 14 CLI tests pass. Exact home tests cover
-  missing, mixed, and present HTML states; a two-page end-to-end fixture proves
-  actual report names, one output-directory field, basename page rows, and
-  directly resolvable HTML-capture and named/explicit PDF-inspection output.
-  The focused Goal 4 implementation review found no issues.
+  page-output paths now have one documented deterministic contract.
+- Evidence: `pnpm run check`, all 58 tests, and `pnpm run validate` pass,
+  including both proof-report HTML/PDF pipelines. Direct executable probes cover
+  no-args output, every command help form, unknown input with help, all eight
+  operational codes, bounded/full diagnostics, spaced paths, and PATH/absolute
+  invocation. The required implementation review and diet pass found no
+  remaining findings.
 - Blockers: none.
 
 ## Current Gates

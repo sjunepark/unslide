@@ -70,23 +70,54 @@ pnpm --silent run unslide export operating-review
 pnpm --silent run unslide inspect-pdf operating-review
 ```
 
+## CLI Automation Contract
+
 With no command, `pnpm --silent run unslide` discovers the nearest
-`unslide.json` from the current directory or its parents and lists configured reports. The
-directory containing that file is the project root; every configured path is
-relative to it. The [versioned schema](schema/unslide.schema.json) rejects
-unknown fields and overlapping or escaping paths. Configuration contains only
-source and derived-artifact locations, including optional PDF and PDF-inspection
-paths; visual choices remain in report source.
+`unslide.json` from the current directory or its parents and lists configured
+reports. Each row's `htmlStatus` is only an existence check: `present` means the
+configured HTML path exists and `missing` means it does not. It does not claim
+that an artifact is current with its source. The contextual `help` commands are
+the next supported actions.
+
+The directory containing `unslide.json` is the project root; every configured
+path is relative to it. The [versioned schema](schema/unslide.schema.json)
+rejects unknown fields and overlapping or escaping paths. Configuration
+contains only source and derived-artifact locations, including optional PDF and
+PDF-inspection paths; visual choices remain in report source.
 
 The `--silent` package-manager flag keeps CLI stdout as structured TOON for
-automation. Exit code 0 means success, 1 an operational failure, and 2 invalid
-command usage. Top-level and per-command `--help` forms are noninteractive.
+automation. Every invocation writes one TOON document to stdout. Exit code 0
+means success or an idempotent no-op, 1 means an operational failure, and 2
+means invalid command usage. Default stderr is empty.
+
+Operational failures use an `error` record with a stable `code` and concise
+`message`, plus `report` or `path` when useful. Recovery data such as
+`availableReports`, bounded `diagnostics`, and complete commands remains
+structured instead of being embedded in prose. The current stable codes
+are `project-not-found`, `project-config-unreadable`,
+`project-config-invalid`, `report-not-found`, `artifact-not-found`,
+`artifact-invalid`, `browser-not-installed`, and `command-failed`. Raw
+dependency errors, stacks, browser banners, and filesystem search traces never
+appear on stdout.
+
+Top-level and per-command `--help` forms are noninteractive. Unknown flags and
+extra values still return exit 2 when combined with `--help`; help bypasses only
+missing required values. Commands emitted in `help` use the repository package
+script, a PATH-verified `unslide`, or a safely quoted absolute executable, so
+callers should run the emitted command as written.
+
+The global `--log-level <off|info|debug>` flag may appear before or after the
+command and overrides `UNSLIDE_LOG_LEVEL`; both default to `off`. Add `--full`
+only to `inspect`, `capture`, or `export` to request complete report-authored
+browser/protocol diagnostics when the default view is truncated. Default
+diagnostics show at most 10 issues and 1,000 Unicode characters per authored
+message or resource, with exact totals. `--full` never exposes raw dependency
+causes, but it may expose complete authored text and resource identifiers, so
+handle its output as sensitive.
 
 Execution logging is off by default, preserving empty stderr. Add
 `--log-level info` for major command phases or `--log-level debug` for page,
-publication, cleanup, and full Effect-cause evidence. The global flag may
-appear before or after the command and overrides the `UNSLIDE_LOG_LEVEL`
-environment variable; both accept `off`, `info`, or `debug`. Enabled logs are
+publication, cleanup, and full Effect-cause evidence. Enabled logs are
 newline-delimited Effect JSON on stderr, while stdout remains unchanged TOON.
 The pre-release log event shape is diagnostic rather than a stable automation
 contract, and ordinary report-page console messages are not forwarded.

@@ -1,6 +1,6 @@
 # AXI CLI Hardening Plan
 
-Status: accepted
+Status: complete
 
 ## Suggested `/goal` objective
 
@@ -260,17 +260,18 @@ full diagnostic output, paths containing spaces, and PATH/absolute invocation.
 
 ## Current state
 
-- Current goal: Goal 5 — align contracts, validate, and review.
-- Completed: Goals 1–4. Home reports only HTML existence, contextual help uses
-  actual report names after named operations, and HTML/PDF page rows carry
-  basenames beneath one output-directory field.
-- Validation: `pnpm run check` and all 14 CLI tests pass. Exact home fixtures
-  cover missing, mixed, and present artifacts; a two-page end-to-end fixture
-  proves compact paths are unambiguous and directly resolvable for capture and
-  named/explicit PDF inspection. The focused Goal 4 review found no issues.
-- Next action: document the final automation and architecture contracts, run
-  the required complete review with diet lens, then run all validation and
-  direct executable probes.
+- Current goal: complete.
+- Completed: Goals 1–5. The README is the canonical automation contract;
+  workflow and architecture documentation now link to or describe the same
+  failure, diagnostic, invocation, and success-output boundaries.
+- Validation: `pnpm run check`, all 58 tests, and `pnpm run validate` pass,
+  including both proof-report pipelines. Direct executable probes cover no-args
+  output, all command help forms, unknown input with help, every stable
+  operational code, default/full diagnostics, spaced paths, and PATH/absolute
+  invocation. The implementation review with diet lens and focused CLI-contract
+  subagent found no remaining findings.
+- Next action: none under this plan; await an explicit scope decision before
+  starting a deferred capability.
 - Blockers: none.
 
 Update this section in place while executing. Do not append session logs.
