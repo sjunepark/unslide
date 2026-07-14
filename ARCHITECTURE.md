@@ -215,7 +215,7 @@ Generated HTML and PDF stay under `artifacts/`; disposable HTML and PDF-native
 captures stay under `.tmp/captures/` and `.tmp/pdf-captures/`. These locations
 are explicit report entries in the root `unslide.json`, not visual policy.
 
-## Related Decisions and Plans
+## Related Decisions
 
 - [D1 — Explicit fixed pages in V1](docs/decisions/0001-explicit-pages.md)
 - [D2 — Repository-owned rendered preview](docs/decisions/0002-rendered-preview.md)
@@ -223,7 +223,3 @@ are explicit report entries in the root `unslide.json`, not visual policy.
 - [D4 — HTML-first PDF export](docs/decisions/0004-html-first-pdf-export.md)
 - [D5 — Effect v4 for the internal runtime](docs/decisions/0005-effect-v4-internal-runtime.md)
 - [Supported delivery contract](docs/SUPPORT.md)
-- [V2 core plan](docs/plans/v2-core.md)
-- [V2 adoption plan](docs/plans/v2-adoption.md)
-- [V2 PDF plan](docs/plans/v2-pdf.md)
-- [Effect v4 internal runtime plan](docs/plans/effect-v4-adoption.md)

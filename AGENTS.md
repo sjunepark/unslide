@@ -6,16 +6,17 @@
 - Read `docs/DESIGN.md` before shaping authoring behavior.
 - Read `ARCHITECTURE.md` for responsibilities and invariants.
 - Use `PLAN.md` as the live execution state and take the current next action.
-- Read the linked plan under `docs/plans/` completely before starting its goal.
+- If `PLAN.md` links an active detailed plan, read it completely before
+  starting its goal.
 - Read the decision records under `docs/decisions/` before revisiting an
   accepted constraint.
 
 ## Current Phase
 
-V1 is complete and remains the regression baseline. An explicit V2 scope
-decision now accepts a headless HTML artifact protocol, fully report-owned
-design, packaged CLI/tooling, and HTML-first PDF export. Execute one numbered
-goal from `PLAN.md` at a time and keep both the root and detailed plan current.
+V1, the accepted V2 scope, and the Effect v4 internal migration are complete.
+The repository is at the consumer-evidence gates recorded in `PLAN.md`; do not
+implement deferred scope before an explicit decision accepts it. When work is
+accepted, execute one numbered goal at a time and keep its live plan current.
 
 ## Commands
 
@@ -74,6 +75,6 @@ recipe upgrades require a later explicit scope decision before implementation.
 - Generate and capture the affected report, then inspect every page image for
   content fit and visual defects.
 - Verify Markdown links and paths.
-- Check that PRODUCT, DESIGN, ARCHITECTURE, decisions, PLAN, and the active
+- Check that PRODUCT, DESIGN, ARCHITECTURE, decisions, PLAN, and any active
   detailed plan agree on current versus planned behavior.
 - Remove implementation syntax that has not been proven by report work.

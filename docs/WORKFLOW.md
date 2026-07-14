@@ -138,8 +138,8 @@ remain Promise-based, and packed declarations expose no Effect types.
 The accepted V2 direction supersedes copy-in as the adoption model. Build,
 validation, capture, export, and PDF inspection run from the hardened locally
 packed 0.1.0 tooling. See
-[D3](decisions/0003-headless-artifact-protocol.md) and the
-[V2 adoption plan](plans/v2-adoption.md).
+[D3](decisions/0003-headless-artifact-protocol.md) and
+[`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 ## Repository Evidence
 
