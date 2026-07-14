@@ -1,6 +1,6 @@
 import { Effect, Path } from "effect";
 import { PAGE_MARKER_SELECTOR } from "./protocol.js";
-import { withLoadedArtifact } from "./browser.js";
+import { ArtifactOperationFailure, withLoadedArtifact } from "./browser.js";
 import { mapCommandFailure } from "./failures.js";
 import { logDebug, withLogPhase } from "./logging.js";
 import { replacePageImages } from "./page-images.js";
@@ -38,7 +38,9 @@ export const captureHtmlPages = Effect.fn("capture.captureHtmlPages")(function* 
           const element = pageElements.nth(index);
           const bounds = await element.boundingBox();
           if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
-            throw new Error(`Page "${metadata.id}" at position ${index + 1} has no visible capture area.`);
+            throw new ArtifactOperationFailure({
+              message: `Page "${metadata.id}" at position ${index + 1} has no visible capture area.`,
+            });
           }
 
           const fileName = `page-${String(index + 1).padStart(digits, "0")}.png`;

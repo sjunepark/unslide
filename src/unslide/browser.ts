@@ -22,8 +22,13 @@ const NAVIGATION_TIMEOUT_MS = 5_000;
 
 export class BrowserFailure extends Data.TaggedError("BrowserFailure")<{
   readonly cause?: unknown;
+  readonly cliCode?: "artifact-invalid" | "artifact-not-found" | "browser-not-installed" | "command-failed";
   readonly message: string;
   readonly phase: "access" | "launch" | "context" | "page" | "navigation" | "readiness" | "operation";
+}> {}
+
+export class ArtifactOperationFailure extends Data.TaggedError("ArtifactOperationFailure")<{
+  readonly message: string;
 }> {}
 
 function displayResource(url: string): string {
@@ -48,8 +53,23 @@ export function withLoadedArtifact<T>(
     try: () => access(inputPath),
     catch: (cause) => new BrowserFailure({
       cause,
+      cliCode: cause instanceof Error && "code" in cause && cause.code === "ENOENT"
+        ? "artifact-not-found"
+        : "command-failed",
       message: `Cannot read HTML artifact ${inputPath}: ${errorMessage(cause)}`,
       phase: "access",
+    }),
+  });
+
+  const checkBrowserExecutable = Effect.tryPromise({
+    try: () => access(chromium.executablePath()),
+    catch: (cause) => new BrowserFailure({
+      cause,
+      cliCode: cause instanceof Error && "code" in cause && cause.code === "ENOENT"
+        ? "browser-not-installed"
+        : "command-failed",
+      message: "Cannot access the canonical Chromium executable.",
+      phase: "launch",
     }),
   });
 
@@ -58,7 +78,8 @@ export function withLoadedArtifact<T>(
       try: () => chromium.launch(),
       catch: (cause) => new BrowserFailure({
         cause,
-        message: `Cannot launch the canonical Chromium browser. Run "pnpm exec playwright install chromium" and retry. ${cause instanceof Error ? cause.message : String(cause)}`,
+        cliCode: "command-failed",
+        message: "Cannot launch the canonical Chromium browser.",
         phase: "launch",
       }),
     }),
@@ -92,6 +113,7 @@ export function withLoadedArtifact<T>(
 
   const loadedArtifact = Effect.gen(function* () {
     yield* checkAccess;
+    yield* checkBrowserExecutable;
     const browser = yield* withLogPhase(acquireBrowser, "browser.launch", { path: inputPath });
     const context = yield* acquireContext(browser);
     const page = yield* acquirePage(context);
@@ -160,6 +182,7 @@ export function withLoadedArtifact<T>(
         ];
         if (issues.length > 0) {
           return yield* new BrowserFailure({
+            cliCode: "artifact-invalid",
             message: `Artifact readiness failed:\n${issues.join("\n")}`,
             phase: "readiness",
           });
@@ -178,6 +201,7 @@ export function withLoadedArtifact<T>(
       try: () => operation({ page, pages: validation.pages }),
       catch: (cause) => new BrowserFailure({
         cause,
+        cliCode: cause instanceof ArtifactOperationFailure ? "artifact-invalid" : "command-failed",
         message: errorMessage(cause),
         phase: "operation",
       }),
@@ -188,6 +212,7 @@ export function withLoadedArtifact<T>(
     ];
     if (operationIssues.length > 0) {
       return yield* new BrowserFailure({
+        cliCode: "artifact-invalid",
         message: `Artifact browser errors:\n${operationIssues.join("\n")}`,
         phase: "operation",
       });

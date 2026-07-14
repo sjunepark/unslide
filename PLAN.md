@@ -2,9 +2,9 @@
 
 Active implementation goal: **AXI CLI hardening through Goal 5.**
 
-Current next action: **Execute Goal 2 of
-[`docs/plans/axi-cli-hardening.md`](docs/plans/axi-cli-hardening.md): present
-stable, actionable operational failures.**
+Current next action: **Execute Goal 3 of
+[`docs/plans/axi-cli-hardening.md`](docs/plans/axi-cli-hardening.md): bound
+authored diagnostics without losing recovery information.**
 
 Suggested `/goal` objective:
 
@@ -19,13 +19,15 @@ product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
 
 ## Active Work
 
-- Completed: Goal 1. Command input is validated before help, every help payload
-  documents `--help` and `--log-level`, and suggested commands use the
-  repository lifecycle override, a PATH-verified binary name, or a safely
-  quoted absolute executable path.
-- Evidence: `pnpm run check` and `pnpm exec tsx --test tests/cli.test.tsx`
-  passed, including direct, PATH, repository-script, spaces-in-path, logging,
-  and help-plus-invalid-input fixtures.
+- Completed: Goals 1–2. Parsing/help and portable invocation are deterministic.
+  Typed operational failures now present the eight accepted public codes with
+  concise messages and corrective commands; raw causes remain debug-only.
+- Evidence: `pnpm run check` and the complete `tests/cli.test.tsx` suite pass.
+  Error fixtures cover missing/unreadable/invalid configuration, missing
+  reports and artifacts, invalid HTML/PDF/authored browser operations, missing
+  Chromium, and a distinct launch failure. A focused implementation review
+  found one authored-operation classification gap; the safe fix and two
+  regressions pass the bounded recheck.
 - Blockers: none.
 
 ## Current Gates

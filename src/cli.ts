@@ -211,28 +211,114 @@ function usageError(message: string, help: JsonValue): number {
   return 2;
 }
 
-function defectError(error: unknown): number {
-  const message = error instanceof Error ? error.message : String(error);
-  writeOutput({ error: { code: "operation-failed", message } });
+function defectError(): number {
+  writeOutput({ error: { code: "command-failed", message: "The command failed unexpectedly." } });
   return 1;
 }
 
-function formatCliFailure(error: CliFailure, invocation: "home" | "command"): number {
+function recoveryCommand(command: string, report: string): string {
+  return `${CLI_INVOCATION} ${command} ${report}`;
+}
+
+function recognizedCommand(rawArguments: string[]): CliCommand | undefined {
+  return rawArguments.find((argument): argument is CliCommand =>
+    argument === "build"
+    || argument === "inspect"
+    || argument === "capture"
+    || argument === "export"
+    || argument === "inspect-pdf"
+    || argument === "init");
+}
+
+function artifactKind(command: string): "HTML" | "PDF" {
+  return command === "inspect-pdf" ? "PDF" : "HTML";
+}
+
+function formatCommandFailure(error: CommandFailure): void {
+  const kind = artifactKind(error.command);
+  const context = {
+    ...(error.report ? { report: error.report } : {}),
+    ...(error.path ? { path: error.path } : {}),
+  };
+  if (error.code === "artifact-not-found") {
+    writeOutput({
+      error: { code: error.code, message: `${kind} artifact was not found.`, ...context },
+      ...(error.report
+        ? { help: [`Run ${recoveryCommand(kind === "PDF" ? "export" : "build", error.report)}`] }
+        : {}),
+    });
+    return;
+  }
+  if (error.code === "artifact-invalid") {
+    writeOutput({
+      error: { code: error.code, message: `${kind} artifact is invalid.`, ...context },
+      ...(error.report
+        ? { help: [`Run ${recoveryCommand(kind === "PDF" ? "export" : "build", error.report)}`] }
+        : {}),
+    });
+    return;
+  }
+  if (error.code === "browser-not-installed") {
+    writeOutput({
+      error: { code: error.code, message: "The canonical Chromium browser is not installed." },
+      help: ["Run pnpm dlx playwright@1.61.1 install chromium"],
+    });
+    return;
+  }
+  writeOutput({
+    error: {
+      code: "command-failed",
+      message: `${error.command === "home" ? "Project discovery" : error.command} failed.`,
+      ...context,
+    },
+  });
+}
+
+function formatCliFailure(error: CliFailure, rawArguments: string[]): number {
   switch (error._tag) {
     case "ProjectNotFound":
-      if (invocation === "home") {
-        writeOutput({
-          error: { code: "project-not-found", message: error.message },
-          help: [`Run ${CLI_INVOCATION} init to plan a new project`],
-        });
+      writeOutput({
+        error: {
+          code: "project-not-found",
+          message: `No unslide.json project configuration was found from ${error.startDirectory}.`,
+        },
+        help: [`Run ${CLI_INVOCATION} init to plan a new project`],
+      });
+      return 1;
+    case "ProjectConfigFailure": {
+      const code = error.code ?? (error.phase === "read" ? "project-config-unreadable" : "project-config-invalid");
+      if (code === "command-failed") {
+        writeOutput({ error: { code, message: "Project configuration loading failed." } });
       } else {
-        writeOutput({ error: { code: "operation-failed", message: error.message } });
+        writeOutput({
+          error: {
+            code,
+            message: code === "project-config-unreadable"
+              ? "Project configuration cannot be read."
+              : "Project configuration is invalid.",
+            path: error.path,
+            ...(error.detail || (code === "project-config-invalid" && error.cause === undefined)
+              ? { detail: error.detail ?? error.message }
+              : {}),
+          },
+        });
       }
       return 1;
-    case "ProjectConfigFailure":
-    case "ReportNotFound":
+    }
+    case "ReportNotFound": {
+      const command = recognizedCommand(rawArguments) ?? "build";
+      writeOutput({
+        error: {
+          code: "report-not-found",
+          message: `Report "${error.report}" is not configured.`,
+          availableReports: [...error.availableReports],
+        },
+        help: [`Run ${recoveryCommand(command, "<name>")}`],
+      });
+      return 1;
+    }
     case "CommandFailure":
-      writeOutput({ error: { code: "operation-failed", message: error.message } });
+      formatCommandFailure(error);
       return 1;
     default: {
       const exhaustive: never = error;
@@ -412,9 +498,9 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     };
     if (result.status === "conflict") {
       writeOutput({
-        error: { code: "file-conflict", message: "Initialization would overwrite files with different contents." },
+        error: { code: "command-failed", message: "Initialization would overwrite files with different contents." },
         init,
-        help: ["Move or reconcile the conflicting files, then run init again"],
+        help: [`Run ${CLI_INVOCATION} init${nameSeen ? ` --name ${reportName}` : ""} --yes after reconciling the conflicting files`],
       });
       return 1;
     }
@@ -477,7 +563,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     return 0;
   }
   if (command === "inspect") {
-    const result = yield* inspectHtmlArtifact(report.htmlPath);
+    const result = yield* inspectHtmlArtifact(report.htmlPath).pipe(
+      Effect.mapError((cause) => commandFailure(cause, {
+        command,
+        path: report.htmlPath,
+        report: report.name,
+      })),
+    );
     writeOutput({
       report: { name: report.name, status: "valid", html: projectPath(config, result.inputPath), pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
@@ -490,7 +582,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       try: () => import("./unslide/pdf.js"),
       catch: (cause) => commandFailure(cause, { command, path: report.htmlPath, report: report.name }),
     });
-    const result = yield* exportHtmlPdf(report.htmlPath, report.pdfPath);
+    const result = yield* exportHtmlPdf(report.htmlPath, report.pdfPath).pipe(
+      Effect.mapError((cause) => commandFailure(cause, {
+        command,
+        path: report.htmlPath,
+        report: report.name,
+      })),
+    );
     const firstPage = result.pages[0];
     writeOutput({
       report: {
@@ -510,7 +608,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       try: () => import("./unslide/pdf-inspection.js"),
       catch: (cause) => commandFailure(cause, { command, path: report.pdfPath, report: report.name }),
     });
-    const result = yield* inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory);
+    const result = yield* inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory).pipe(
+      Effect.mapError((cause) => commandFailure(cause, {
+        command,
+        path: report.pdfPath,
+        report: report.name,
+      })),
+    );
     writeOutput({
       report: {
         name: report.name,
@@ -529,7 +633,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     return 0;
   }
 
-  const result = yield* captureHtmlPages(report.htmlPath, report.captureDirectory);
+  const result = yield* captureHtmlPages(report.htmlPath, report.captureDirectory).pipe(
+    Effect.mapError((cause) => commandFailure(cause, {
+      command,
+      path: report.htmlPath,
+      report: report.name,
+    })),
+  );
   writeOutput({
     report: { name: report.name, status: "captured", pageCount: result.pages.length },
     pages: result.pages.map((page) => ({ id: page.id, file: projectPath(config, page.outputPath), width: page.width, height: page.height })),
@@ -617,21 +727,22 @@ async function main(rawArguments: string[]): Promise<number> {
   const primary = failures[0];
   const hasNonOperationalCause = exit.cause.reasons.some((reason) => reason._tag !== "Fail");
   if (primary && !hasNonOperationalCause && exit.cause.reasons.length === 1) {
-    return formatCliFailure(primary, arguments_.length === 0 ? "home" : "command");
+    return formatCliFailure(primary, rawArguments);
   }
   if (primary && !hasNonOperationalCause) {
     const combined = primary._tag === "CommandFailure"
       ? new CommandFailure({
         cause: exit.cause,
+        code: primary.code,
         command: primary.command,
         message: causeMessage(exit.cause),
         path: primary.path,
         report: primary.report,
       })
       : primary;
-    return formatCliFailure(combined, arguments_.length === 0 ? "home" : "command");
+    return formatCliFailure(combined, rawArguments);
   }
-  return defectError(new Error(causeMessage(exit.cause), { cause: Cause.squash(exit.cause) }));
+  return defectError();
 }
 
 process.exitCode = await main(process.argv.slice(2));

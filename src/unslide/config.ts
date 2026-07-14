@@ -52,9 +52,11 @@ function nodeFailure(
   path: string,
   phase: "read" | "resolve",
   message = errorMessage(cause),
+  code?: "command-failed" | "project-config-invalid" | "project-config-unreadable",
+  detail?: string,
 ): ProjectConfigFailure {
   if (!isNodeError(cause)) throw cause;
-  return new ProjectConfigFailure({ cause, message, path, phase });
+  return new ProjectConfigFailure({ cause, code, detail, message, path, phase });
 }
 
 export const findProjectConfig = Effect.fn("config.findProjectConfig")(function* (startDirectory: string = process.cwd()) {
@@ -187,7 +189,13 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
 
   const configText = yield* Effect.tryPromise({
     try: () => readFile(configPath, "utf8"),
-    catch: (cause) => nodeFailure(cause, configPath, "read", `Cannot read ${configPath}: ${errorMessage(cause)}`),
+    catch: (cause) => nodeFailure(
+      cause,
+      configPath,
+      "read",
+      `Cannot read ${configPath}: ${errorMessage(cause)}`,
+      "project-config-unreadable",
+    ),
   });
   const configJson: unknown = yield* Effect.try({
     try: () => JSON.parse(configText),
@@ -215,7 +223,7 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
 
   const schemaText = yield* Effect.tryPromise({
     try: () => readFile(schemaPath, "utf8"),
-    catch: (cause) => nodeFailure(cause, schemaPath, "read"),
+    catch: (cause) => nodeFailure(cause, schemaPath, "read", errorMessage(cause), "command-failed"),
   });
   const schema = JSON.parse(schemaText) as object;
   const ajv = new Ajv({ allErrors: true, strict: true });
@@ -239,7 +247,10 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
 
     yield* Effect.tryPromise({
       try: () => access(sourcePath),
-      catch: (cause) => nodeFailure(cause, sourcePath, "resolve", `Report "${name}" source does not exist: ${sourcePath}`),
+      catch: (cause) => {
+        const detail = `Report "${name}" source does not exist: ${sourcePath}`;
+        return nodeFailure(cause, sourcePath, "resolve", detail, "project-config-invalid", detail);
+      },
     });
     reports[name] = { name, sourcePath, htmlPath, pdfPath, captureDirectory, pdfCaptureDirectory };
     canonicalReports[name] = {

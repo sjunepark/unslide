@@ -260,15 +260,17 @@ full diagnostic output, paths containing spaces, and PATH/absolute invocation.
 
 ## Current state
 
-- Current goal: Goal 2 — present stable, actionable operational failures.
-- Completed: Goal 1 made validation-before-help deterministic, documented both
-  universal flags on every help payload, and made suggested invocations resolve
-  to the current executable through lifecycle, PATH, or quoted-path evidence.
-- Validation: `pnpm run check` and the complete `tests/cli.test.tsx` suite pass;
-  fixtures cover help with unknown/excess input and direct, PATH,
-  repository-script, and spaces-in-path invocation forms.
-- Next action: preserve observed failure evidence through the typed boundary and
-  present the eight accepted public error codes with corrective help.
+- Current goal: Goal 3 — bound diagnostics without losing recovery information.
+- Completed: Goals 1–2. The parser and invocation prefix are deterministic. The
+  typed failure boundary presents all eight accepted public codes, distinguishes
+  missing Chromium from other launch failures, retains corrective report/name
+  context, and keeps raw causes on debug stderr only.
+- Validation: `pnpm run check` and the complete `tests/cli.test.tsx` suite pass.
+  A focused Goal 2 review found that authored capture/export operation failures
+  needed an explicit typed distinction; that safe fix and its invalid-geometry
+  and invalid-print-CSS regressions pass the bounded recheck.
+- Next action: preserve browser/protocol issues structurally and add the
+  command-scoped bounded/default versus `--full` presentation contract.
 - Blockers: none.
 
 Update this section in place while executing. Do not append session logs.

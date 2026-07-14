@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { delimiter, resolve } from "node:path";
+import { delimiter, dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
@@ -311,7 +311,7 @@ test("logging keeps stable failures on info and adds full Effect causes on debug
   try {
     const info = await runCli(["build", "missing", "--log-level", "info"], projectRoot, stableCliEnvironment);
     assert.equal(info.exitCode, 1);
-    assert.equal((info.value.error as Record<string, unknown>).code, "operation-failed");
+    assert.equal((info.value.error as Record<string, unknown>).code, "report-not-found");
     const infoLogs = parseLogs(info.stderr);
     const infoFailure = infoLogs.find((entry) => entry.message === "invocation.failed");
     assert.equal(infoFailure?.level, "ERROR");
@@ -321,6 +321,7 @@ test("logging keeps stable failures on info and adds full Effect causes on debug
 
     const debug = await runCli(["--log-level", "debug", "build", "missing"], projectRoot, stableCliEnvironment);
     assert.equal(debug.exitCode, 1);
+    assert.equal(debug.stdout, info.stdout);
     const debugLogs = parseLogs(debug.stderr);
     const cause = debugLogs.find((entry) => entry.message === "failure.cause");
     assert.equal(cause?.level, "DEBUG");
@@ -360,7 +361,7 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
     );
 
     const missingProject = await runCli([], externalRoot, stableCliEnvironment);
-    const missingMessage = `No unslide.json found from ${canonicalExternalRoot} or its parent directories.`;
+    const missingMessage = `No unslide.json project configuration was found from ${canonicalExternalRoot}.`;
     assert.deepEqual(
       { exitCode: missingProject.exitCode, stderr: missingProject.stderr, stdout: missingProject.stdout },
       {
@@ -379,18 +380,24 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
       {
         exitCode: 1,
         stderr: "",
-        stdout: encode({ error: { code: "operation-failed", message: missingMessage } }),
+        stdout: encode({
+          error: { code: "project-not-found", message: missingMessage },
+          help: ["Run unslide init to plan a new project"],
+        }),
       },
     );
 
     const externalConfigPath = resolve(externalRoot, "unslide.json");
+    const canonicalExternalConfigPath = resolve(canonicalExternalRoot, "unslide.json");
     await mkdir(externalConfigPath);
     const unreadableConfig = await runCli([], externalRoot, stableCliEnvironment);
     assert.equal(unreadableConfig.exitCode, 1);
     assert.equal(unreadableConfig.stderr, "");
-    assert.equal((unreadableConfig.value.error as Record<string, unknown>).code, "operation-failed");
-    assert.match(String((unreadableConfig.value.error as Record<string, unknown>).message), /^Cannot read .*unslide\.json:/);
-    assert.doesNotMatch(String((unreadableConfig.value.error as Record<string, unknown>).message), /^Cannot parse /);
+    assert.deepEqual(unreadableConfig.value.error, {
+      code: "project-config-unreadable",
+      message: "Project configuration cannot be read.",
+      path: canonicalExternalConfigPath,
+    });
 
     await rm(externalConfigPath, { recursive: true });
     await writeFile(externalConfigPath, JSON.stringify({ version: 2, reports: {} }));
@@ -402,8 +409,10 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
         stderr: "",
         stdout: encode({
           error: {
-            code: "operation-failed",
-            message: "Unsupported unslide.json version 2. This release supports version 1; update the configuration manually because automatic migration is not available.",
+            code: "project-config-invalid",
+            message: "Project configuration is invalid.",
+            path: canonicalExternalConfigPath,
+            detail: "Unsupported unslide.json version 2. This release supports version 1; update the configuration manually because automatic migration is not available.",
           },
         }),
       },
@@ -415,7 +424,14 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
       {
         exitCode: 1,
         stderr: "",
-        stdout: encode({ error: { code: "operation-failed", message: 'Unknown report "missing". Available reports: fixture.' } }),
+        stdout: encode({
+          error: {
+            code: "report-not-found",
+            message: 'Report "missing" is not configured.',
+            availableReports: ["fixture"],
+          },
+          help: ["Run unslide build <name>"],
+        }),
       },
     );
 
@@ -431,8 +447,9 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
         stderr: "",
         stdout: encode({
           error: {
-            code: "operation-failed",
-            message: 'Artifact readiness failed:\nNo report pages found. Expected at least one element with data-unslide-page="<id>".',
+            code: "artifact-invalid",
+            message: "HTML artifact is invalid.",
+            path: resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html"),
           },
         }),
       },
@@ -440,6 +457,138 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
   } finally {
     await rm(externalRoot, { recursive: true, force: true });
     await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("operational failures use stable codes, corrective commands, and diagnostic-only raw causes", async () => {
+  const projectRoot = await createProject("unslide operational failures ");
+  const htmlPath = resolve(projectRoot, "generated output", "report file.html");
+  const pdfPath = resolve(projectRoot, "generated output", "report file.pdf");
+  const missingBrowsers = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide missing browsers "));
+  const brokenBrowsers = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide broken browsers "));
+
+  try {
+    for (const command of ["inspect", "capture", "export"]) {
+      const result = await runCli([command, "fixture"], projectRoot, stableCliEnvironment);
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.stderr, "");
+      assert.deepEqual(result.value, {
+        error: {
+          code: "artifact-not-found",
+          message: "HTML artifact was not found.",
+          report: "fixture",
+          path: htmlPath,
+        },
+        help: ["Run unslide build fixture"],
+      });
+    }
+
+    const missingPdf = await runCli(["inspect-pdf", "fixture"], projectRoot, stableCliEnvironment);
+    assert.equal(missingPdf.exitCode, 1);
+    assert.equal(missingPdf.stderr, "");
+    assert.deepEqual(missingPdf.value, {
+      error: {
+        code: "artifact-not-found",
+        message: "PDF artifact was not found.",
+        report: "fixture",
+        path: pdfPath,
+      },
+      help: ["Run unslide export fixture"],
+    });
+
+    await mkdir(dirname(htmlPath), { recursive: true });
+    await writeFile(htmlPath, await readFile(resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html")));
+    const invalidHtml = await runCli(["inspect", "fixture"], projectRoot, stableCliEnvironment);
+    assert.equal(invalidHtml.exitCode, 1);
+    assert.equal(invalidHtml.stderr, "");
+    assert.deepEqual(invalidHtml.value, {
+      error: {
+        code: "artifact-invalid",
+        message: "HTML artifact is invalid.",
+        report: "fixture",
+        path: htmlPath,
+      },
+      help: ["Run unslide build fixture"],
+    });
+
+    await writeFile(htmlPath, '<!doctype html><html><body><main data-unslide-page="hidden" style="display:none">Hidden</main></body></html>');
+    const invalidCaptureGeometry = await runCli(["capture", "fixture"], projectRoot, stableCliEnvironment);
+    assert.equal(invalidCaptureGeometry.exitCode, 1);
+    assert.equal(invalidCaptureGeometry.stderr, "");
+    assert.equal((invalidCaptureGeometry.value.error as Record<string, unknown>).code, "artifact-invalid");
+    assert.deepEqual(invalidCaptureGeometry.value.help, ["Run unslide build fixture"]);
+
+    await writeFile(htmlPath, '<!doctype html><html><body><main data-unslide-page="page">No print geometry</main></body></html>');
+    const invalidPrintCss = await runCli(["export", "fixture"], projectRoot, stableCliEnvironment);
+    assert.equal(invalidPrintCss.exitCode, 1);
+    assert.equal(invalidPrintCss.stderr, "");
+    assert.equal((invalidPrintCss.value.error as Record<string, unknown>).code, "artifact-invalid");
+    assert.deepEqual(invalidPrintCss.value.help, ["Run unslide build fixture"]);
+
+    await writeFile(pdfPath, "not a PDF");
+    const invalidPdf = await runCli(["inspect-pdf", "fixture"], projectRoot, stableCliEnvironment);
+    assert.equal(invalidPdf.exitCode, 1);
+    assert.equal(invalidPdf.stderr, "");
+    assert.deepEqual(invalidPdf.value, {
+      error: {
+        code: "artifact-invalid",
+        message: "PDF artifact is invalid.",
+        report: "fixture",
+        path: pdfPath,
+      },
+      help: ["Run unslide export fixture"],
+    });
+
+    await writeFile(htmlPath, await readFile(resolve(repositoryRoot, "tests/fixtures/protocol-valid.html")));
+    const browserMissing = await runCli(["capture", "fixture"], projectRoot, {
+      ...stableCliEnvironment,
+      PLAYWRIGHT_BROWSERS_PATH: missingBrowsers,
+    });
+    assert.equal(browserMissing.exitCode, 1);
+    assert.equal(browserMissing.stderr, "");
+    assert.deepEqual(browserMissing.value, {
+      error: { code: "browser-not-installed", message: "The canonical Chromium browser is not installed." },
+      help: ["Run pnpm dlx playwright@1.61.1 install chromium"],
+    });
+
+    const executableProbe = await execFileAsync(
+      process.execPath,
+      ["--input-type=module", "--eval", 'import { chromium } from "playwright"; process.stdout.write(chromium.executablePath())'],
+      {
+        cwd: repositoryRoot,
+        env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers },
+      },
+    );
+    const brokenExecutable = executableProbe.stdout;
+    await mkdir(dirname(brokenExecutable), { recursive: true });
+    await writeFile(brokenExecutable, "#!/bin/sh\nexit 73\n");
+    await chmod(brokenExecutable, 0o755);
+
+    const launchFailure = await runCli(["capture", "fixture"], projectRoot, {
+      ...stableCliEnvironment,
+      PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers,
+    });
+    assert.equal(launchFailure.exitCode, 1);
+    assert.equal(launchFailure.stderr, "");
+    assert.deepEqual(launchFailure.value, {
+      error: {
+        code: "command-failed",
+        message: "capture failed.",
+        report: "fixture",
+        path: htmlPath,
+      },
+    });
+
+    const debugLaunchFailure = await runCli(["capture", "fixture", "--log-level", "debug"], projectRoot, {
+      ...stableCliEnvironment,
+      PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers,
+    });
+    assert.equal(debugLaunchFailure.stdout, launchFailure.stdout);
+    assert.match(debugLaunchFailure.stderr, /Cannot launch the canonical Chromium browser|BrowserFailure/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+    await rm(missingBrowsers, { recursive: true, force: true });
+    await rm(brokenBrowsers, { recursive: true, force: true });
   }
 });
 
@@ -468,7 +617,10 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
     const conflict = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
     assert.equal(conflict.exitCode, 1);
     assert.equal(conflict.stderr, "");
-    assert.equal((conflict.value.error as Record<string, unknown>).code, "file-conflict");
+    assert.equal((conflict.value.error as Record<string, unknown>).code, "command-failed");
+    assert.deepEqual(conflict.value.help, [
+      `Run ${shellQuote(cliPath)} init --name quarterly-review --yes after reconciling the conflicting files`,
+    ]);
     assert.equal(await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8"), "user-owned change\n");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
@@ -571,16 +723,20 @@ test("CLI rejects missing reports, visual fields, and unsafe output paths", asyn
     const missing = await runCli(["build", "missing"], projectRoot);
     assert.equal(missing.exitCode, 1);
     assert.equal(missing.stderr, "");
-    assert.match(JSON.stringify(missing.value), /Unknown report.*fixture/);
+    assert.deepEqual(missing.value.error, {
+      code: "report-not-found",
+      message: 'Report "missing" is not configured.',
+      availableReports: ["fixture"],
+    });
 
     const inheritedName = await runCli(["build", "constructor"], projectRoot);
     assert.equal(inheritedName.exitCode, 1);
-    assert.match(JSON.stringify(inheritedName.value), /Unknown report.*fixture/);
+    assert.equal((inheritedName.value.error as Record<string, unknown>).code, "report-not-found");
 
     await writeFile(configPath, JSON.stringify({ version: 2, reports: {} }));
     const unsupportedVersion = await runCli([], projectRoot);
     assert.equal(unsupportedVersion.exitCode, 1);
-    assert.match(JSON.stringify(unsupportedVersion.value), /Unsupported unslide\.json version 2.*automatic migration is not available/);
+    assert.match(JSON.stringify(unsupportedVersion.value), /project-config-invalid.*Unsupported unslide\.json version 2.*automatic migration is not available/);
 
     await writeFile(configPath, JSON.stringify({
       version: 1,
