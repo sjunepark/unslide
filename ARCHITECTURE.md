@@ -79,8 +79,9 @@ failures to the stable CLI payload and exit-code contract. Effect remains an
 implementation detail and does not appear in published authoring declarations.
 
 The same boundary replaces Effect's default logger. Logging is disabled by
-default; an explicit CLI level installs a JSON stderr logger, a minimum level,
-and invocation annotations. Major operations add log spans without changing
+default. The `info` and `debug` CLI levels install a JSON stderr logger with the
+configured minimum level and invocation annotations; `off` supplies no logger
+and keeps diagnostics disabled. Major operations add log spans without changing
 TOON stdout or the typed failure model. The diagnostic event shape is internal.
 
 Configuration may select entries, outputs, inspection locations, and supported
