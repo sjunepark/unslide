@@ -220,25 +220,7 @@ export function withLoadedArtifact<T>(
       path: inputPath,
     });
 
-    const result = yield* Effect.tryPromise({
-      try: () => operation({ page, pages: validation.pages }),
-      catch: (cause) => new BrowserFailure({
-        cause,
-        cliCode: cause instanceof ArtifactOperationFailure ? "artifact-invalid" : "command-failed",
-        issues: cause instanceof ArtifactOperationFailure
-          ? [{
-            code: cause.code,
-            message: cause.message,
-            pageId: cause.pageId,
-            resource: cause.resource,
-            source: "browser",
-          }]
-          : undefined,
-        message: errorMessage(cause),
-        phase: "operation",
-      }),
-    });
-    const operationIssues = [
+    const operationDiagnostics = (): ArtifactDiagnostic[] => [
       ...browserIssues,
       ...[...pendingResources].map((request): ArtifactDiagnostic => ({
         code: "resource-pending",
@@ -247,6 +229,29 @@ export function withLoadedArtifact<T>(
         source: "browser",
       })),
     ];
+    const result = yield* Effect.tryPromise({
+      try: () => operation({ page, pages: validation.pages }),
+      catch: (cause) => {
+        const issues: ArtifactDiagnostic[] = [
+          ...(cause instanceof ArtifactOperationFailure ? [{
+            code: cause.code,
+            message: cause.message,
+            pageId: cause.pageId,
+            resource: cause.resource,
+            source: "browser" as const,
+          }] : []),
+          ...operationDiagnostics(),
+        ];
+        return new BrowserFailure({
+          cause,
+          cliCode: issues.length > 0 ? "artifact-invalid" : "command-failed",
+          issues: issues.length > 0 ? issues : undefined,
+          message: errorMessage(cause),
+          phase: "operation",
+        });
+      },
+    });
+    const operationIssues = operationDiagnostics();
     if (operationIssues.length > 0) {
       return yield* new BrowserFailure({
         cliCode: "artifact-invalid",

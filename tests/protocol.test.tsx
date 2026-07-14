@@ -276,11 +276,17 @@ test("capture reports console and failed local resource errors", async () => {
   try {
     await assert.rejects(
       captureHtmlPages(resolve(fixtureDirectory, "protocol-console-error.html"), directory),
-      /Artifact readiness failed/,
+      (error) => {
+        assert.match(error instanceof Error ? error.message : "", /Artifact readiness failed/);
+        return rejectedDiagnostics(error).some((issue) => issue.code === "console-error");
+      },
     );
     await assert.rejects(
       captureHtmlPages(resolve(fixtureDirectory, "protocol-broken-style.html"), directory),
-      /Artifact readiness failed/,
+      (error) => {
+        assert.match(error instanceof Error ? error.message : "", /Artifact readiness failed/);
+        return rejectedDiagnostics(error).some((issue) => issue.code === "resource-failed");
+      },
     );
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -392,6 +398,19 @@ test("loaded artifacts release Chromium after success and operational failure", 
     /fixture operation failed/,
   );
   assert.equal(failedBrowser?.isConnected(), false);
+});
+
+test("operation failures retain browser diagnostics collected during the operation", async () => {
+  const inputPath = resolve(fixtureDirectory, "protocol-valid.html");
+
+  await assert.rejects(
+    runUnslide(withLoadedArtifact(inputPath, async ({ page }) => {
+      await page.evaluate(() => console.error("operation fixture diagnostic"));
+      throw new Error("fixture operation failed");
+    })),
+    (error) => rejectedDiagnostics(error).some((issue) =>
+      issue.code === "console-error" && /operation fixture diagnostic/.test(String(issue.message))),
+  );
 });
 
 test("interrupting a loaded artifact closes the underlying Chromium work", async () => {
