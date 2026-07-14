@@ -1,28 +1,35 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
+import { accessSync, constants, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { relative, resolve, sep } from "node:path";
+import { basename, delimiter, relative, resolve, sep } from "node:path";
 import { encode } from "@toon-format/toon";
 import { Cause, Effect, Exit, FileSystem } from "effect";
 import { buildReport } from "./unslide/build.js";
 import { captureHtmlPages } from "./unslide/capture.js";
 import { getReport, loadProjectConfig, type ProjectConfig } from "./unslide/config.js";
-import { commandFailure, CommandFailure, type CliFailure } from "./unslide/failures.js";
+import {
+  combineCliFailures,
+  commandFailure,
+  type CliFailure,
+  type CommandFailure,
+} from "./unslide/failures.js";
 import { initializeProject } from "./unslide/init.js";
 import { inspectHtmlArtifact } from "./unslide/inspect.js";
-import { causeMessage } from "./unslide/lifecycle.js";
 import {
   type CliLogLevel,
   provideCliLogging,
   withLogPhase,
 } from "./unslide/logging.js";
+import type { ArtifactDiagnostic } from "./unslide/protocol.js";
 import { applicationLayer } from "./unslide/runtime.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
-const CLI_INVOCATION = process.env.UNSLIDE_INVOCATION ?? "pnpm --silent run unslide";
 const LOG_LEVEL_FLAG = "--log-level";
 const LOG_LEVEL_ENV = "UNSLIDE_LOG_LEVEL";
 const LOG_LEVELS = new Set<CliLogLevel>(["off", "info", "debug"]);
+const DEFAULT_DIAGNOSTIC_LIMIT = 10;
+const DEFAULT_DIAGNOSTIC_TEXT_LIMIT = 1_000;
 
 interface ParsedLoggingOptions {
   argv: string[];
@@ -37,16 +44,70 @@ function writeOutput(value: JsonValue): void {
   process.stdout.write(encode(value));
 }
 
+function executablePath(): string {
+  return resolve(process.env.UNSLIDE_BIN ?? process.argv[1] ?? "unslide");
+}
+
 function displayExecutable(): string {
-  const executable = resolve(process.env.UNSLIDE_BIN ?? process.argv[1] ?? "unslide");
+  const executable = executablePath();
   const home = homedir();
   return executable.startsWith(`${home}${sep}`) ? `~${executable.slice(home.length)}` : executable;
+}
+
+function canonicalExecutable(path: string): string | undefined {
+  try {
+    accessSync(path, constants.X_OK);
+    return realpathSync(path);
+  } catch {
+    return undefined;
+  }
+}
+
+function pathResolvesToCurrentExecutable(executable: string): boolean {
+  const current = canonicalExecutable(executable);
+  if (!current) return false;
+  return (process.env.PATH ?? "").split(delimiter).some((entry) => {
+    const candidate = resolve(entry || ".", "unslide");
+    return canonicalExecutable(candidate) === current;
+  });
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+function commandInvocation(): string {
+  if (process.env.UNSLIDE_INVOCATION) return process.env.UNSLIDE_INVOCATION;
+  if (process.env.npm_lifecycle_event === "unslide") {
+    const packageManager = process.env.npm_config_user_agent?.split("/")[0];
+    if (packageManager === "npm") return "npm --silent run unslide";
+    if (packageManager === "yarn") return "yarn --silent run unslide";
+    return "pnpm --silent run unslide";
+  }
+  const executable = executablePath();
+  return pathResolvesToCurrentExecutable(executable) ? "unslide" : shellQuote(executable);
+}
+
+const CLI_INVOCATION = commandInvocation();
+
+function helpFlag(): JsonValue {
+  return {
+    flag: "--help",
+    description: "Show concise command help without requiring command values",
+  };
 }
 
 function logLevelFlag(): JsonValue {
   return {
     flag: `${LOG_LEVEL_FLAG} <off|info|debug>`,
     description: `Emit Effect JSON Lines on stderr (default: ${LOG_LEVEL_ENV} or off)`,
+  };
+}
+
+function fullFlag(): JsonValue {
+  return {
+    flag: "--full",
+    description: "Show complete report-authored diagnostics (default: up to 10 issues and 1,000 characters per text field)",
   };
 }
 
@@ -99,7 +160,7 @@ function topHelp(): JsonValue {
     bin: displayExecutable(),
     description: "Build and inspect explicit-page HTML and PDF reports",
     usage: `${CLI_INVOCATION} <command>`,
-    flags: [logLevelFlag()],
+    flags: [helpFlag(), logLevelFlag()],
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
       { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
@@ -122,6 +183,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       flags: [
         { flag: "--name <name>", description: "Set the lower-kebab report name (default: report)" },
         { flag: "--yes", description: "Create the planned files without prompting" },
+        helpFlag(),
         logLevelFlag(),
       ],
       examples: [`${CLI_INVOCATION} init`, `${CLI_INVOCATION} init --yes`, `${CLI_INVOCATION} init --name quarterly-review --yes`],
@@ -133,9 +195,19 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       usage: `${CLI_INVOCATION} inspect <name> | ${CLI_INVOCATION} inspect --artifact <path>`,
       flags: [
         { flag: "--artifact <path>", description: "Inspect an explicit HTML path instead of a configured report" },
+        fullFlag(),
+        helpFlag(),
         logLevelFlag(),
       ],
       examples: [`${CLI_INVOCATION} inspect operating-review`, `${CLI_INVOCATION} inspect --artifact artifacts/report.html`],
+    };
+  }
+  if (command === "capture" || command === "export") {
+    return {
+      command,
+      usage: `${CLI_INVOCATION} ${command} <name>`,
+      flags: [fullFlag(), helpFlag(), logLevelFlag()],
+      examples: [`${CLI_INVOCATION} ${command} spike`, `${CLI_INVOCATION} ${command} operating-review`],
     };
   }
   if (command === "inspect-pdf") {
@@ -145,6 +217,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       flags: [
         { flag: "--artifact <path>", description: "Inspect an explicit PDF path instead of a configured report" },
         { flag: "--output <directory>", description: "Write explicit-artifact page images to this directory" },
+        helpFlag(),
         logLevelFlag(),
       ],
       examples: [
@@ -156,7 +229,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
   return {
     command,
     usage: `${CLI_INVOCATION} ${command} <name>`,
-    flags: [logLevelFlag()],
+    flags: [helpFlag(), logLevelFlag()],
     examples: [`${CLI_INVOCATION} ${command} spike`, `${CLI_INVOCATION} ${command} operating-review`],
   };
 }
@@ -166,28 +239,183 @@ function usageError(message: string, help: JsonValue): number {
   return 2;
 }
 
-function defectError(error: unknown): number {
-  const message = error instanceof Error ? error.message : String(error);
-  writeOutput({ error: { code: "operation-failed", message } });
+function defectError(): number {
+  writeOutput({ error: { code: "command-failed", message: "The command failed unexpectedly." } });
   return 1;
 }
 
-function formatCliFailure(error: CliFailure, invocation: "home" | "command"): number {
+function recoveryCommand(command: string, report: string): string {
+  return `${CLI_INVOCATION} ${command} ${report}`;
+}
+
+function recognizedCommand(rawArguments: string[]): CliCommand | undefined {
+  return rawArguments.find((argument): argument is CliCommand =>
+    argument === "build"
+    || argument === "inspect"
+    || argument === "capture"
+    || argument === "export"
+    || argument === "inspect-pdf"
+    || argument === "init");
+}
+
+function shellArgument(value: string): string {
+  return /^[A-Za-z0-9_@%+=:,./-]+$/.test(value) ? value : shellQuote(value);
+}
+
+function fullDiagnosticCommand(rawArguments: string[]): string {
+  const commandArguments: string[] = [];
+  for (let index = 0; index < rawArguments.length; index += 1) {
+    const argument = rawArguments[index] as string;
+    if (argument === LOG_LEVEL_FLAG) {
+      index += 1;
+      continue;
+    }
+    if (argument !== "--full") commandArguments.push(argument);
+  }
+  return `${CLI_INVOCATION} ${commandArguments.map(shellArgument).join(" ")} --full`;
+}
+
+interface DiagnosticView {
+  readonly output: JsonValue;
+  readonly truncated: boolean;
+}
+
+function truncateDiagnosticText(value: string): { text: string; totalChars?: number } {
+  const characters = [...value];
+  if (characters.length <= DEFAULT_DIAGNOSTIC_TEXT_LIMIT) return { text: value };
+  return {
+    text: `${characters.slice(0, DEFAULT_DIAGNOSTIC_TEXT_LIMIT - 1).join("")}…`,
+    totalChars: characters.length,
+  };
+}
+
+function diagnosticView(issues: readonly ArtifactDiagnostic[], full: boolean): DiagnosticView {
+  const selected = full ? issues : issues.slice(0, DEFAULT_DIAGNOSTIC_LIMIT);
+  let textTruncated = false;
+  const rows = selected.map((issue) => {
+    const message = full ? { text: issue.message } : truncateDiagnosticText(issue.message);
+    const resource = issue.resource === undefined
+      ? undefined
+      : full ? { text: issue.resource } : truncateDiagnosticText(issue.resource);
+    textTruncated ||= message.totalChars !== undefined || resource?.totalChars !== undefined;
+    return {
+      source: issue.source,
+      code: issue.code,
+      message: message.text,
+      ...(message.totalChars === undefined ? {} : { messageTotalChars: message.totalChars }),
+      ...(issue.pageId === undefined ? {} : { pageId: issue.pageId }),
+      ...(resource === undefined ? {} : { resource: resource.text }),
+      ...(resource?.totalChars === undefined ? {} : { resourceTotalChars: resource.totalChars }),
+    };
+  });
+  const truncated = !full && (issues.length > selected.length || textTruncated);
+  return {
+    output: {
+      shown: selected.length,
+      total: issues.length,
+      truncated,
+      issues: rows,
+    },
+    truncated,
+  };
+}
+
+function artifactKind(command: string): "HTML" | "PDF" {
+  return command === "inspect-pdf" ? "PDF" : "HTML";
+}
+
+function formatCommandFailure(error: CommandFailure, rawArguments: string[]): void {
+  const kind = error.artifact === "pdf" ? "PDF" : artifactKind(error.command);
+  const context = {
+    ...(error.report ? { report: error.report } : {}),
+    ...(error.path ? { path: error.path } : {}),
+  };
+  if (error.code === "artifact-not-found") {
+    writeOutput({
+      error: { code: error.code, message: `${kind} artifact was not found.`, ...context },
+      ...(error.report
+        ? { help: [`Run ${recoveryCommand(kind === "PDF" ? "export" : "build", error.report)}`] }
+        : {}),
+    });
+    return;
+  }
+  if (error.code === "artifact-invalid") {
+    const diagnostics = error.issues && error.issues.length > 0
+      ? diagnosticView(error.issues, rawArguments.includes("--full"))
+      : undefined;
+    const help = [
+      ...(error.report ? [`Run ${recoveryCommand(kind === "PDF" ? "export" : "build", error.report)}`] : []),
+      ...(diagnostics?.truncated ? [`Run ${fullDiagnosticCommand(rawArguments)}`] : []),
+    ];
+    writeOutput({
+      error: { code: error.code, message: `${kind} artifact is invalid.`, ...context },
+      ...(diagnostics ? { diagnostics: diagnostics.output } : {}),
+      ...(help.length > 0 ? { help } : {}),
+    });
+    return;
+  }
+  if (error.code === "browser-not-installed") {
+    writeOutput({
+      error: { code: error.code, message: "The canonical Chromium browser is not installed." },
+      help: ["Run pnpm dlx playwright@1.61.1 install chromium"],
+    });
+    return;
+  }
+  writeOutput({
+    error: {
+      code: "command-failed",
+      message: `${error.command === "home" ? "Project discovery" : error.command} failed.`,
+      ...context,
+    },
+  });
+}
+
+function formatCliFailure(error: CliFailure, rawArguments: string[]): number {
   switch (error._tag) {
     case "ProjectNotFound":
-      if (invocation === "home") {
-        writeOutput({
-          error: { code: "project-not-found", message: error.message },
-          help: [`Run ${CLI_INVOCATION} init to plan a new project`],
-        });
+      writeOutput({
+        error: {
+          code: "project-not-found",
+          message: `No unslide.json project configuration was found from ${error.startDirectory}.`,
+        },
+        help: [`Run ${CLI_INVOCATION} init to plan a new project`],
+      });
+      return 1;
+    case "ProjectConfigFailure": {
+      const code = error.code ?? (error.phase === "read" ? "project-config-unreadable" : "project-config-invalid");
+      if (code === "command-failed") {
+        writeOutput({ error: { code, message: "Project configuration loading failed." } });
       } else {
-        writeOutput({ error: { code: "operation-failed", message: error.message } });
+        writeOutput({
+          error: {
+            code,
+            message: code === "project-config-unreadable"
+              ? "Project configuration cannot be read."
+              : "Project configuration is invalid.",
+            path: error.path,
+            ...(error.detail || (code === "project-config-invalid" && error.cause === undefined)
+              ? { detail: error.detail ?? error.message }
+              : {}),
+          },
+        });
       }
       return 1;
-    case "ProjectConfigFailure":
-    case "ReportNotFound":
+    }
+    case "ReportNotFound": {
+      const command = recognizedCommand(rawArguments) ?? "build";
+      const presentationSuffix = rawArguments.includes("--full") ? " --full" : "";
+      writeOutput({
+        error: {
+          code: "report-not-found",
+          message: `Report "${error.report}" is not configured.`,
+          availableReports: [...error.availableReports],
+        },
+        help: [`Run ${recoveryCommand(command, "<name>")}${presentationSuffix}`],
+      });
+      return 1;
+    }
     case "CommandFailure":
-      writeOutput({ error: { code: "operation-failed", message: error.message } });
+      formatCommandFailure(error, rawArguments);
       return 1;
     default: {
       const exhaustive: never = error;
@@ -196,16 +424,85 @@ function formatCliFailure(error: CliFailure, invocation: "home" | "command"): nu
   }
 }
 
-function isCliFailure(error: unknown): error is CliFailure {
-  if (typeof error !== "object" || error === null || !("_tag" in error)) return false;
-  return error._tag === "ProjectNotFound"
-    || error._tag === "ProjectConfigFailure"
-    || error._tag === "ReportNotFound"
-    || error._tag === "CommandFailure";
-}
-
 function projectPath(config: ProjectConfig, absolutePath: string): string {
   return relative(config.projectRoot, absolutePath) || ".";
+}
+
+type CliCommand = "build" | "inspect" | "capture" | "export" | "inspect-pdf" | "init";
+
+function validateBeforeHelp(command: CliCommand, argv: string[]): string | undefined {
+  const allowedFlags = command === "inspect"
+    ? new Set(["--artifact", "--full", "--help"])
+    : command === "inspect-pdf"
+      ? new Set(["--artifact", "--output", "--help"])
+      : command === "init"
+        ? new Set(["--name", "--yes", "--help"])
+        : command === "capture" || command === "export"
+          ? new Set(["--full", "--help"])
+          : new Set(["--help"]);
+  const unknownFlag = argv.slice(1).find((argument) => argument.startsWith("-") && !allowedFlags.has(argument));
+  if (unknownFlag) return `Unknown flag "${unknownFlag}" for ${command}.`;
+
+  const helpCount = argv.filter((argument) => argument === "--help").length;
+  if (helpCount > 1) return "--help may be provided only once.";
+  const fullCount = argv.filter((argument) => argument === "--full").length;
+  if (fullCount > 1) return "--full may be provided only once.";
+
+  if (command === "build" || command === "capture" || command === "export") {
+    const positionals = argv.slice(1).filter((argument) => argument !== "--help" && argument !== "--full");
+    return positionals.length > 1
+      ? `Unexpected argument "${positionals[1]}" for ${command}.`
+      : undefined;
+  }
+
+  if (command === "init") {
+    let nameSeen = false;
+    let yesSeen = false;
+    for (let index = 1; index < argv.length; index += 1) {
+      const argument = argv[index];
+      if (argument === "--help") continue;
+      if (argument === "--yes") {
+        if (yesSeen) return "--yes may be provided only once.";
+        yesSeen = true;
+        continue;
+      }
+      if (argument === "--name") {
+        if (nameSeen) return "--name may be provided only once.";
+        nameSeen = true;
+        const value = argv[index + 1];
+        if (value && !value.startsWith("-")) {
+          if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
+            return `Invalid report name "${value}"; use lower-kebab case.`;
+          }
+          index += 1;
+        }
+        continue;
+      }
+      return `Unexpected argument "${argument}" for init.`;
+    }
+    return undefined;
+  }
+
+  const valueFlags = command === "inspect" ? ["--artifact"] : ["--artifact", "--output"];
+  const seen = new Set<string>();
+  const positionals: string[] = [];
+  for (let index = 1; index < argv.length; index += 1) {
+    const argument = argv[index] as string;
+    if (argument === "--help" || argument === "--full") continue;
+    if (valueFlags.includes(argument)) {
+      if (seen.has(argument)) return `${argument} may be provided only once.`;
+      seen.add(argument);
+      const value = argv[index + 1];
+      if (value && !value.startsWith("-")) index += 1;
+      continue;
+    }
+    positionals.push(argument);
+  }
+  if (positionals.length > 1) return `Unexpected argument "${positionals[1]}" for ${command}.`;
+  if (positionals.length === 1 && seen.size > 0) {
+    return `${command} accepts either one report name or explicit artifact flags, not both.`;
+  }
+  return undefined;
 }
 
 const home = Effect.fn("cli.home")(function* () {
@@ -217,19 +514,29 @@ const home = Effect.fn("cli.home")(function* () {
         name: report.name,
         source: projectPath(config, report.sourcePath),
         html: projectPath(config, report.htmlPath),
-        status: exists ? "built" : "not-built",
+        htmlStatus: exists ? "present" : "missing",
       })),
       Effect.mapError((cause) => commandFailure(cause, { command: "home", path: report.htmlPath, report: report.name })),
     ))),
     "reports.scan",
     { project: config.projectRoot },
   );
+  const hasMissingHtml = reports.some((report) => report.htmlStatus === "missing");
+  const hasPresentHtml = reports.some((report) => report.htmlStatus === "present");
+  const help = [
+    ...(hasMissingHtml ? [`Run ${CLI_INVOCATION} build <name>`] : []),
+    ...(hasPresentHtml ? [
+      `Run ${CLI_INVOCATION} inspect <name>`,
+      `Run ${CLI_INVOCATION} capture <name>`,
+    ] : []),
+    ...(!hasPresentHtml ? [`Run ${CLI_INVOCATION} --help`] : []),
+  ];
   writeOutput({
     bin: displayExecutable(),
     description: "Build and inspect explicit-page HTML and PDF reports",
     project: config.projectRoot,
     reports,
-    help: [`Run ${CLI_INVOCATION} build <name>`, `Run ${CLI_INVOCATION} inspect <name>`, `Run ${CLI_INVOCATION} capture <name>`, `Run ${CLI_INVOCATION} export <name>`, `Run ${CLI_INVOCATION} inspect-pdf <name>`],
+    help,
   });
   return 0;
 });
@@ -237,6 +544,7 @@ const home = Effect.fn("cli.home")(function* () {
 const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   if (argv.length === 0) return yield* home();
   if (argv[0] === "--help") {
+    if (argv.length > 1) return usageError(`Unexpected argument "${argv[1]}" for --help.`, topHelp());
     writeOutput(topHelp());
     return 0;
   }
@@ -245,22 +553,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   if (command !== "build" && command !== "inspect" && command !== "capture" && command !== "export" && command !== "inspect-pdf" && command !== "init") {
     return usageError(`Unknown command "${command}".`, topHelp());
   }
+  const validationError = validateBeforeHelp(command, argv);
+  if (validationError) return usageError(validationError, commandHelp(command));
   if (argv.includes("--help")) {
     writeOutput(commandHelp(command));
     return 0;
   }
-
-  const allowedFlags = command === "inspect"
-    ? new Set(["--artifact"])
-    : command === "inspect-pdf"
-      ? new Set(["--artifact", "--output"])
-    : command === "init"
-      ? new Set(["--name", "--yes"])
-      : new Set<string>();
-  const unknownFlag = argv.slice(1).find((argument) => argument.startsWith("-") && !allowedFlags.has(argument));
-  if (unknownFlag) {
-    return usageError(`Unknown flag "${unknownFlag}" for ${command}.`, commandHelp(command));
-  }
+  argv = argv.filter((argument) => argument !== "--full");
 
   if (command === "init") {
     let reportName = "report";
@@ -303,9 +602,9 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     };
     if (result.status === "conflict") {
       writeOutput({
-        error: { code: "file-conflict", message: "Initialization would overwrite files with different contents." },
+        error: { code: "command-failed", message: "Initialization would overwrite files with different contents." },
         init,
-        help: ["Move or reconcile the conflicting files, then run init again"],
+        help: [`Run ${CLI_INVOCATION} init${nameSeen ? ` --name ${reportName}` : ""} --yes after reconciling the conflicting files`],
       });
       return 1;
     }
@@ -351,7 +650,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     const result = yield* inspectPdfPages(artifactPath, outputDirectory);
     writeOutput({
       pdf: { path: result.inputPath, output: result.outputDirectory, pageCount: result.pages.length },
-      pages: result.pages.map((page) => ({ index: page.index, file: page.outputPath, width: page.width, height: page.height })),
+      pages: result.pages.map((page) => ({ index: page.index, file: basename(page.outputPath), width: page.width, height: page.height })),
     });
     return 0;
   }
@@ -364,11 +663,23 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   const report = yield* getReport(config, argv[1]);
   if (command === "build") {
     const result = yield* buildReport(report);
-    writeOutput({ report: { name: result.name, status: "built", html: projectPath(config, result.htmlPath) } });
+    writeOutput({
+      report: { name: result.name, status: "built", html: projectPath(config, result.htmlPath) },
+      help: [
+        `Run ${CLI_INVOCATION} inspect ${result.name}`,
+        `Run ${CLI_INVOCATION} capture ${result.name}`,
+      ],
+    });
     return 0;
   }
   if (command === "inspect") {
-    const result = yield* inspectHtmlArtifact(report.htmlPath);
+    const result = yield* inspectHtmlArtifact(report.htmlPath).pipe(
+      Effect.mapError((cause) => commandFailure(cause, {
+        command,
+        path: report.htmlPath,
+        report: report.name,
+      })),
+    );
     writeOutput({
       report: { name: report.name, status: "valid", html: projectPath(config, result.inputPath), pageCount: result.pages.length },
       pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
@@ -381,7 +692,12 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       try: () => import("./unslide/pdf.js"),
       catch: (cause) => commandFailure(cause, { command, path: report.htmlPath, report: report.name }),
     });
-    const result = yield* exportHtmlPdf(report.htmlPath, report.pdfPath);
+    const result = yield* exportHtmlPdf(report.htmlPath, report.pdfPath).pipe(
+      Effect.mapError((cause) => commandFailure(cause, {
+        command,
+        report: report.name,
+      })),
+    );
     const firstPage = result.pages[0];
     writeOutput({
       report: {
@@ -392,6 +708,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
         widthPoints: firstPage?.widthPoints ?? 0,
         heightPoints: firstPage?.heightPoints ?? 0,
       },
+      help: [`Run ${CLI_INVOCATION} inspect-pdf ${report.name}`],
     });
     return 0;
   }
@@ -401,7 +718,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       try: () => import("./unslide/pdf-inspection.js"),
       catch: (cause) => commandFailure(cause, { command, path: report.pdfPath, report: report.name }),
     });
-    const result = yield* inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory);
+    const result = yield* inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory).pipe(
+      Effect.mapError((cause) => commandFailure(cause, {
+        command,
+        path: report.pdfPath,
+        report: report.name,
+      })),
+    );
     writeOutput({
       report: {
         name: report.name,
@@ -412,7 +735,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       },
       pages: result.pages.map((page) => ({
         index: page.index,
-        file: projectPath(config, page.outputPath),
+        file: basename(page.outputPath),
         width: page.width,
         height: page.height,
       })),
@@ -420,10 +743,21 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     return 0;
   }
 
-  const result = yield* captureHtmlPages(report.htmlPath, report.captureDirectory);
+  const result = yield* captureHtmlPages(report.htmlPath, report.captureDirectory).pipe(
+    Effect.mapError((cause) => commandFailure(cause, {
+      command,
+      path: report.htmlPath,
+      report: report.name,
+    })),
+  );
   writeOutput({
-    report: { name: report.name, status: "captured", pageCount: result.pages.length },
-    pages: result.pages.map((page) => ({ id: page.id, file: projectPath(config, page.outputPath), width: page.width, height: page.height })),
+    report: {
+      name: report.name,
+      status: "captured",
+      output: projectPath(config, result.outputDirectory),
+      pageCount: result.pages.length,
+    },
+    pages: result.pages.map((page) => ({ id: page.id, file: basename(page.outputPath), width: page.width, height: page.height })),
   });
   return 0;
 });
@@ -503,26 +837,9 @@ async function main(rawArguments: string[]): Promise<number> {
   const exit = await Effect.runPromiseExit(program);
   if (Exit.isSuccess(exit)) return exit.value;
 
-  const failures = exit.cause.reasons.flatMap((reason) =>
-    reason._tag === "Fail" && isCliFailure(reason.error) ? [reason.error] : []);
-  const primary = failures[0];
-  const hasNonOperationalCause = exit.cause.reasons.some((reason) => reason._tag !== "Fail");
-  if (primary && !hasNonOperationalCause && exit.cause.reasons.length === 1) {
-    return formatCliFailure(primary, arguments_.length === 0 ? "home" : "command");
-  }
-  if (primary && !hasNonOperationalCause) {
-    const combined = primary._tag === "CommandFailure"
-      ? new CommandFailure({
-        cause: exit.cause,
-        command: primary.command,
-        message: causeMessage(exit.cause),
-        path: primary.path,
-        report: primary.report,
-      })
-      : primary;
-    return formatCliFailure(combined, arguments_.length === 0 ? "home" : "command");
-  }
-  return defectError(new Error(causeMessage(exit.cause), { cause: Cause.squash(exit.cause) }));
+  const failure = combineCliFailures(exit.cause);
+  if (failure) return formatCliFailure(failure, rawArguments);
+  return defectError();
 }
 
 process.exitCode = await main(process.argv.slice(2));

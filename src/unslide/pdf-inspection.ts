@@ -1,7 +1,7 @@
 import { createCanvas } from "@napi-rs/canvas";
 import { getDocument, VerbosityLevel } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { Data, Effect, FileSystem, Path } from "effect";
-import { commandFailure, errorMessage, mapCommandFailure } from "./failures.js";
+import { commandFailure, errorMessage, isMissingFileError, mapCommandFailure } from "./failures.js";
 import { onceAsync, scoped } from "./lifecycle.js";
 import { logDebug, withLogPhase } from "./logging.js";
 import { replacePageImages } from "./page-images.js";
@@ -26,7 +26,13 @@ class PdfInspectionFailure extends Data.TaggedError("PdfInspectionFailure")<{
   readonly cause?: unknown;
   readonly message: string;
   readonly phase: "load" | "page" | "render" | "encode" | "write" | "validate";
-}> {}
+}> {
+  get cliCode(): "artifact-invalid" | "command-failed" {
+    return this.phase === "load" || this.phase === "page" || this.phase === "validate"
+      ? "artifact-invalid"
+      : "command-failed";
+  }
+}
 
 /** Renders the existing PDF itself; source HTML and browser state are unused. */
 export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(function* (
@@ -40,7 +46,11 @@ export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(functi
   const context = { command: "inspect-pdf", path: inputPath } as const;
   const bytes = yield* withLogPhase(
     fs.readFile(inputPath).pipe(
-      Effect.mapError((cause) => commandFailure(cause, context, `Cannot read PDF ${inputPath}: ${errorMessage(cause)}`)),
+      Effect.mapError((cause) => commandFailure(
+        cause,
+        { ...context, code: isMissingFileError(cause) ? "artifact-not-found" : "command-failed" },
+        `Cannot read PDF ${inputPath}: ${errorMessage(cause)}`,
+      )),
     ),
     "pdf.load",
     { path: inputPath },

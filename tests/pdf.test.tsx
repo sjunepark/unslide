@@ -29,6 +29,26 @@ async function temporaryDirectory(prefix: string): Promise<string> {
   return mkdtemp(resolve(repositoryRoot, ".tmp", prefix));
 }
 
+function artifactIssues(error: unknown): Array<{ code: string; resource?: string }> {
+  const cause = error instanceof Error
+    ? (error as Error & { cause?: { reasons?: unknown[] } }).cause
+    : undefined;
+  return cause?.reasons?.flatMap((reason) => {
+    if (
+      typeof reason !== "object"
+      || reason === null
+      || !("_tag" in reason)
+      || reason._tag !== "Fail"
+      || !("error" in reason)
+      || typeof reason.error !== "object"
+      || reason.error === null
+      || !("issues" in reason.error)
+      || !Array.isArray(reason.error.issues)
+    ) return [];
+    return reason.error.issues as Array<{ code: string; resource?: string }>;
+  }) ?? [];
+}
+
 async function pdfRuntimePrototypes(bytes: Uint8Array) {
   const loadingTask = getDocument({ data: new Uint8Array(bytes) });
   const document = await loadingTask.promise;
@@ -175,11 +195,19 @@ test("shares artifact readiness failures for missing images and fonts", async ()
   try {
     await assert.rejects(
       exportHtmlPdf(resolve("tests/fixtures/protocol-broken-image.html"), resolve(directory, "image.pdf")),
-      /Image has no decodable content.*missing-image\.png/,
+      (error: unknown) => {
+        const imageIssue = artifactIssues(error).find((issue) => issue.code === "image-readiness");
+        assert.match(imageIssue?.resource ?? "", /missing-image\.png$/);
+        return true;
+      },
     );
     await assert.rejects(
       exportHtmlPdf(resolve("tests/fixtures/protocol-broken-font.html"), resolve(directory, "font.pdf")),
-      /Font failed.*Broken Fixture Font/,
+      (error: unknown) => {
+        const fontIssue = artifactIssues(error).find((issue) => issue.code === "font-readiness");
+        assert.match(fontIssue?.resource ?? "", /Broken Fixture Font/);
+        return true;
+      },
     );
   } finally {
     await rm(directory, { recursive: true, force: true });

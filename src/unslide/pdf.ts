@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { Data, Effect, FileSystem, Path } from "effect";
-import { withLoadedArtifact } from "./browser.js";
+import { ArtifactOperationFailure, withLoadedArtifact } from "./browser.js";
 import { errorMessage, mapCommandFailure } from "./failures.js";
 import { onceAsync, scoped } from "./lifecycle.js";
 import { logDebug, withLogPhase } from "./logging.js";
@@ -38,7 +38,17 @@ class PdfValidationFailure extends Data.TaggedError("PdfValidationFailure")<{
   readonly cause?: unknown;
   readonly message: string;
   readonly phase: "load" | "page" | "text" | "validate";
-}> {}
+}> {
+  get issues() {
+    return this.phase === "validate"
+      ? [{
+        code: "pdf-validation",
+        message: this.message,
+        source: "pdf" as const,
+      }]
+      : undefined;
+  }
+}
 
 const ABSOLUTE_LENGTH_POINTS: Readonly<Record<string, number>> = {
   px: 0.75,
@@ -257,7 +267,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
   const path = yield* Path.Path;
   const inputPath = path.resolve(input);
   const outputPath = path.resolve(output);
-  const context = { command: "export", path: inputPath } as const;
+  const context = { artifact: "html", command: "export", path: inputPath } as const;
 
   const printed = yield* mapCommandFailure(withLogPhase(
     withLoadedArtifact(inputPath, async ({ page, pages }) => {
@@ -296,15 +306,19 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         };
       });
       if (pageRules.baseSizes.length === 0) {
-        throw new Error("Artifact print CSS must declare one active, unqualified @page rule with a concrete size; refusing Chromium's implicit Letter fallback.");
+        throw new ArtifactOperationFailure({
+          code: "print-css",
+          message: "Artifact print CSS must declare one active, unqualified @page rule with a concrete size; refusing Chromium's implicit Letter fallback.",
+        });
       }
       const authoredSizes = [...new Set([...pageRules.baseSizes, ...pageRules.qualifiedSizes])];
       const parsedSizes = authoredSizes.map((size) => ({ size, geometry: parsePageGeometry(size) }));
       const invalidSize = parsedSizes.find(({ geometry }) => !geometry);
       if (invalidSize) {
-        throw new Error(
-          `Artifact print CSS uses non-concrete @page size ${JSON.stringify(invalidSize.size)}. Use one named Chromium page format or one or two positive absolute lengths.`,
-        );
+        throw new ArtifactOperationFailure({
+          code: "print-css",
+          message: `Artifact print CSS uses non-concrete @page size ${JSON.stringify(invalidSize.size)}. Use one named Chromium page format or one or two positive absolute lengths.`,
+        });
       }
       const geometries = parsedSizes.map(({ geometry }) => geometry as PageGeometry);
       const expectedGeometry = geometries[0] as PageGeometry;
@@ -313,7 +327,10 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
           Math.abs(geometry.widthPoints - expectedGeometry.widthPoints) > GEOMETRY_TOLERANCE_POINTS
           || Math.abs(geometry.heightPoints - expectedGeometry.heightPoints) > GEOMETRY_TOLERANCE_POINTS)
       ) {
-        throw new Error(`Artifact print CSS declares ambiguous @page sizes (${authoredSizes.join(", ")}); initial PDF export supports one geometry per report.`);
+        throw new ArtifactOperationFailure({
+          code: "print-css",
+          message: `Artifact print CSS declares ambiguous @page sizes (${authoredSizes.join(", ")}); initial PDF export supports one geometry per report.`,
+        });
       }
 
       const pageText = await page.locator(PAGE_MARKER_SELECTOR).allInnerTexts();
@@ -322,7 +339,10 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         return tokens.length === 0 ? [] : [{ index: index + 1, tokens }];
       });
       if (expectedText.length === 0) {
-        throw new Error("Artifact must contain extractable text in at least one marked page before PDF export.");
+        throw new ArtifactOperationFailure({
+          code: "extractable-text",
+          message: "Artifact must contain extractable text in at least one marked page before PDF export.",
+        });
       }
 
       const bytes = await page.pdf({
@@ -346,7 +366,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
       printed.expectedGeometry,
       printed.expectedText,
       ),
-      context,
+      { artifact: "pdf", code: "artifact-invalid", command: "export" },
       (cause) => `Cannot validate generated PDF: ${errorMessage(cause)}`,
     ),
     "pdf.validate",

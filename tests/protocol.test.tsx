@@ -37,6 +37,22 @@ async function validateFixture(fileName: string) {
   }
 }
 
+function rejectedDiagnostics(error: unknown): Array<Record<string, unknown>> {
+  if (!(error instanceof Error) || !("cause" in error)) return [];
+  const cause = error.cause;
+  if (typeof cause !== "object" || cause === null || !("reasons" in cause) || !Array.isArray(cause.reasons)) return [];
+  return cause.reasons.flatMap((reason) => {
+    if (typeof reason !== "object" || reason === null || !("error" in reason)) return [];
+    const failure = reason.error;
+    return typeof failure === "object"
+      && failure !== null
+      && "issues" in failure
+      && Array.isArray(failure.issues)
+      ? failure.issues as Array<Record<string, unknown>>
+      : [];
+  });
+}
+
 test("protocol v1 preserves ordered metadata for arbitrary marked elements", async () => {
   assert.equal(UNSLIDE_PROTOCOL_VERSION, 1);
   assert.equal(PROTOCOL_META_NAME, "unslide-protocol");
@@ -232,7 +248,7 @@ test("capture preserves prior output when artifact validation or capture fails",
 
     await assert.rejects(
       captureHtmlPages(resolve(fixtureDirectory, "protocol-duplicate-id.html"), directory),
-      /Artifact readiness failed:[\s\S]*duplicated/,
+      /Artifact readiness failed/,
     );
     assert.equal(await readFile(priorCapture, "utf8"), "prior evidence");
 
@@ -260,11 +276,17 @@ test("capture reports console and failed local resource errors", async () => {
   try {
     await assert.rejects(
       captureHtmlPages(resolve(fixtureDirectory, "protocol-console-error.html"), directory),
-      /Console error: fixture exploded/,
+      (error) => {
+        assert.match(error instanceof Error ? error.message : "", /Artifact readiness failed/);
+        return rejectedDiagnostics(error).some((issue) => issue.code === "console-error");
+      },
     );
     await assert.rejects(
       captureHtmlPages(resolve(fixtureDirectory, "protocol-broken-style.html"), directory),
-      /Resource failed: .*missing-style\.css/,
+      (error) => {
+        assert.match(error instanceof Error ? error.message : "", /Artifact readiness failed/);
+        return rejectedDiagnostics(error).some((issue) => issue.code === "resource-failed");
+      },
     );
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -283,10 +305,11 @@ test("capture bounds document loading and names a pending resource", async () =>
     await writeFile(inputPath, `<!doctype html><html><head><link rel="stylesheet" href="${resourceUrl}"></head><body><main data-unslide-page="pending">Pending</main></body></html>`);
 
     const startedAt = Date.now();
-    await assert.rejects(
-      captureHtmlPages(inputPath, resolve(directory, "captures")),
-      /Document did not finish loading within 5000ms[\s\S]*Resource still pending: .*never\.css/,
-    );
+    await assert.rejects(captureHtmlPages(inputPath, resolve(directory, "captures")), (error) => {
+      const diagnostics = rejectedDiagnostics(error);
+      return diagnostics.some((issue) => issue.code === "document-readiness")
+        && diagnostics.some((issue) => issue.code === "resource-pending" && /never\.css/.test(String(issue.resource)));
+    });
     assert.ok(Date.now() - startedAt < 7_000);
   } finally {
     server.closeAllConnections();
@@ -347,10 +370,9 @@ test("capture tracks concurrent requests to the same URL independently", async (
     const inputPath = resolve(directory, "duplicate-request.html");
     await writeFile(inputPath, `<!doctype html><html><body><script>void fetch("${origin}/shared"); void fetch("${origin}/shared");</script><main data-unslide-page="one"><img src="${origin}/gate.png" alt=""></main></body></html>`);
 
-    await assert.rejects(
-      captureHtmlPages(inputPath, resolve(directory, "captures")),
-      /Resource still pending: .*\/shared/,
-    );
+    await assert.rejects(captureHtmlPages(inputPath, resolve(directory, "captures")), (error) =>
+      rejectedDiagnostics(error).some((issue) =>
+        issue.code === "resource-pending" && /\/shared/.test(String(issue.resource))));
     assert.equal(sharedRequests, 2);
   } finally {
     server.closeAllConnections();
@@ -376,6 +398,19 @@ test("loaded artifacts release Chromium after success and operational failure", 
     /fixture operation failed/,
   );
   assert.equal(failedBrowser?.isConnected(), false);
+});
+
+test("operation failures retain browser diagnostics collected during the operation", async () => {
+  const inputPath = resolve(fixtureDirectory, "protocol-valid.html");
+
+  await assert.rejects(
+    runUnslide(withLoadedArtifact(inputPath, async ({ page }) => {
+      await page.evaluate(() => console.error("operation fixture diagnostic"));
+      throw new Error("fixture operation failed");
+    })),
+    (error) => rejectedDiagnostics(error).some((issue) =>
+      issue.code === "console-error" && /operation fixture diagnostic/.test(String(issue.message))),
+  );
 });
 
 test("interrupting a loaded artifact closes the underlying Chromium work", async () => {
