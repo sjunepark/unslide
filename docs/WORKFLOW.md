@@ -93,6 +93,15 @@ HTML-capture, and optional PDF-capture paths resolve relative to that directory.
 The standalone form is `unslide inspect-pdf --artifact <path> --output
 <directory>` and does not require project discovery.
 
+CLI execution logging is explicitly opt-in. Use `--log-level info` for major
+phases or `--log-level debug` for detailed page, transaction, cleanup, and
+failure-cause evidence. `UNSLIDE_LOG_LEVEL` supplies the same `off`, `info`, or
+`debug` values when the flag is absent. Logs are Effect-formatted JSON Lines on
+stderr; default stderr remains empty and stdout always remains TOON.
+Enabled logs include local paths in phase annotations. Debug output additionally
+includes full Effect causes and may repeat authored text from an existing
+failure message, so handle all logging as sensitive diagnostic data.
+
 Open an artifact directly on macOS:
 
 ```sh

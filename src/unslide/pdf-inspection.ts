@@ -3,6 +3,7 @@ import { getDocument, VerbosityLevel } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { Data, Effect, FileSystem, Path } from "effect";
 import { commandFailure, errorMessage, mapCommandFailure } from "./failures.js";
 import { onceAsync, scoped } from "./lifecycle.js";
+import { logDebug, withLogPhase } from "./logging.js";
 import { replacePageImages } from "./page-images.js";
 
 const RASTER_DPI = 96;
@@ -37,8 +38,12 @@ export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(functi
   const inputPath = path.resolve(input);
   const outputDirectory = path.resolve(output);
   const context = { command: "inspect-pdf", path: inputPath } as const;
-  const bytes = yield* fs.readFile(inputPath).pipe(
-    Effect.mapError((cause) => commandFailure(cause, context, `Cannot read PDF ${inputPath}: ${errorMessage(cause)}`)),
+  const bytes = yield* withLogPhase(
+    fs.readFile(inputPath).pipe(
+      Effect.mapError((cause) => commandFailure(cause, context, `Cannot read PDF ${inputPath}: ${errorMessage(cause)}`)),
+    ),
+    "pdf.load",
+    { path: inputPath },
   );
 
   const pages = yield* replacePageImages(outputDirectory, "images", (stagingDirectory) => {
@@ -190,15 +195,25 @@ export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(functi
           return { index, width, height, outputPath: path.resolve(outputDirectory, fileName) };
         }));
         rendered.push(renderedPage);
+        yield* logDebug("page.rasterized", {
+          height: renderedPage.height,
+          pageIndex: renderedPage.index,
+          path: renderedPage.outputPath,
+          width: renderedPage.width,
+        });
       }
 
       return rendered;
     });
 
-    return mapCommandFailure(
-      scoped(inspect),
-      context,
-      (cause) => `Cannot rasterize PDF ${inputPath}: ${errorMessage(cause)}`,
+    return withLogPhase(
+      mapCommandFailure(
+        scoped(inspect),
+        context,
+        (cause) => `Cannot rasterize PDF ${inputPath}: ${errorMessage(cause)}`,
+      ),
+      "pdf.rasterize",
+      { path: inputPath },
     );
   });
 

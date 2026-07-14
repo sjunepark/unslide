@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 import { decode, encode } from "@toon-format/toon";
@@ -24,7 +25,7 @@ async function runCli(arguments_: string[], cwd = repositoryRoot, environment: N
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
       ["--import", tsxImport, cliPath, ...arguments_],
-      { cwd, env: { ...process.env, ...environment } },
+      { cwd, env: { ...process.env, UNSLIDE_LOG_LEVEL: "off", ...environment } },
     );
     return { exitCode: 0, stderr, stdout, value: decode(stdout) as Record<string, unknown> };
   } catch (error) {
@@ -43,11 +44,32 @@ const stableCliEnvironment = {
   UNSLIDE_INVOCATION: "unslide",
 };
 
+const stableLogLevelFlag = {
+  flag: "--log-level <off|info|debug>",
+  description: "Emit Effect JSON Lines on stderr (default: UNSLIDE_LOG_LEVEL or off)",
+};
+
+interface EffectLogEntry {
+  annotations: Record<string, unknown>;
+  cause?: string;
+  level: string;
+  message: string;
+  spans: Record<string, number>;
+  timestamp: string;
+}
+
+function parseLogs(stderr: string): EffectLogEntry[] {
+  return stderr.trim() === ""
+    ? []
+    : stderr.trim().split("\n").map((line) => JSON.parse(line) as EffectLogEntry);
+}
+
 function stableTopHelp() {
   return {
     bin: "/opt/unslide/bin/unslide",
     description: "Build and inspect explicit-page HTML and PDF reports",
     usage: "unslide <command>",
+    flags: [stableLogLevelFlag],
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
       { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
@@ -67,7 +89,7 @@ async function runPackageCli(arguments_: string[]): Promise<CliResult> {
     const { stdout, stderr } = await execFileAsync(
       "pnpm",
       ["--silent", "run", "unslide", ...arguments_],
-      { cwd: repositoryRoot },
+      { cwd: repositoryRoot, env: { ...process.env, UNSLIDE_LOG_LEVEL: "off" } },
     );
     return { exitCode: 0, stderr, stdout, value: decode(stdout) as Record<string, unknown> };
   } catch (error) {
@@ -154,6 +176,94 @@ test("silent package-script invocation preserves structured stdout on failure", 
   assert.equal((result.value.error as Record<string, unknown>).code, "usage");
 });
 
+test("global Effect logging is opt-in, structured, and configurable by flag or environment", async () => {
+  const info = await runCli(["--log-level", "info", "--help"], repositoryRoot, stableCliEnvironment);
+  assert.equal(info.exitCode, 0);
+  assert.equal(info.stdout, encode(stableTopHelp()));
+  assert.equal(info.value.usage, "unslide <command>");
+  const infoLogs = parseLogs(info.stderr);
+  assert.deepEqual(infoLogs.map((entry) => entry.message), ["invocation.started", "invocation.completed"]);
+  assert.ok(infoLogs.every((entry) => entry.level === "INFO"));
+  assert.ok(infoLogs.every((entry) => entry.annotations.command === "help"));
+  assert.equal(new Set(infoLogs.map((entry) => entry.annotations.invocationId)).size, 1);
+  assert.ok(infoLogs.every((entry) => Number.isFinite(Date.parse(entry.timestamp))));
+
+  const environment = await runCli(["--help"], repositoryRoot, {
+    ...stableCliEnvironment,
+    UNSLIDE_LOG_LEVEL: "info",
+  });
+  assert.equal(parseLogs(environment.stderr).length, 2);
+
+  const rejected = await runCli(["build", "--log-level", "info"], repositoryRoot, stableCliEnvironment);
+  assert.equal(rejected.exitCode, 2);
+  assert.ok(parseLogs(rejected.stderr).some((entry) =>
+    entry.message === "invocation.rejected" && entry.annotations.exitCode === 2));
+
+  const disabled = await runCli(["--help", "--log-level", "off"], repositoryRoot, {
+    ...stableCliEnvironment,
+    UNSLIDE_LOG_LEVEL: "debug",
+  });
+  assert.equal(disabled.exitCode, 0);
+  assert.equal(disabled.stderr, "");
+
+  const interruptionScript = `
+    import { Effect } from "effect";
+    import { provideCliLogging, withLogPhase } from ${JSON.stringify(pathToFileURL(resolve("src/unslide/logging.ts")).href)};
+    const controller = new AbortController();
+    const pending = Effect.runPromiseExit(
+      provideCliLogging(withLogPhase(Effect.never, "interruption.fixture"), "info"),
+      { signal: controller.signal },
+    );
+    setTimeout(() => controller.abort(), 20);
+    await pending;
+  `;
+  const interrupted = await execFileAsync(
+    process.execPath,
+    ["--import", tsxImport, "--input-type=module", "--eval", interruptionScript],
+    { cwd: repositoryRoot },
+  );
+  assert.equal(interrupted.stdout, "");
+  assert.deepEqual(
+    parseLogs(interrupted.stderr).map((entry) => entry.message),
+    ["phase.started", "phase.failed"],
+  );
+
+  for (const result of [
+    await runCli(["--log-level", "trace", "--help"], repositoryRoot, stableCliEnvironment),
+    await runCli(["--log-level=debug", "--help"], repositoryRoot, stableCliEnvironment),
+    await runCli(["--log-level", "info", "--help", "--log-level", "debug"], repositoryRoot, stableCliEnvironment),
+    await runCli(["--help"], repositoryRoot, { ...stableCliEnvironment, UNSLIDE_LOG_LEVEL: "TRACE" }),
+  ]) {
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.stderr, "");
+    assert.equal((result.value.error as Record<string, unknown>).code, "usage");
+  }
+});
+
+test("logging keeps stable failures on info and adds full Effect causes on debug", async () => {
+  const projectRoot = await createProject("unslide logging failures ");
+  try {
+    const info = await runCli(["build", "missing", "--log-level", "info"], projectRoot, stableCliEnvironment);
+    assert.equal(info.exitCode, 1);
+    assert.equal((info.value.error as Record<string, unknown>).code, "operation-failed");
+    const infoLogs = parseLogs(info.stderr);
+    const infoFailure = infoLogs.find((entry) => entry.message === "invocation.failed");
+    assert.equal(infoFailure?.level, "ERROR");
+    assert.equal(infoFailure?.annotations.errorTag, "ReportNotFound");
+    assert.equal(infoFailure?.annotations.errorMessage, "Report lookup failed.");
+    assert.equal(infoLogs.some((entry) => entry.message === "failure.cause"), false);
+
+    const debug = await runCli(["--log-level", "debug", "build", "missing"], projectRoot, stableCliEnvironment);
+    assert.equal(debug.exitCode, 1);
+    const debugLogs = parseLogs(debug.stderr);
+    const cause = debugLogs.find((entry) => entry.message === "failure.cause");
+    assert.equal(cause?.level, "DEBUG");
+    assert.match(cause?.cause ?? "", /Unknown report "missing"/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test("CLI root preserves exact TOON bytes and maps every tagged failure", async () => {
   const externalRoot = await mkdtemp(resolve(tmpdir(), "unslide-cli-boundary-"));
   const canonicalExternalRoot = await realpath(externalRoot);
@@ -176,7 +286,7 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
           help: {
             command: "build",
             usage: "unslide build <name>",
-            flags: [],
+            flags: [stableLogLevelFlag],
             examples: ["unslide build spike", "unslide build operating-review"],
           },
         }),
@@ -333,9 +443,12 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     assert.equal(inspection.stderr, "");
     assert.equal((inspection.value.report as Record<string, unknown>).pageCount, 1);
 
-    const capture = await runCli(["capture", "fixture"], projectRoot);
+    const capture = await runCli(["capture", "fixture", "--log-level", "debug"], projectRoot);
     assert.equal(capture.exitCode, 0);
-    assert.equal(capture.stderr, "");
+    const captureLogs = parseLogs(capture.stderr);
+    assert.ok(captureLogs.some((entry) => entry.annotations.phase === "browser.readiness"));
+    assert.ok(captureLogs.some((entry) => entry.message === "page.captured"));
+    assert.equal(new Set(captureLogs.map((entry) => entry.annotations.invocationId)).size, 1);
     const png = await readFile(resolve(projectRoot, "captured pages", "page-01.png"));
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [320, 180]);
 

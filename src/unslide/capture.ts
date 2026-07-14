@@ -1,7 +1,8 @@
 import { Effect, Path } from "effect";
 import { PAGE_MARKER_SELECTOR } from "./protocol.js";
 import { withLoadedArtifact } from "./browser.js";
-import { commandFailure } from "./failures.js";
+import { mapCommandFailure } from "./failures.js";
+import { logDebug, withLogPhase } from "./logging.js";
 import { replacePageImages } from "./page-images.js";
 
 export interface CapturedPage {
@@ -27,8 +28,8 @@ export const captureHtmlPages = Effect.fn("capture.captureHtmlPages")(function* 
   const outputDirectory = path.resolve(output);
   const context = { command: "capture", path: inputPath } as const;
   const stagedPages = yield* replacePageImages(outputDirectory, "captures", (stagingDirectory) =>
-    Effect.tryPromise({
-      try: (signal) => withLoadedArtifact(inputPath, async ({ page, pages }) => {
+    mapCommandFailure(withLogPhase(
+      withLoadedArtifact(inputPath, async ({ page, pages }) => {
         const digits = Math.max(2, String(pages.length).length);
         const pageElements = page.locator(PAGE_MARKER_SELECTOR);
 
@@ -52,10 +53,19 @@ export const captureHtmlPages = Effect.fn("capture.captureHtmlPages")(function* 
           });
         }
         return captures;
-      }, { signal }),
-      catch: (cause) => commandFailure(cause, context),
-    }),
+      }),
+      "pages.capture",
+      { path: inputPath },
+    ), context),
   );
+
+  yield* Effect.forEach(stagedPages, (page) => logDebug("page.captured", {
+    height: page.height,
+    pageId: page.id,
+    pageIndex: page.index,
+    path: page.outputPath,
+    width: page.width,
+  }), { discard: true });
 
   return { inputPath, outputDirectory, pages: stagedPages };
 });

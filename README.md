@@ -82,6 +82,18 @@ The `--silent` package-manager flag keeps CLI stdout as structured TOON for
 automation. Exit code 0 means success, 1 an operational failure, and 2 invalid
 command usage. Top-level and per-command `--help` forms are noninteractive.
 
+Execution logging is off by default, preserving empty stderr. Add
+`--log-level info` for major command phases or `--log-level debug` for page,
+publication, cleanup, and full Effect-cause evidence. The global flag may
+appear before or after the command and overrides the `UNSLIDE_LOG_LEVEL`
+environment variable; both accept `off`, `info`, or `debug`. Enabled logs are
+newline-delimited Effect JSON on stderr, while stdout remains unchanged TOON.
+The pre-release log event shape is diagnostic rather than a stable automation
+contract, and ordinary report-page console messages are not forwarded.
+Treat enabled logs as sensitive because phase annotations include local paths.
+Debug logs additionally include full Effect causes, where an existing failure
+message may contain authored text.
+
 ## Adopt from the Local Package
 
 The verified pre-release path uses a packed tarball. From this repository:

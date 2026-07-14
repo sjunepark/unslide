@@ -78,6 +78,11 @@ filesystem/path Layer, and the outer boundary translates typed operational
 failures to the stable CLI payload and exit-code contract. Effect remains an
 implementation detail and does not appear in published authoring declarations.
 
+The same boundary replaces Effect's default logger. Logging is disabled by
+default; an explicit CLI level installs a JSON stderr logger, a minimum level,
+and invocation annotations. Major operations add log spans without changing
+TOON stdout or the typed failure model. The diagnostic event shape is internal.
+
 Configuration may select entries, outputs, inspection locations, and supported
 export behavior. It must not define page geometry, typography, padding, chrome,
 or other visual policy.
@@ -174,7 +179,7 @@ documentation are insufficient.
   readiness independently of React.
 - `src/unslide/browser.ts` owns canonical Chromium loading, shared protocol
   readiness, browser/resource diagnostics, and scoped browser/context/page
-  release without importing React.
+  release in the calling Effect context without importing React.
 - `src/unslide/capture.ts` captures authored page bounds through that browser
   seam and returns deterministic structured results.
 - `src/unslide/page-images.ts` transactionally replaces managed page PNG sets,
@@ -194,8 +199,11 @@ documentation are insufficient.
 - `src/unslide/runtime.ts` provides the one internal Node filesystem/path Layer;
   `src/unslide/failures.ts` and `src/unslide/lifecycle.ts` preserve typed failure,
   interruption, and cleanup evidence across operational scopes.
+- `src/unslide/logging.ts` installs opt-in Effect JSON logging and provides the
+  shared phase instrumentation used across those operational scopes.
 - `src/cli.ts` exposes initialization, HTML build/inspection/capture, PDF export,
-  and PDF inspection with TOON output and stable exit codes.
+  and PDF inspection with TOON output, stable exit codes, and global logging
+  level parsing.
 - `src/unslide/init.ts` plans and safely writes the minimal user-owned project
   scaffold; `src/unslide/react.ts` is the narrow installed authoring entry.
 - `src/spike/` and `src/reports/operating-review/` own their full documents,

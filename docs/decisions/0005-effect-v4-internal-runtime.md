@@ -35,8 +35,10 @@ The adoption follows these constraints:
   published contract.
 - Use top-level v4 modules. An `effect/unstable/*` dependency requires new
   evidence and an update to this decision before adoption.
-- Preserve the existing CLI parser, TOON stdout, empty stderr, and 0/1/2 exit
-  behavior. Do not replace it with Effect's CLI module.
+- Preserve the existing CLI parser, TOON stdout, default-empty stderr, and
+  0/1/2 exit behavior. Do not replace it with Effect's CLI module. Explicit
+  `info` or `debug` logging may install Effect's JSON logger on stderr; its
+  pre-release event shape is diagnostic rather than a published contract.
 - Preserve Ajv and the published JSON Schema for `unslide.json`. Do not replace
   project configuration with Effect Config or Effect Schema.
 - Keep the browser-evaluated artifact validator Promise-native and
@@ -48,6 +50,9 @@ The adoption follows these constraints:
 - Introduce `Context.Service` and Layers only for genuine shared resources or
   alternate implementations. With one real adapter, keep the seam internal and
   provide Layers once at the application boundary.
+- Use Effect's native logger, annotations, log spans, and minimum-level
+  reference for internal execution evidence. Replace the default logger even
+  when logging is off so it cannot contaminate structured stdout.
 - Keep domain-specific publication and rollback semantics explicit. A generic
   scope must not erase recovery artifacts that are intentionally retained after
   incomplete rollback.
