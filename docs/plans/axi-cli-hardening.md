@@ -260,17 +260,18 @@ full diagnostic output, paths containing spaces, and PATH/absolute invocation.
 
 ## Current state
 
-- Current goal: Goal 3 — bound diagnostics without losing recovery information.
-- Completed: Goals 1–2. The parser and invocation prefix are deterministic. The
-  typed failure boundary presents all eight accepted public codes, distinguishes
-  missing Chromium from other launch failures, retains corrective report/name
-  context, and keeps raw causes on debug stderr only.
-- Validation: `pnpm run check` and the complete `tests/cli.test.tsx` suite pass.
-  A focused Goal 2 review found that authored capture/export operation failures
-  needed an explicit typed distinction; that safe fix and its invalid-geometry
-  and invalid-print-CSS regressions pass the bounded recheck.
-- Next action: preserve browser/protocol issues structurally and add the
-  command-scoped bounded/default versus `--full` presentation contract.
+- Current goal: Goal 4 — make success output precise, contextual, and compact.
+- Completed: Goals 1–3. Typed browser/protocol diagnostics now survive to the
+  CLI presenter, which alone applies the 10-issue and 1,000-character limits.
+  `--full` is limited to inspect/capture/export, reconstructs the original
+  invocation only when output truncates, and never changes dependency failures.
+- Validation: `pnpm run check`, the combined CLI/protocol suite, and focused
+  boundary regressions pass. The diagnostic fixture proves 13 mixed issues,
+  exact character totals for a long message and data URI, full output, and
+  default-empty stderr; protocol timeout/concurrent-resource tests inspect the
+  retained structured evidence directly.
+- Next action: revise home/success view models and compact page paths without
+  adding a generic output-schema layer.
 - Blockers: none.
 
 Update this section in place while executing. Do not append session logs.

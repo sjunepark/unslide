@@ -8,8 +8,8 @@ import { errorMessage } from "./failures.js";
 import { scoped, type ResourceCleanupFailure } from "./lifecycle.js";
 import { logDebug, withLogPhase } from "./logging.js";
 import {
-  formatArtifactIssues,
   validateArtifact,
+  type ArtifactDiagnostic,
   type ArtifactPage,
 } from "./protocol.js";
 
@@ -23,12 +23,16 @@ const NAVIGATION_TIMEOUT_MS = 5_000;
 export class BrowserFailure extends Data.TaggedError("BrowserFailure")<{
   readonly cause?: unknown;
   readonly cliCode?: "artifact-invalid" | "artifact-not-found" | "browser-not-installed" | "command-failed";
+  readonly issues?: readonly ArtifactDiagnostic[];
   readonly message: string;
   readonly phase: "access" | "launch" | "context" | "page" | "navigation" | "readiness" | "operation";
 }> {}
 
 export class ArtifactOperationFailure extends Data.TaggedError("ArtifactOperationFailure")<{
+  readonly code: string;
   readonly message: string;
+  readonly pageId?: string;
+  readonly resource?: string;
 }> {}
 
 function displayResource(url: string): string {
@@ -118,21 +122,34 @@ export function withLoadedArtifact<T>(
     const context = yield* acquireContext(browser);
     const page = yield* acquirePage(context);
     yield* logDebug("browser.page.created", { path: inputPath });
-    const browserIssues: string[] = [];
+    const browserIssues: ArtifactDiagnostic[] = [];
     const pendingResources = new Set<Request>();
     page.on("request", (request) => {
       if (request.resourceType() !== "document") pendingResources.add(request);
     });
     page.on("requestfinished", (request) => pendingResources.delete(request));
     page.on("console", (message) => {
-      if (message.type() === "error") browserIssues.push(`Console error: ${message.text()}`);
+      if (message.type() === "error") {
+        browserIssues.push({
+          code: "console-error",
+          message: message.text(),
+          source: "browser",
+        });
+      }
     });
-    page.on("pageerror", (error) => browserIssues.push(`Page error: ${error.message}`));
+    page.on("pageerror", (error) => browserIssues.push({
+      code: "page-error",
+      message: error.message,
+      source: "browser",
+    }));
     page.on("requestfailed", (request) => {
       pendingResources.delete(request);
-      browserIssues.push(
-        `Resource failed: ${displayResource(request.url())} (${request.failure()?.errorText ?? "unknown error"})`,
-      );
+      browserIssues.push({
+        code: "resource-failed",
+        message: "Resource request failed.",
+        resource: displayResource(request.url()),
+        source: "browser",
+      });
     });
 
     yield* withLogPhase(
@@ -176,14 +193,20 @@ export function withLoadedArtifact<T>(
           }),
         });
         const issues = [
-          ...(result.ok ? [] : [formatArtifactIssues(result.issues)]),
+          ...(result.ok ? [] : result.issues),
           ...browserIssues,
-          ...[...pendingResources].map((request) => `Resource still pending: ${displayResource(request.url())}`),
+          ...[...pendingResources].map((request): ArtifactDiagnostic => ({
+            code: "resource-pending",
+            message: "Resource request is still pending.",
+            resource: displayResource(request.url()),
+            source: "browser",
+          })),
         ];
         if (issues.length > 0) {
           return yield* new BrowserFailure({
             cliCode: "artifact-invalid",
-            message: `Artifact readiness failed:\n${issues.join("\n")}`,
+            issues,
+            message: "Artifact readiness failed.",
             phase: "readiness",
           });
         }
@@ -202,18 +225,33 @@ export function withLoadedArtifact<T>(
       catch: (cause) => new BrowserFailure({
         cause,
         cliCode: cause instanceof ArtifactOperationFailure ? "artifact-invalid" : "command-failed",
+        issues: cause instanceof ArtifactOperationFailure
+          ? [{
+            code: cause.code,
+            message: cause.message,
+            pageId: cause.pageId,
+            resource: cause.resource,
+            source: "browser",
+          }]
+          : undefined,
         message: errorMessage(cause),
         phase: "operation",
       }),
     });
     const operationIssues = [
       ...browserIssues,
-      ...[...pendingResources].map((request) => `Resource still pending: ${displayResource(request.url())}`),
+      ...[...pendingResources].map((request): ArtifactDiagnostic => ({
+        code: "resource-pending",
+        message: "Resource request is still pending.",
+        resource: displayResource(request.url()),
+        source: "browser",
+      })),
     ];
     if (operationIssues.length > 0) {
       return yield* new BrowserFailure({
         cliCode: "artifact-invalid",
-        message: `Artifact browser errors:\n${operationIssues.join("\n")}`,
+        issues: operationIssues,
+        message: "Artifact browser operation reported errors.",
         phase: "operation",
       });
     }

@@ -1,4 +1,5 @@
 import { Cause, Data, Effect } from "effect";
+import type { ArtifactDiagnostic } from "./protocol.js";
 
 export type OperationalErrorCode =
   | "artifact-invalid"
@@ -30,6 +31,7 @@ export class CommandFailure extends Data.TaggedError("CommandFailure")<{
   readonly cause: unknown;
   readonly code: OperationalErrorCode;
   readonly command: string;
+  readonly issues?: readonly ArtifactDiagnostic[];
   readonly message: string;
   readonly path?: string;
   readonly report?: string;
@@ -85,6 +87,15 @@ function classifiedCode(cause: unknown): OperationalErrorCode | undefined {
   return undefined;
 }
 
+function classifiedIssues(cause: unknown): readonly ArtifactDiagnostic[] | undefined {
+  return typeof cause === "object"
+    && cause !== null
+    && "issues" in cause
+    && Array.isArray(cause.issues)
+    ? cause.issues as ArtifactDiagnostic[]
+    : undefined;
+}
+
 export function commandFailure(
   cause: unknown,
   context: CommandFailureContext,
@@ -95,6 +106,7 @@ export function commandFailure(
       cause: cause.cause,
       code: context.code ?? cause.code,
       command: context.command,
+      issues: cause.issues,
       message: message ?? cause.message,
       path: context.path ?? cause.path,
       report: context.report ?? cause.report,
@@ -104,6 +116,7 @@ export function commandFailure(
     cause,
     code: context.code ?? classifiedCode(cause) ?? "command-failed",
     command: context.command,
+    issues: classifiedIssues(cause),
     message: message ?? errorMessage(cause),
     path: context.path,
     report: context.report,

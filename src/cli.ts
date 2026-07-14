@@ -17,12 +17,15 @@ import {
   provideCliLogging,
   withLogPhase,
 } from "./unslide/logging.js";
+import type { ArtifactDiagnostic } from "./unslide/protocol.js";
 import { applicationLayer } from "./unslide/runtime.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 const LOG_LEVEL_FLAG = "--log-level";
 const LOG_LEVEL_ENV = "UNSLIDE_LOG_LEVEL";
 const LOG_LEVELS = new Set<CliLogLevel>(["off", "info", "debug"]);
+const DEFAULT_DIAGNOSTIC_LIMIT = 10;
+const DEFAULT_DIAGNOSTIC_TEXT_LIMIT = 1_000;
 
 interface ParsedLoggingOptions {
   argv: string[];
@@ -89,6 +92,13 @@ function logLevelFlag(): JsonValue {
   return {
     flag: `${LOG_LEVEL_FLAG} <off|info|debug>`,
     description: `Emit Effect JSON Lines on stderr (default: ${LOG_LEVEL_ENV} or off)`,
+  };
+}
+
+function fullFlag(): JsonValue {
+  return {
+    flag: "--full",
+    description: "Show complete report-authored diagnostics (default: up to 10 issues and 1,000 characters per text field)",
   };
 }
 
@@ -176,10 +186,19 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       usage: `${CLI_INVOCATION} inspect <name> | ${CLI_INVOCATION} inspect --artifact <path>`,
       flags: [
         { flag: "--artifact <path>", description: "Inspect an explicit HTML path instead of a configured report" },
+        fullFlag(),
         helpFlag(),
         logLevelFlag(),
       ],
       examples: [`${CLI_INVOCATION} inspect operating-review`, `${CLI_INVOCATION} inspect --artifact artifacts/report.html`],
+    };
+  }
+  if (command === "capture" || command === "export") {
+    return {
+      command,
+      usage: `${CLI_INVOCATION} ${command} <name>`,
+      flags: [fullFlag(), helpFlag(), logLevelFlag()],
+      examples: [`${CLI_INVOCATION} ${command} spike`, `${CLI_INVOCATION} ${command} operating-review`],
     };
   }
   if (command === "inspect-pdf") {
@@ -230,11 +249,73 @@ function recognizedCommand(rawArguments: string[]): CliCommand | undefined {
     || argument === "init");
 }
 
+function shellArgument(value: string): string {
+  return /^[A-Za-z0-9_@%+=:,./-]+$/.test(value) ? value : shellQuote(value);
+}
+
+function fullDiagnosticCommand(rawArguments: string[]): string {
+  const commandArguments: string[] = [];
+  for (let index = 0; index < rawArguments.length; index += 1) {
+    const argument = rawArguments[index] as string;
+    if (argument === LOG_LEVEL_FLAG) {
+      index += 1;
+      continue;
+    }
+    if (argument !== "--full") commandArguments.push(argument);
+  }
+  return `${CLI_INVOCATION} ${commandArguments.map(shellArgument).join(" ")} --full`;
+}
+
+interface DiagnosticView {
+  readonly output: JsonValue;
+  readonly truncated: boolean;
+}
+
+function truncateDiagnosticText(value: string): { text: string; totalChars?: number } {
+  const characters = [...value];
+  if (characters.length <= DEFAULT_DIAGNOSTIC_TEXT_LIMIT) return { text: value };
+  return {
+    text: `${characters.slice(0, DEFAULT_DIAGNOSTIC_TEXT_LIMIT - 1).join("")}…`,
+    totalChars: characters.length,
+  };
+}
+
+function diagnosticView(issues: readonly ArtifactDiagnostic[], full: boolean): DiagnosticView {
+  const selected = full ? issues : issues.slice(0, DEFAULT_DIAGNOSTIC_LIMIT);
+  let textTruncated = false;
+  const rows = selected.map((issue) => {
+    const message = full ? { text: issue.message } : truncateDiagnosticText(issue.message);
+    const resource = issue.resource === undefined
+      ? undefined
+      : full ? { text: issue.resource } : truncateDiagnosticText(issue.resource);
+    textTruncated ||= message.totalChars !== undefined || resource?.totalChars !== undefined;
+    return {
+      source: issue.source,
+      code: issue.code,
+      message: message.text,
+      ...(message.totalChars === undefined ? {} : { messageTotalChars: message.totalChars }),
+      ...(issue.pageId === undefined ? {} : { pageId: issue.pageId }),
+      ...(resource === undefined ? {} : { resource: resource.text }),
+      ...(resource?.totalChars === undefined ? {} : { resourceTotalChars: resource.totalChars }),
+    };
+  });
+  const truncated = !full && (issues.length > selected.length || textTruncated);
+  return {
+    output: {
+      shown: selected.length,
+      total: issues.length,
+      truncated,
+      issues: rows,
+    },
+    truncated,
+  };
+}
+
 function artifactKind(command: string): "HTML" | "PDF" {
   return command === "inspect-pdf" ? "PDF" : "HTML";
 }
 
-function formatCommandFailure(error: CommandFailure): void {
+function formatCommandFailure(error: CommandFailure, rawArguments: string[]): void {
   const kind = artifactKind(error.command);
   const context = {
     ...(error.report ? { report: error.report } : {}),
@@ -250,11 +331,17 @@ function formatCommandFailure(error: CommandFailure): void {
     return;
   }
   if (error.code === "artifact-invalid") {
+    const diagnostics = error.issues && error.issues.length > 0
+      ? diagnosticView(error.issues, rawArguments.includes("--full"))
+      : undefined;
+    const help = [
+      ...(error.report ? [`Run ${recoveryCommand(kind === "PDF" ? "export" : "build", error.report)}`] : []),
+      ...(diagnostics?.truncated ? [`Run ${fullDiagnosticCommand(rawArguments)}`] : []),
+    ];
     writeOutput({
       error: { code: error.code, message: `${kind} artifact is invalid.`, ...context },
-      ...(error.report
-        ? { help: [`Run ${recoveryCommand(kind === "PDF" ? "export" : "build", error.report)}`] }
-        : {}),
+      ...(diagnostics ? { diagnostics: diagnostics.output } : {}),
+      ...(help.length > 0 ? { help } : {}),
     });
     return;
   }
@@ -307,18 +394,19 @@ function formatCliFailure(error: CliFailure, rawArguments: string[]): number {
     }
     case "ReportNotFound": {
       const command = recognizedCommand(rawArguments) ?? "build";
+      const presentationSuffix = rawArguments.includes("--full") ? " --full" : "";
       writeOutput({
         error: {
           code: "report-not-found",
           message: `Report "${error.report}" is not configured.`,
           availableReports: [...error.availableReports],
         },
-        help: [`Run ${recoveryCommand(command, "<name>")}`],
+        help: [`Run ${recoveryCommand(command, "<name>")}${presentationSuffix}`],
       });
       return 1;
     }
     case "CommandFailure":
-      formatCommandFailure(error);
+      formatCommandFailure(error, rawArguments);
       return 1;
     default: {
       const exhaustive: never = error;
@@ -343,20 +431,24 @@ type CliCommand = "build" | "inspect" | "capture" | "export" | "inspect-pdf" | "
 
 function validateBeforeHelp(command: CliCommand, argv: string[]): string | undefined {
   const allowedFlags = command === "inspect"
-    ? new Set(["--artifact", "--help"])
+    ? new Set(["--artifact", "--full", "--help"])
     : command === "inspect-pdf"
       ? new Set(["--artifact", "--output", "--help"])
       : command === "init"
         ? new Set(["--name", "--yes", "--help"])
-        : new Set(["--help"]);
+        : command === "capture" || command === "export"
+          ? new Set(["--full", "--help"])
+          : new Set(["--help"]);
   const unknownFlag = argv.slice(1).find((argument) => argument.startsWith("-") && !allowedFlags.has(argument));
   if (unknownFlag) return `Unknown flag "${unknownFlag}" for ${command}.`;
 
   const helpCount = argv.filter((argument) => argument === "--help").length;
   if (helpCount > 1) return "--help may be provided only once.";
+  const fullCount = argv.filter((argument) => argument === "--full").length;
+  if (fullCount > 1) return "--full may be provided only once.";
 
   if (command === "build" || command === "capture" || command === "export") {
-    const positionals = argv.slice(1).filter((argument) => argument !== "--help");
+    const positionals = argv.slice(1).filter((argument) => argument !== "--help" && argument !== "--full");
     return positionals.length > 1
       ? `Unexpected argument "${positionals[1]}" for ${command}.`
       : undefined;
@@ -395,7 +487,7 @@ function validateBeforeHelp(command: CliCommand, argv: string[]): string | undef
   const positionals: string[] = [];
   for (let index = 1; index < argv.length; index += 1) {
     const argument = argv[index] as string;
-    if (argument === "--help") continue;
+    if (argument === "--help" || argument === "--full") continue;
     if (valueFlags.includes(argument)) {
       if (seen.has(argument)) return `${argument} may be provided only once.`;
       seen.add(argument);
@@ -456,6 +548,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     writeOutput(commandHelp(command));
     return 0;
   }
+  argv = argv.filter((argument) => argument !== "--full");
 
   if (command === "init") {
     let reportName = "report";
@@ -730,11 +823,14 @@ async function main(rawArguments: string[]): Promise<number> {
     return formatCliFailure(primary, rawArguments);
   }
   if (primary && !hasNonOperationalCause) {
+    const combinedIssues = failures.flatMap((failure) =>
+      failure._tag === "CommandFailure" ? [...(failure.issues ?? [])] : []);
     const combined = primary._tag === "CommandFailure"
       ? new CommandFailure({
         cause: exit.cause,
         code: primary.code,
         command: primary.command,
+        issues: combinedIssues.length > 0 ? combinedIssues : primary.issues,
         message: causeMessage(exit.cause),
         path: primary.path,
         report: primary.report,

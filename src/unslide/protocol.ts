@@ -23,6 +23,15 @@ export interface ArtifactValidationIssue {
   message: string;
   pageId?: string;
   resource?: string;
+  source: "protocol";
+}
+
+export interface ArtifactDiagnostic {
+  code: string;
+  message: string;
+  pageId?: string;
+  resource?: string;
+  source: "browser" | "protocol";
 }
 
 export type ArtifactValidationResult =
@@ -54,6 +63,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
     issues.push({
       code: "protocol-version",
       message: "Artifact declares the Unslide protocol version more than once; keep exactly one version metadata element.",
+      source: "protocol",
     });
   } else if (protocolMetadata.length === 1) {
     const version = protocolMetadata[0]?.content.trim() ?? "";
@@ -61,6 +71,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
       issues.push({
         code: "protocol-version",
         message: `Unsupported artifact protocol version "${version}". This release supports version 1; regenerate or migrate the report source manually because automatic migration is not available.`,
+        source: "protocol",
       });
     }
   }
@@ -74,6 +85,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
       issues.push({
         code: "document-readiness",
         message: `Document did not finish loading within ${resourceTimeoutMs}ms.`,
+        source: "protocol",
       });
     }
   }
@@ -86,6 +98,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
     issues.push({
       code: "missing-pages",
       message: `No report pages found. Expected at least one element with ${markerAttribute}=\"<id>\".`,
+      source: "protocol",
     });
   }
 
@@ -97,6 +110,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
       issues.push({
         code: "empty-page-id",
         message: `Page ${index + 1} has an empty ${markerAttribute} value.`,
+        source: "protocol",
       });
       return;
     }
@@ -112,6 +126,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
         code: "duplicate-page-id",
         message: `Page ID \"${id}\" is duplicated at positions ${positions.join(", ")}.`,
         pageId: id,
+        source: "protocol",
       });
     }
   }
@@ -126,8 +141,9 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
         .join(", ") || undefined;
       issues.push({
         code: "font-readiness",
-        message: `Fonts did not finish loading within ${resourceTimeoutMs}ms${resource ? `: ${resource}` : "."}`,
+        message: `Fonts did not finish loading within ${resourceTimeoutMs}ms.`,
         resource,
+        source: "protocol",
       });
     }
 
@@ -136,15 +152,17 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
         const resource = `${font.family} (${font.style} ${font.weight})`;
         issues.push({
           code: "font-readiness",
-          message: `Font failed to load: ${resource}`,
+          message: "Font failed to load.",
           resource,
+          source: "protocol",
         });
       }
     }
-  } catch (error) {
+  } catch {
     issues.push({
       code: "font-readiness",
-      message: `Document fonts failed to become ready: ${error instanceof Error ? error.message : String(error)}`,
+      message: "Document fonts failed to become ready.",
+      source: "protocol",
     });
   }
 
@@ -169,10 +187,11 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
           return {
             code: "image-readiness",
             message: loadState === "timeout"
-              ? `Image did not finish loading within ${resourceTimeoutMs}ms${pageId ? ` on page \"${pageId}\"` : ""}: ${resource}`
-              : `Image failed to load${pageId ? ` on page \"${pageId}\"` : ""}: ${resource}`,
+              ? `Image did not finish loading within ${resourceTimeoutMs}ms${pageId ? ` on page \"${pageId}\"` : ""}.`
+              : `Image failed to load${pageId ? ` on page \"${pageId}\"` : ""}.`,
             pageId,
             resource,
+            source: "protocol",
           };
         }
       }
@@ -180,9 +199,10 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
       if (image.naturalWidth === 0) {
         return {
           code: "image-readiness",
-          message: `Image has no decodable content${pageId ? ` on page \"${pageId}\"` : ""}: ${resource}`,
+          message: `Image has no decodable content${pageId ? ` on page \"${pageId}\"` : ""}.`,
           pageId,
           resource,
+          source: "protocol",
         };
       }
 
@@ -197,17 +217,19 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
         if (decodeState === "timeout") {
           return {
             code: "image-readiness",
-            message: `Image did not decode within ${resourceTimeoutMs}ms${pageId ? ` on page \"${pageId}\"` : ""}: ${resource}`,
+            message: `Image did not decode within ${resourceTimeoutMs}ms${pageId ? ` on page \"${pageId}\"` : ""}.`,
             pageId,
             resource,
+            source: "protocol",
           };
         }
-      } catch (error) {
+      } catch {
         return {
           code: "image-readiness",
-          message: `Image failed to decode${pageId ? ` on page \"${pageId}\"` : ""}: ${resource} (${error instanceof Error ? error.message : String(error)})`,
+          message: `Image failed to decode${pageId ? ` on page \"${pageId}\"` : ""}.`,
           pageId,
           resource,
+          source: "protocol",
         };
       }
 
@@ -218,8 +240,4 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
   issues.push(...imageIssues.filter((issue): issue is ArtifactValidationIssue => issue !== undefined));
 
   return issues.length === 0 ? { ok: true, pages } : { ok: false, pages, issues };
-}
-
-export function formatArtifactIssues(issues: ArtifactValidationIssue[]): string {
-  return issues.map((issue) => issue.message).join("\n");
 }

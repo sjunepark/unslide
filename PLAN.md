@@ -2,9 +2,9 @@
 
 Active implementation goal: **AXI CLI hardening through Goal 5.**
 
-Current next action: **Execute Goal 3 of
-[`docs/plans/axi-cli-hardening.md`](docs/plans/axi-cli-hardening.md): bound
-authored diagnostics without losing recovery information.**
+Current next action: **Execute Goal 4 of
+[`docs/plans/axi-cli-hardening.md`](docs/plans/axi-cli-hardening.md): make
+success output precise, contextual, and compact.**
 
 Suggested `/goal` objective:
 
@@ -19,15 +19,15 @@ product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
 
 ## Active Work
 
-- Completed: Goals 1–2. Parsing/help and portable invocation are deterministic.
-  Typed operational failures now present the eight accepted public codes with
-  concise messages and corrective commands; raw causes remain debug-only.
-- Evidence: `pnpm run check` and the complete `tests/cli.test.tsx` suite pass.
-  Error fixtures cover missing/unreadable/invalid configuration, missing
-  reports and artifacts, invalid HTML/PDF/authored browser operations, missing
-  Chromium, and a distinct launch failure. A focused implementation review
-  found one authored-operation classification gap; the safe fix and two
-  regressions pass the bounded recheck.
+- Completed: Goals 1–3. Parsing, invocation, and typed public failures are
+  deterministic. Browser/protocol diagnostics remain structured internally;
+  default stdout shows at most 10 issues and 1,000 characters per authored text
+  field with exact totals, while command-scoped `--full` reveals only complete
+  authored diagnostics.
+- Evidence: `pnpm run check`, the combined CLI/protocol suite, and focused
+  boundary regressions pass. Fixtures cover mixed sources, 13 simultaneous
+  issues, long messages and data URIs, full-mode recovery commands, invalid
+  flag scope, combined resource evidence, and unchanged dependency failures.
 - Blockers: none.
 
 ## Current Gates

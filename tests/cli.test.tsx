@@ -58,6 +58,11 @@ const stableHelpFlag = {
   description: "Show concise command help without requiring command values",
 };
 
+const stableFullFlag = {
+  flag: "--full",
+  description: "Show complete report-authored diagnostics (default: up to 10 issues and 1,000 characters per text field)",
+};
+
 interface EffectLogEntry {
   annotations: Record<string, unknown>;
   cause?: string;
@@ -168,6 +173,12 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
     assert.deepEqual((result.value.flags as unknown[]).slice(-2), [stableHelpFlag, stableLogLevelFlag]);
   }
 
+  for (const command of ["inspect", "capture", "export"]) {
+    const result = await runCli([command, "--help"], repositoryRoot, stableCliEnvironment);
+    assert.ok((result.value.flags as unknown[]).some((flag) =>
+      (flag as Record<string, unknown>).flag === stableFullFlag.flag));
+  }
+
   for (const result of [
     await runCli(["unknown"]),
     await runCli(["build"]),
@@ -179,6 +190,9 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
     await runCli(["inspect-pdf", "--output", "pages"]),
     await runCli(["build", "--wat", "--help"]),
     await runCli(["build", "report", "extra", "--help"]),
+    await runCli(["build", "report", "--full"]),
+    await runCli(["inspect-pdf", "report", "--full"]),
+    await runCli(["init", "--full"]),
   ]) {
     assert.equal(result.exitCode, 2);
     assert.equal(result.stderr, "");
@@ -435,6 +449,9 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
       },
     );
 
+    const missingReportWithFull = await runCli(["capture", "missing", "--full"], projectRoot, stableCliEnvironment);
+    assert.deepEqual(missingReportWithFull.value.help, ["Run unslide capture <name> --full"]);
+
     const invalidArtifact = await runCli(
       ["inspect", "--artifact", resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html")],
       repositoryRoot,
@@ -450,6 +467,16 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
             code: "artifact-invalid",
             message: "HTML artifact is invalid.",
             path: resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html"),
+          },
+          diagnostics: {
+            shown: 1,
+            total: 1,
+            truncated: false,
+            issues: [{
+              source: "protocol",
+              code: "missing-pages",
+              message: 'No report pages found. Expected at least one element with data-unslide-page="<id>".',
+            }],
           },
         }),
       },
@@ -507,6 +534,16 @@ test("operational failures use stable codes, corrective commands, and diagnostic
         message: "HTML artifact is invalid.",
         report: "fixture",
         path: htmlPath,
+      },
+      diagnostics: {
+        shown: 1,
+        total: 1,
+        truncated: false,
+        issues: [{
+          source: "protocol",
+          code: "missing-pages",
+          message: 'No report pages found. Expected at least one element with data-unslide-page="<id>".',
+        }],
       },
       help: ["Run unslide build fixture"],
     });
@@ -585,10 +622,69 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     });
     assert.equal(debugLaunchFailure.stdout, launchFailure.stdout);
     assert.match(debugLaunchFailure.stderr, /Cannot launch the canonical Chromium browser|BrowserFailure/);
+
+    const fullLaunchFailure = await runCli(["capture", "fixture", "--full"], projectRoot, {
+      ...stableCliEnvironment,
+      PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers,
+    });
+    assert.equal(fullLaunchFailure.stdout, launchFailure.stdout);
+    assert.equal(fullLaunchFailure.stderr, "");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
     await rm(missingBrowsers, { recursive: true, force: true });
     await rm(brokenBrowsers, { recursive: true, force: true });
+  }
+});
+
+test("authored diagnostics are structured and bounded unless --full is requested", async () => {
+  const directory = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide diagnostic limits "));
+  const artifactPath = resolve(directory, "authored diagnostics.html");
+  const longMessage = "M".repeat(1_205);
+  const longResource = `data:image/png;base64,${"A".repeat(1_400)}`;
+  const consoleErrors = [longMessage, ...Array.from({ length: 10 }, (_, index) => `console issue ${index + 2}`)];
+  await writeFile(artifactPath, `<!doctype html>
+    <html><head><meta name="unslide-protocol" content="2"></head>
+    <body><main data-unslide-page="diagnostics">
+      <img src="${longResource}">
+      <script>${consoleErrors.map((message) => `console.error(${JSON.stringify(message)});`).join("")}</script>
+    </main></body></html>`);
+
+  try {
+    const bounded = await runCli(["inspect", "--artifact", artifactPath], directory, stableCliEnvironment);
+    assert.equal(bounded.exitCode, 1);
+    assert.equal(bounded.stderr, "");
+    const boundedDiagnostics = bounded.value.diagnostics as Record<string, unknown>;
+    assert.deepEqual(
+      { shown: boundedDiagnostics.shown, total: boundedDiagnostics.total, truncated: boundedDiagnostics.truncated },
+      { shown: 10, total: 13, truncated: true },
+    );
+    const boundedIssues = boundedDiagnostics.issues as Array<Record<string, unknown>>;
+    assert.ok(boundedIssues.some((issue) => issue.source === "protocol"));
+    assert.ok(boundedIssues.some((issue) => issue.source === "browser"));
+    const messageIssue = boundedIssues.find((issue) => issue.code === "console-error" && issue.messageTotalChars);
+    assert.equal([...(messageIssue?.message as string)].length, 1_000);
+    assert.equal(messageIssue?.messageTotalChars, 1_205);
+    const resourceIssue = boundedIssues.find((issue) => issue.resourceTotalChars);
+    assert.equal([...(resourceIssue?.resource as string)].length, 1_000);
+    assert.equal(resourceIssue?.resourceTotalChars, [...longResource].length);
+    assert.deepEqual(bounded.value.help, [
+      `Run unslide inspect --artifact ${shellQuote(artifactPath)} --full`,
+    ]);
+
+    const full = await runCli(["inspect", "--artifact", artifactPath, "--full"], directory, stableCliEnvironment);
+    assert.equal(full.exitCode, 1);
+    assert.equal(full.stderr, "");
+    const fullDiagnostics = full.value.diagnostics as Record<string, unknown>;
+    assert.deepEqual(
+      { shown: fullDiagnostics.shown, total: fullDiagnostics.total, truncated: fullDiagnostics.truncated },
+      { shown: 13, total: 13, truncated: false },
+    );
+    const fullIssues = fullDiagnostics.issues as Array<Record<string, unknown>>;
+    assert.equal(fullIssues.find((issue) => issue.code === "console-error")?.message, longMessage);
+    assert.equal(fullIssues.find((issue) => issue.resource)?.resource, longResource);
+    assert.equal(full.value.help, undefined);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
 });
 

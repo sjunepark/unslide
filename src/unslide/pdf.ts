@@ -297,6 +297,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
       });
       if (pageRules.baseSizes.length === 0) {
         throw new ArtifactOperationFailure({
+          code: "print-css",
           message: "Artifact print CSS must declare one active, unqualified @page rule with a concrete size; refusing Chromium's implicit Letter fallback.",
         });
       }
@@ -305,6 +306,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
       const invalidSize = parsedSizes.find(({ geometry }) => !geometry);
       if (invalidSize) {
         throw new ArtifactOperationFailure({
+          code: "print-css",
           message: `Artifact print CSS uses non-concrete @page size ${JSON.stringify(invalidSize.size)}. Use one named Chromium page format or one or two positive absolute lengths.`,
         });
       }
@@ -316,6 +318,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
           || Math.abs(geometry.heightPoints - expectedGeometry.heightPoints) > GEOMETRY_TOLERANCE_POINTS)
       ) {
         throw new ArtifactOperationFailure({
+          code: "print-css",
           message: `Artifact print CSS declares ambiguous @page sizes (${authoredSizes.join(", ")}); initial PDF export supports one geometry per report.`,
         });
       }
@@ -327,6 +330,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
       });
       if (expectedText.length === 0) {
         throw new ArtifactOperationFailure({
+          code: "extractable-text",
           message: "Artifact must contain extractable text in at least one marked page before PDF export.",
         });
       }

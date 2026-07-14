@@ -39,7 +39,9 @@ export const captureHtmlPages = Effect.fn("capture.captureHtmlPages")(function* 
           const bounds = await element.boundingBox();
           if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
             throw new ArtifactOperationFailure({
+              code: "page-geometry",
               message: `Page "${metadata.id}" at position ${index + 1} has no visible capture area.`,
+              pageId: metadata.id,
             });
           }
 
