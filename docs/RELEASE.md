@@ -4,11 +4,11 @@ Unslide publishes the public npm package `unslide`. Release Please owns normal
 version bumps, `CHANGELOG.md`, `v<version>` source tags, and GitHub Releases.
 The tag-triggered release workflow validates tagged source and publishes npm.
 
-## One-time setup
+## One-time setup (completed)
 
-The `unslide` name was unclaimed when public distribution was accepted. npm
-requires a package to exist before trusted publishing can be attached, so
-bootstrap the reviewed `0.1.0` package and its matching tag manually:
+The reviewed `0.1.0` package was bootstrapped from its matching `v0.1.0` tag
+because npm requires a package to exist before trusted publishing can be
+attached. This command sequence is historical evidence; do not rerun it:
 
 ```sh
 pnpm run validate
@@ -19,8 +19,8 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Perform the publish and tag only from the same commit on `main`. After the
-package exists, configure its npm trusted publisher:
+The publish and tag came from the same commit on `main`. The npm trusted
+publisher is configured as:
 
 - Publisher: GitHub Actions
 - Organization or user: `sjunepark`
@@ -28,14 +28,15 @@ package exists, configure its npm trusted publisher:
 - Workflow filename: `release.yml`
 - Allowed action: `npm publish`
 
-Configure `RELEASE_PLEASE_TOKEN` in the GitHub repository. Use a fine-grained
-PAT or GitHub App token, rather than the default `GITHUB_TOKEN`, so generated
-tags trigger `release.yml`. Grant Contents, Pull requests, and Issues
-read/write access.
+`RELEASE_PLEASE_TOKEN` is configured in the GitHub repository with a
+repository-scoped fine-grained PAT. It has Contents, Pull requests, and Issues
+read/write access so generated tags trigger `release.yml`. Its source value is
+kept in the maintainer's 1Password vault; do not create unmanaged duplicates.
 
-Protect `main` and require `CI / Validate package and proof reports` before
-merging. The release workflow uses npm OIDC trusted publishing; it does not
-require a long-lived npm token after bootstrap.
+`main` requires pull requests and `CI / Validate package and proof reports`
+before merging. npm publishing access disallows ordinary tokens. The release
+workflow uses npm OIDC trusted publishing and needs no npm token after
+bootstrap.
 
 ## Automated flow
 
