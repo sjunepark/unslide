@@ -28,6 +28,7 @@ export class ReportNotFound extends Data.TaggedError("ReportNotFound")<{
 }> {}
 
 export class CommandFailure extends Data.TaggedError("CommandFailure")<{
+  readonly artifact?: "html" | "pdf";
   readonly cause: unknown;
   readonly code: OperationalErrorCode;
   readonly command: string;
@@ -38,6 +39,7 @@ export class CommandFailure extends Data.TaggedError("CommandFailure")<{
 }> {}
 
 export interface CommandFailureContext {
+  readonly artifact?: "html" | "pdf";
   readonly code?: OperationalErrorCode;
   readonly command: string;
   readonly path?: string;
@@ -103,6 +105,7 @@ export function commandFailure(
 ): CommandFailure {
   if (cause instanceof CommandFailure) {
     return new CommandFailure({
+      artifact: context.artifact ?? cause.artifact,
       cause: cause.cause,
       code: context.code ?? cause.code,
       command: context.command,
@@ -113,6 +116,7 @@ export function commandFailure(
     });
   }
   return new CommandFailure({
+    artifact: context.artifact,
     cause,
     code: context.code ?? classifiedCode(cause) ?? "command-failed",
     command: context.command,
@@ -120,6 +124,39 @@ export function commandFailure(
     message: message ?? errorMessage(cause),
     path: context.path,
     report: context.report,
+  });
+}
+
+export function isCliFailure(error: unknown): error is CliFailure {
+  if (typeof error !== "object" || error === null || !("_tag" in error)) return false;
+  return error._tag === "ProjectNotFound"
+    || error._tag === "ProjectConfigFailure"
+    || error._tag === "ReportNotFound"
+    || error._tag === "CommandFailure";
+}
+
+/** Preserves the primary CLI context while retaining diagnostics from combined failures. */
+export function combineCliFailures(cause: Cause.Cause<unknown>): CliFailure | undefined {
+  const failures = cause.reasons.flatMap((reason) =>
+    reason._tag === "Fail" && isCliFailure(reason.error) ? [reason.error] : []);
+  if (failures.length !== cause.reasons.length) return undefined;
+
+  const primary = failures[0];
+  if (!primary || failures.length === 1) return primary;
+  if (primary._tag !== "CommandFailure") return primary;
+
+  const issues = failures.flatMap((failure) =>
+    failure._tag === "CommandFailure" ? [...(failure.issues ?? [])] : []);
+  return new CommandFailure({
+    artifact: primary.artifact,
+    cause,
+    code: primary.code,
+    command: primary.command,
+    issues: issues.length > 0 ? issues : primary.issues,
+    message: cause.reasons.map((reason) =>
+      reason._tag === "Fail" ? errorMessage(reason.error) : "").join("\n"),
+    path: primary.path,
+    report: primary.report,
   });
 }
 

@@ -102,14 +102,15 @@ appear on stdout.
 
 Top-level and per-command `--help` forms are noninteractive. Unknown flags and
 extra values still return exit 2 when combined with `--help`; help bypasses only
-missing required values. Commands emitted in `help` use the repository package
-script, a PATH-verified `unslide`, or a safely quoted absolute executable, so
-callers should run the emitted command as written.
+missing required values. Commands emitted in `help` use the detected npm, pnpm,
+or Yarn repository script runner, a PATH-verified `unslide`, or a safely quoted
+absolute executable, so callers should run the emitted command as written.
 
 The global `--log-level <off|info|debug>` flag may appear before or after the
 command and overrides `UNSLIDE_LOG_LEVEL`; both default to `off`. Add `--full`
 only to `inspect`, `capture`, or `export` to request complete report-authored
-browser/protocol diagnostics when the default view is truncated. Default
+browser, protocol, or PDF-validation diagnostics when the default view is
+truncated. Default
 diagnostics show at most 10 issues and 1,000 Unicode characters per authored
 message or resource, with exact totals. `--full` never exposes raw dependency
 causes, but it may expose complete authored text and resource identifiers, so

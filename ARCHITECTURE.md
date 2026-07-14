@@ -80,9 +80,10 @@ implementation detail and does not appear in published authoring declarations.
 
 Each invocation emits one TOON document on stdout. The CLI presenter maps
 observed typed failures to a small stable code set and keeps dependency causes
-out of that public channel. Browser and protocol operations retain complete
-structured authored diagnostics internally; only the CLI presenter applies the
-default issue and text limits or honors command-scoped `--full`. Success view
+out of that public channel. Browser, protocol, and PDF validation operations
+retain complete structured authored diagnostics internally; only the CLI
+presenter applies the default issue and text limits or honors command-scoped
+`--full`. Success view
 models expose existence-only HTML status and factor common page-image output
 directories from basename rows without imposing a shared domain schema.
 

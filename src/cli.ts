@@ -8,10 +8,14 @@ import { Cause, Effect, Exit, FileSystem } from "effect";
 import { buildReport } from "./unslide/build.js";
 import { captureHtmlPages } from "./unslide/capture.js";
 import { getReport, loadProjectConfig, type ProjectConfig } from "./unslide/config.js";
-import { commandFailure, CommandFailure, type CliFailure } from "./unslide/failures.js";
+import {
+  combineCliFailures,
+  commandFailure,
+  type CliFailure,
+  type CommandFailure,
+} from "./unslide/failures.js";
 import { initializeProject } from "./unslide/init.js";
 import { inspectHtmlArtifact } from "./unslide/inspect.js";
-import { causeMessage } from "./unslide/lifecycle.js";
 import {
   type CliLogLevel,
   provideCliLogging,
@@ -74,7 +78,12 @@ function shellQuote(value: string): string {
 
 function commandInvocation(): string {
   if (process.env.UNSLIDE_INVOCATION) return process.env.UNSLIDE_INVOCATION;
-  if (process.env.npm_lifecycle_event === "unslide") return "pnpm --silent run unslide";
+  if (process.env.npm_lifecycle_event === "unslide") {
+    const packageManager = process.env.npm_config_user_agent?.split("/")[0];
+    if (packageManager === "npm") return "npm --silent run unslide";
+    if (packageManager === "yarn") return "yarn --silent run unslide";
+    return "pnpm --silent run unslide";
+  }
   const executable = executablePath();
   return pathResolvesToCurrentExecutable(executable) ? "unslide" : shellQuote(executable);
 }
@@ -316,7 +325,7 @@ function artifactKind(command: string): "HTML" | "PDF" {
 }
 
 function formatCommandFailure(error: CommandFailure, rawArguments: string[]): void {
-  const kind = artifactKind(error.command);
+  const kind = error.artifact === "pdf" ? "PDF" : artifactKind(error.command);
   const context = {
     ...(error.report ? { report: error.report } : {}),
     ...(error.path ? { path: error.path } : {}),
@@ -413,14 +422,6 @@ function formatCliFailure(error: CliFailure, rawArguments: string[]): number {
       return exhaustive;
     }
   }
-}
-
-function isCliFailure(error: unknown): error is CliFailure {
-  if (typeof error !== "object" || error === null || !("_tag" in error)) return false;
-  return error._tag === "ProjectNotFound"
-    || error._tag === "ProjectConfigFailure"
-    || error._tag === "ReportNotFound"
-    || error._tag === "CommandFailure";
 }
 
 function projectPath(config: ProjectConfig, absolutePath: string): string {
@@ -694,7 +695,6 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     const result = yield* exportHtmlPdf(report.htmlPath, report.pdfPath).pipe(
       Effect.mapError((cause) => commandFailure(cause, {
         command,
-        path: report.htmlPath,
         report: report.name,
       })),
     );
@@ -837,29 +837,8 @@ async function main(rawArguments: string[]): Promise<number> {
   const exit = await Effect.runPromiseExit(program);
   if (Exit.isSuccess(exit)) return exit.value;
 
-  const failures = exit.cause.reasons.flatMap((reason) =>
-    reason._tag === "Fail" && isCliFailure(reason.error) ? [reason.error] : []);
-  const primary = failures[0];
-  const hasNonOperationalCause = exit.cause.reasons.some((reason) => reason._tag !== "Fail");
-  if (primary && !hasNonOperationalCause && exit.cause.reasons.length === 1) {
-    return formatCliFailure(primary, rawArguments);
-  }
-  if (primary && !hasNonOperationalCause) {
-    const combinedIssues = failures.flatMap((failure) =>
-      failure._tag === "CommandFailure" ? [...(failure.issues ?? [])] : []);
-    const combined = primary._tag === "CommandFailure"
-      ? new CommandFailure({
-        cause: exit.cause,
-        code: primary.code,
-        command: primary.command,
-        issues: combinedIssues.length > 0 ? combinedIssues : primary.issues,
-        message: causeMessage(exit.cause),
-        path: primary.path,
-        report: primary.report,
-      })
-      : primary;
-    return formatCliFailure(combined, rawArguments);
-  }
+  const failure = combineCliFailures(exit.cause);
+  if (failure) return formatCliFailure(failure, rawArguments);
   return defectError();
 }
 

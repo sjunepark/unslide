@@ -48,8 +48,8 @@ for the Effect error, logging, and resource patterns used by the selected goal.
 |---|---|---|---|
 | 1 | `--help` can hide unknown input | Implement now. Validate unknown flags and excess positional arguments before returning help; let help bypass only missing required values. | Goal 1 |
 | 2 | Operational failures collapse to generic or raw output | Implement now. Present observed failures with stable public codes and corrective help while retaining raw causes only for debug stderr. Do not build a taxonomy for hypothetical failures. | Goal 2 |
-| 3 | Authored/resource diagnostics are unbounded | Implement now. Return bounded structured previews with totals and a command-scoped `--full` escape hatch for operations that can emit authored browser/protocol diagnostics. `--full` may reveal complete authored diagnostics, never raw dependency causes. | Goal 3 |
-| 4 | Home status and next steps can mislead | Implement now. Rename existence-only status to `htmlStatus: present|missing` and make help state-aware. Do not infer freshness from modification times. | Goal 4 |
+| 3 | Authored/resource diagnostics are unbounded | Implement now. Return bounded structured previews with totals and a command-scoped `--full` escape hatch for operations that can emit authored browser, protocol, or PDF-validation diagnostics. `--full` may reveal complete authored diagnostics, never raw dependency causes. | Goal 3 |
+| 4 | Home status and next steps can mislead | Implement now. Rename existence-only status to `htmlStatus: present\|missing` and make help state-aware. Do not infer freshness from modification times. | Goal 4 |
 | 5 | Suggested invocation may not run the current executable | Implement now. Use a PATH-verified `unslide` name with a safely quoted absolute-path fallback; retain the repository lifecycle override. | Goal 1 |
 | 6 | Page rows repeat output-directory prefixes | Implement now, before the output contract stabilizes. Emit the common directory once and basenames per page. | Goal 4 |
 | 7 | No session hook or installable skill | Defer implementation. During plan activation, add a `PLAN.md` evidence gate: reconsider a static skill only after two independent consumer repositories each require manual orientation in at least two sessions after using no-args output and command help. Consider session hooks only if live session-start state is then proven necessary; session-end capture also requires a privacy decision. | Out of scope |
@@ -166,10 +166,10 @@ Acceptance evidence:
 ### Goal 3 — Bound diagnostics without losing recovery information
 
 Replace newline-concatenated issue strings with a small structured diagnostic
-model shared by artifact validation and browser operation reporting. Preserve
-the complete structured issues in the internal failure and apply output limits
-only in the CLI presenter; do not thread CLI verbosity through protocol,
-browser, capture, or export APIs:
+model shared by artifact validation, browser operation, and PDF validation
+reporting. Preserve the complete structured issues in the internal failure and
+apply output limits only in the CLI presenter; do not thread CLI verbosity
+through protocol, browser, capture, or export APIs:
 
 1. Preserve issue code/source, concise message, optional page ID, and optional
    resource only when they help locate the problem.
@@ -180,7 +180,8 @@ browser, capture, or export APIs:
    carrying the original invocation plus `--full` only when anything was
    truncated.
 4. Add `--full` as a presentation option only for `inspect`, `capture`, and
-   `export`, the commands that can emit authored browser/protocol diagnostics.
+   `export`, the commands that can emit authored browser, protocol, or
+   PDF-validation diagnostics.
    It disables authored issue count and character limits at the CLI boundary.
    It must not expose raw dependency causes, alter log level, or change
    operational module behavior. Reject it on other commands with exit 2 and

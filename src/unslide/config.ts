@@ -203,6 +203,7 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
       if (!(cause instanceof SyntaxError)) throw cause;
       return new ProjectConfigFailure({
         cause,
+        detail: cause.message,
         message: `Cannot parse ${configPath}: ${cause.message}`,
         path: configPath,
         phase: "parse",

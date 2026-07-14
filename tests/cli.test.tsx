@@ -7,6 +7,8 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 import { decode, encode } from "@toon-format/toon";
+import { Cause } from "effect";
+import { combineCliFailures, CommandFailure } from "../src/unslide/failures.js";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(".");
@@ -243,15 +245,20 @@ test("help commands preserve repository, PATH, and safely quoted direct invocati
       `${shellQuote(spacedExecutable)} build <name>`,
     );
 
-    const repositoryInvocation = await runCli(["build", "--help"], repositoryRoot, {
-      UNSLIDE_BIN: spacedExecutable,
-      UNSLIDE_INVOCATION: undefined,
-      npm_lifecycle_event: "unslide",
-    });
-    assert.equal(
-      (repositoryInvocation.value as { usage: string }).usage,
-      "pnpm --silent run unslide build <name>",
-    );
+    for (const [userAgent, expected] of [
+      [undefined, "pnpm --silent run unslide build <name>"],
+      ["pnpm/11.12.0 npm/? node/v24.15.0", "pnpm --silent run unslide build <name>"],
+      ["npm/11.4.2 node/v24.15.0", "npm --silent run unslide build <name>"],
+      ["yarn/1.22.22 npm/? node/v24.15.0", "yarn --silent run unslide build <name>"],
+    ] as const) {
+      const repositoryInvocation = await runCli(["build", "--help"], repositoryRoot, {
+        UNSLIDE_BIN: spacedExecutable,
+        UNSLIDE_INVOCATION: undefined,
+        npm_config_user_agent: userAgent,
+        npm_lifecycle_event: "unslide",
+      });
+      assert.equal((repositoryInvocation.value as { usage: string }).usage, expected);
+    }
 
     assert.equal(await realpath(pathExecutable), await realpath(resolve(repositoryRoot, "bin/unslide.mjs")));
     assert.equal(await realpath(spacedExecutable), await realpath(resolve(repositoryRoot, "bin/unslide.mjs")));
@@ -476,6 +483,24 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
     });
 
     await rm(externalConfigPath, { recursive: true });
+    await writeFile(externalConfigPath, '{"version": 1, "reports":');
+    const malformedConfig = await runCli([], externalRoot, stableCliEnvironment);
+    assert.equal(malformedConfig.exitCode, 1);
+    assert.equal(malformedConfig.stderr, "");
+    assert.deepEqual(
+      {
+        code: (malformedConfig.value.error as Record<string, unknown>).code,
+        message: (malformedConfig.value.error as Record<string, unknown>).message,
+        path: (malformedConfig.value.error as Record<string, unknown>).path,
+      },
+      {
+        code: "project-config-invalid",
+        message: "Project configuration is invalid.",
+        path: canonicalExternalConfigPath,
+      },
+    );
+    assert.match(String((malformedConfig.value.error as Record<string, unknown>).detail), /JSON|position|end of data/i);
+
     await writeFile(externalConfigPath, JSON.stringify({ version: 2, reports: {} }));
     const invalidConfig = await runCli([], externalRoot, stableCliEnvironment);
     assert.deepEqual(
@@ -624,6 +649,31 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     assert.equal((invalidPrintCss.value.error as Record<string, unknown>).code, "artifact-invalid");
     assert.deepEqual(invalidPrintCss.value.help, ["Run unslide build fixture"]);
 
+    await writeFile(htmlPath, `<!doctype html><html><head><style>
+      @page { size: 4in 3in; margin: 0 }
+      body { margin: 0 }
+      main, aside { width: 4in; height: 3in }
+      main { break-after: page }
+    </style></head><body><main data-unslide-page="one">Marked page</main><aside>Extra page</aside></body></html>`);
+    const invalidGeneratedPdf = await runCli(["export", "fixture"], projectRoot, stableCliEnvironment);
+    assert.equal(invalidGeneratedPdf.exitCode, 1);
+    assert.equal(invalidGeneratedPdf.stderr, "");
+    assert.deepEqual(invalidGeneratedPdf.value.error, {
+      code: "artifact-invalid",
+      message: "PDF artifact is invalid.",
+      report: "fixture",
+    });
+    assert.deepEqual(invalidGeneratedPdf.value.help, ["Run unslide export fixture"]);
+    const pdfDiagnostics = invalidGeneratedPdf.value.diagnostics as Record<string, unknown>;
+    assert.deepEqual(
+      { shown: pdfDiagnostics.shown, total: pdfDiagnostics.total, truncated: pdfDiagnostics.truncated },
+      { shown: 1, total: 1, truncated: false },
+    );
+    assert.deepEqual((pdfDiagnostics.issues as Array<Record<string, unknown>>).map(({ source, code }) => ({ source, code })), [
+      { source: "pdf", code: "pdf-validation" },
+    ]);
+    assert.match(JSON.stringify(pdfDiagnostics), /PDF page count 2 does not match the 1 marked HTML pages/);
+
     await writeFile(pdfPath, "not a PDF");
     const invalidPdf = await runCli(["inspect-pdf", "fixture"], projectRoot, stableCliEnvironment);
     assert.equal(invalidPdf.exitCode, 1);
@@ -696,6 +746,52 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     await rm(missingBrowsers, { recursive: true, force: true });
     await rm(brokenBrowsers, { recursive: true, force: true });
   }
+});
+
+test("combined CLI failures retain primary context and every diagnostic", () => {
+  const primary = new CommandFailure({
+    artifact: "html",
+    cause: new Error("first cause"),
+    code: "artifact-invalid",
+    command: "home",
+    issues: [{ code: "first", message: "First issue", source: "protocol" }],
+    message: "First failure",
+    path: "/reports/first.html",
+    report: "first",
+  });
+  const secondary = new CommandFailure({
+    artifact: "html",
+    cause: new Error("second cause"),
+    code: "artifact-invalid",
+    command: "home",
+    issues: [{ code: "second", message: "Second issue", source: "browser" }],
+    message: "Second failure",
+    path: "/reports/second.html",
+    report: "second",
+  });
+  const cause = Cause.combine(Cause.fail(primary), Cause.fail(secondary));
+
+  const combined = combineCliFailures(cause);
+
+  assert.ok(combined instanceof CommandFailure);
+  assert.equal(combined.cause, cause);
+  assert.deepEqual(
+    {
+      artifact: combined.artifact,
+      code: combined.code,
+      command: combined.command,
+      path: combined.path,
+      report: combined.report,
+    },
+    {
+      artifact: "html",
+      code: "artifact-invalid",
+      command: "home",
+      path: "/reports/first.html",
+      report: "first",
+    },
+  );
+  assert.deepEqual(combined.issues?.map(({ code }) => code), ["first", "second"]);
 });
 
 test("authored diagnostics are structured and bounded unless --full is requested", async () => {

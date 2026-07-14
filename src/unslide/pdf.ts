@@ -38,7 +38,17 @@ class PdfValidationFailure extends Data.TaggedError("PdfValidationFailure")<{
   readonly cause?: unknown;
   readonly message: string;
   readonly phase: "load" | "page" | "text" | "validate";
-}> {}
+}> {
+  get issues() {
+    return this.phase === "validate"
+      ? [{
+        code: "pdf-validation",
+        message: this.message,
+        source: "pdf" as const,
+      }]
+      : undefined;
+  }
+}
 
 const ABSOLUTE_LENGTH_POINTS: Readonly<Record<string, number>> = {
   px: 0.75,
@@ -257,7 +267,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
   const path = yield* Path.Path;
   const inputPath = path.resolve(input);
   const outputPath = path.resolve(output);
-  const context = { command: "export", path: inputPath } as const;
+  const context = { artifact: "html", command: "export", path: inputPath } as const;
 
   const printed = yield* mapCommandFailure(withLogPhase(
     withLoadedArtifact(inputPath, async ({ page, pages }) => {
@@ -356,7 +366,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
       printed.expectedGeometry,
       printed.expectedText,
       ),
-      { ...context, code: "artifact-invalid" },
+      { artifact: "pdf", code: "artifact-invalid", command: "export" },
       (cause) => `Cannot validate generated PDF: ${errorMessage(cause)}`,
     ),
     "pdf.validate",

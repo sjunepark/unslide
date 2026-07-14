@@ -31,7 +31,7 @@ export interface ArtifactDiagnostic {
   message: string;
   pageId?: string;
   resource?: string;
-  source: "browser" | "protocol";
+  source: "browser" | "pdf" | "protocol";
 }
 
 export type ArtifactValidationResult =
