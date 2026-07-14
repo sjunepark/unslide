@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { delimiter, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
@@ -12,6 +12,10 @@ const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(".");
 const cliPath = resolve("src/cli.ts");
 const tsxImport = import.meta.resolve("tsx");
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
 
 interface CliResult {
   exitCode: number;
@@ -49,6 +53,11 @@ const stableLogLevelFlag = {
   description: "Emit Effect JSON Lines on stderr (default: UNSLIDE_LOG_LEVEL or off)",
 };
 
+const stableHelpFlag = {
+  flag: "--help",
+  description: "Show concise command help without requiring command values",
+};
+
 interface EffectLogEntry {
   annotations: Record<string, unknown>;
   cause?: string;
@@ -69,7 +78,7 @@ function stableTopHelp() {
     bin: "/opt/unslide/bin/unslide",
     description: "Build and inspect explicit-page HTML and PDF reports",
     usage: "unslide <command>",
-    flags: [stableLogLevelFlag],
+    flags: [stableHelpFlag, stableLogLevelFlag],
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
       { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
@@ -137,7 +146,7 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
   assert.equal(help.exitCode, 0);
   assert.equal(help.stderr, "");
   assert.match(String(help.value.bin), /src\/cli\.ts$/);
-  assert.equal(help.value.usage, "pnpm --silent run unslide <command>");
+  assert.equal(help.value.usage, `${shellQuote(cliPath)} <command>`);
 
   const commandHelp = await runCli(["capture", "--help"]);
   assert.equal(commandHelp.exitCode, 0);
@@ -152,6 +161,13 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
   assert.equal(pdfInspectionHelp.exitCode, 0);
   assert.equal(pdfInspectionHelp.value.command, "inspect-pdf");
 
+  for (const command of ["build", "inspect", "capture", "export", "inspect-pdf", "init"]) {
+    const result = await runCli([command, "--help"], repositoryRoot, stableCliEnvironment);
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stderr, "");
+    assert.deepEqual((result.value.flags as unknown[]).slice(-2), [stableHelpFlag, stableLogLevelFlag]);
+  }
+
   for (const result of [
     await runCli(["unknown"]),
     await runCli(["build"]),
@@ -161,6 +177,8 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
     await runCli(["capture", "--artifact", "report.html"]),
     await runCli(["inspect-pdf", "--artifact", "report.pdf"]),
     await runCli(["inspect-pdf", "--output", "pages"]),
+    await runCli(["build", "--wat", "--help"]),
+    await runCli(["build", "report", "extra", "--help"]),
   ]) {
     assert.equal(result.exitCode, 2);
     assert.equal(result.stderr, "");
@@ -174,6 +192,54 @@ test("silent package-script invocation preserves structured stdout on failure", 
   assert.equal(result.exitCode, 2);
   assert.equal(result.stderr, "");
   assert.equal((result.value.error as Record<string, unknown>).code, "usage");
+});
+
+test("help commands preserve repository, PATH, and safely quoted direct invocation", async () => {
+  const directory = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide invocation "));
+  const pathDirectory = resolve(directory, "path-bin");
+  const spacedDirectory = resolve(directory, "installed copy");
+  const pathExecutable = resolve(pathDirectory, "unslide");
+  const spacedExecutable = resolve(spacedDirectory, "unslide tool");
+  await mkdir(pathDirectory, { recursive: true });
+  await mkdir(spacedDirectory, { recursive: true });
+  await symlink(resolve(repositoryRoot, "bin/unslide.mjs"), pathExecutable);
+  await symlink(resolve(repositoryRoot, "bin/unslide.mjs"), spacedExecutable);
+
+  try {
+    const pathInvocation = await runCli(["build", "--help"], repositoryRoot, {
+      PATH: `${pathDirectory}${delimiter}${process.env.PATH ?? ""}`,
+      UNSLIDE_BIN: resolve(repositoryRoot, "bin/unslide.mjs"),
+      UNSLIDE_INVOCATION: undefined,
+      npm_lifecycle_event: undefined,
+    });
+    assert.equal((pathInvocation.value as { usage: string }).usage, "unslide build <name>");
+
+    const directInvocation = await runCli(["build", "--help"], repositoryRoot, {
+      PATH: process.env.PATH,
+      UNSLIDE_BIN: spacedExecutable,
+      UNSLIDE_INVOCATION: undefined,
+      npm_lifecycle_event: undefined,
+    });
+    assert.equal(
+      (directInvocation.value as { usage: string }).usage,
+      `${shellQuote(spacedExecutable)} build <name>`,
+    );
+
+    const repositoryInvocation = await runCli(["build", "--help"], repositoryRoot, {
+      UNSLIDE_BIN: spacedExecutable,
+      UNSLIDE_INVOCATION: undefined,
+      npm_lifecycle_event: "unslide",
+    });
+    assert.equal(
+      (repositoryInvocation.value as { usage: string }).usage,
+      "pnpm --silent run unslide build <name>",
+    );
+
+    assert.equal(await realpath(pathExecutable), await realpath(resolve(repositoryRoot, "bin/unslide.mjs")));
+    assert.equal(await realpath(spacedExecutable), await realpath(resolve(repositoryRoot, "bin/unslide.mjs")));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("global Effect logging is opt-in, structured, and configurable by flag or environment", async () => {
@@ -286,7 +352,7 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
           help: {
             command: "build",
             usage: "unslide build <name>",
-            flags: [stableLogLevelFlag],
+            flags: [stableHelpFlag, stableLogLevelFlag],
             examples: ["unslide build spike", "unslide build operating-review"],
           },
         }),

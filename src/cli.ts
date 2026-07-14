@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
+import { accessSync, constants, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { relative, resolve, sep } from "node:path";
+import { delimiter, relative, resolve, sep } from "node:path";
 import { encode } from "@toon-format/toon";
 import { Cause, Effect, Exit, FileSystem } from "effect";
 import { buildReport } from "./unslide/build.js";
@@ -19,7 +20,6 @@ import {
 import { applicationLayer } from "./unslide/runtime.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
-const CLI_INVOCATION = process.env.UNSLIDE_INVOCATION ?? "pnpm --silent run unslide";
 const LOG_LEVEL_FLAG = "--log-level";
 const LOG_LEVEL_ENV = "UNSLIDE_LOG_LEVEL";
 const LOG_LEVELS = new Set<CliLogLevel>(["off", "info", "debug"]);
@@ -37,10 +37,52 @@ function writeOutput(value: JsonValue): void {
   process.stdout.write(encode(value));
 }
 
+function executablePath(): string {
+  return resolve(process.env.UNSLIDE_BIN ?? process.argv[1] ?? "unslide");
+}
+
 function displayExecutable(): string {
-  const executable = resolve(process.env.UNSLIDE_BIN ?? process.argv[1] ?? "unslide");
+  const executable = executablePath();
   const home = homedir();
   return executable.startsWith(`${home}${sep}`) ? `~${executable.slice(home.length)}` : executable;
+}
+
+function canonicalExecutable(path: string): string | undefined {
+  try {
+    accessSync(path, constants.X_OK);
+    return realpathSync(path);
+  } catch {
+    return undefined;
+  }
+}
+
+function pathResolvesToCurrentExecutable(executable: string): boolean {
+  const current = canonicalExecutable(executable);
+  if (!current) return false;
+  return (process.env.PATH ?? "").split(delimiter).some((entry) => {
+    const candidate = resolve(entry || ".", "unslide");
+    return canonicalExecutable(candidate) === current;
+  });
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+function commandInvocation(): string {
+  if (process.env.UNSLIDE_INVOCATION) return process.env.UNSLIDE_INVOCATION;
+  if (process.env.npm_lifecycle_event === "unslide") return "pnpm --silent run unslide";
+  const executable = executablePath();
+  return pathResolvesToCurrentExecutable(executable) ? "unslide" : shellQuote(executable);
+}
+
+const CLI_INVOCATION = commandInvocation();
+
+function helpFlag(): JsonValue {
+  return {
+    flag: "--help",
+    description: "Show concise command help without requiring command values",
+  };
 }
 
 function logLevelFlag(): JsonValue {
@@ -99,7 +141,7 @@ function topHelp(): JsonValue {
     bin: displayExecutable(),
     description: "Build and inspect explicit-page HTML and PDF reports",
     usage: `${CLI_INVOCATION} <command>`,
-    flags: [logLevelFlag()],
+    flags: [helpFlag(), logLevelFlag()],
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
       { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
@@ -122,6 +164,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       flags: [
         { flag: "--name <name>", description: "Set the lower-kebab report name (default: report)" },
         { flag: "--yes", description: "Create the planned files without prompting" },
+        helpFlag(),
         logLevelFlag(),
       ],
       examples: [`${CLI_INVOCATION} init`, `${CLI_INVOCATION} init --yes`, `${CLI_INVOCATION} init --name quarterly-review --yes`],
@@ -133,6 +176,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       usage: `${CLI_INVOCATION} inspect <name> | ${CLI_INVOCATION} inspect --artifact <path>`,
       flags: [
         { flag: "--artifact <path>", description: "Inspect an explicit HTML path instead of a configured report" },
+        helpFlag(),
         logLevelFlag(),
       ],
       examples: [`${CLI_INVOCATION} inspect operating-review`, `${CLI_INVOCATION} inspect --artifact artifacts/report.html`],
@@ -145,6 +189,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       flags: [
         { flag: "--artifact <path>", description: "Inspect an explicit PDF path instead of a configured report" },
         { flag: "--output <directory>", description: "Write explicit-artifact page images to this directory" },
+        helpFlag(),
         logLevelFlag(),
       ],
       examples: [
@@ -156,7 +201,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
   return {
     command,
     usage: `${CLI_INVOCATION} ${command} <name>`,
-    flags: [logLevelFlag()],
+    flags: [helpFlag(), logLevelFlag()],
     examples: [`${CLI_INVOCATION} ${command} spike`, `${CLI_INVOCATION} ${command} operating-review`],
   };
 }
@@ -208,6 +253,79 @@ function projectPath(config: ProjectConfig, absolutePath: string): string {
   return relative(config.projectRoot, absolutePath) || ".";
 }
 
+type CliCommand = "build" | "inspect" | "capture" | "export" | "inspect-pdf" | "init";
+
+function validateBeforeHelp(command: CliCommand, argv: string[]): string | undefined {
+  const allowedFlags = command === "inspect"
+    ? new Set(["--artifact", "--help"])
+    : command === "inspect-pdf"
+      ? new Set(["--artifact", "--output", "--help"])
+      : command === "init"
+        ? new Set(["--name", "--yes", "--help"])
+        : new Set(["--help"]);
+  const unknownFlag = argv.slice(1).find((argument) => argument.startsWith("-") && !allowedFlags.has(argument));
+  if (unknownFlag) return `Unknown flag "${unknownFlag}" for ${command}.`;
+
+  const helpCount = argv.filter((argument) => argument === "--help").length;
+  if (helpCount > 1) return "--help may be provided only once.";
+
+  if (command === "build" || command === "capture" || command === "export") {
+    const positionals = argv.slice(1).filter((argument) => argument !== "--help");
+    return positionals.length > 1
+      ? `Unexpected argument "${positionals[1]}" for ${command}.`
+      : undefined;
+  }
+
+  if (command === "init") {
+    let nameSeen = false;
+    let yesSeen = false;
+    for (let index = 1; index < argv.length; index += 1) {
+      const argument = argv[index];
+      if (argument === "--help") continue;
+      if (argument === "--yes") {
+        if (yesSeen) return "--yes may be provided only once.";
+        yesSeen = true;
+        continue;
+      }
+      if (argument === "--name") {
+        if (nameSeen) return "--name may be provided only once.";
+        nameSeen = true;
+        const value = argv[index + 1];
+        if (value && !value.startsWith("-")) {
+          if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
+            return `Invalid report name "${value}"; use lower-kebab case.`;
+          }
+          index += 1;
+        }
+        continue;
+      }
+      return `Unexpected argument "${argument}" for init.`;
+    }
+    return undefined;
+  }
+
+  const valueFlags = command === "inspect" ? ["--artifact"] : ["--artifact", "--output"];
+  const seen = new Set<string>();
+  const positionals: string[] = [];
+  for (let index = 1; index < argv.length; index += 1) {
+    const argument = argv[index] as string;
+    if (argument === "--help") continue;
+    if (valueFlags.includes(argument)) {
+      if (seen.has(argument)) return `${argument} may be provided only once.`;
+      seen.add(argument);
+      const value = argv[index + 1];
+      if (value && !value.startsWith("-")) index += 1;
+      continue;
+    }
+    positionals.push(argument);
+  }
+  if (positionals.length > 1) return `Unexpected argument "${positionals[1]}" for ${command}.`;
+  if (positionals.length === 1 && seen.size > 0) {
+    return `${command} accepts either one report name or explicit artifact flags, not both.`;
+  }
+  return undefined;
+}
+
 const home = Effect.fn("cli.home")(function* () {
   const fs = yield* FileSystem.FileSystem;
   const config = yield* withLogPhase(loadProjectConfig(), "project.load");
@@ -237,6 +355,7 @@ const home = Effect.fn("cli.home")(function* () {
 const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   if (argv.length === 0) return yield* home();
   if (argv[0] === "--help") {
+    if (argv.length > 1) return usageError(`Unexpected argument "${argv[1]}" for --help.`, topHelp());
     writeOutput(topHelp());
     return 0;
   }
@@ -245,21 +364,11 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   if (command !== "build" && command !== "inspect" && command !== "capture" && command !== "export" && command !== "inspect-pdf" && command !== "init") {
     return usageError(`Unknown command "${command}".`, topHelp());
   }
+  const validationError = validateBeforeHelp(command, argv);
+  if (validationError) return usageError(validationError, commandHelp(command));
   if (argv.includes("--help")) {
     writeOutput(commandHelp(command));
     return 0;
-  }
-
-  const allowedFlags = command === "inspect"
-    ? new Set(["--artifact"])
-    : command === "inspect-pdf"
-      ? new Set(["--artifact", "--output"])
-    : command === "init"
-      ? new Set(["--name", "--yes"])
-      : new Set<string>();
-  const unknownFlag = argv.slice(1).find((argument) => argument.startsWith("-") && !allowedFlags.has(argument));
-  if (unknownFlag) {
-    return usageError(`Unknown flag "${unknownFlag}" for ${command}.`, commandHelp(command));
   }
 
   if (command === "init") {

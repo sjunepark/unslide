@@ -1,22 +1,32 @@
 # Plan
 
-There is no active implementation goal.
+Active implementation goal: **AXI CLI hardening through Goal 5.**
 
-Current next action: **Gather evidence from real consumer reports for one
-deferred product gate.** Propose an explicit scope decision only when that
-evidence meets the gate's threshold; do not implement the deferred capability
-before then.
+Current next action: **Execute Goal 2 of
+[`docs/plans/axi-cli-hardening.md`](docs/plans/axi-cli-hardening.md): present
+stable, actionable operational failures.**
 
 Suggested `/goal` objective:
 
-> Gather evidence from real consumer reports for one deferred product gate in
-> `PLAN.md`, then propose an explicit scope decision only if that evidence meets
-> the gate's stated threshold.
+> Execute `docs/plans/axi-cli-hardening.md` one numbered goal at a time through
+> Goal 5, then stop after the hardened CLI contract, documentation, required
+> implementation review, and full validation are complete.
 
 This file is the live execution state. Update current decisions, evidence,
 blockers, and the next action in place; do not append session history. Durable
 product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
 `ARCHITECTURE.md`, `docs/SUPPORT.md`, and `docs/decisions/`.
+
+## Active Work
+
+- Completed: Goal 1. Command input is validated before help, every help payload
+  documents `--help` and `--log-level`, and suggested commands use the
+  repository lifecycle override, a PATH-verified binary name, or a safely
+  quoted absolute executable path.
+- Evidence: `pnpm run check` and `pnpm exec tsx --test tests/cli.test.tsx`
+  passed, including direct, PATH, repository-script, spaces-in-path, logging,
+  and help-plus-invalid-input fixtures.
+- Blockers: none.
 
 ## Current Gates
 
@@ -25,6 +35,7 @@ product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
 | Managed recipe registry | Deferred | At least two independent consumers repeatedly need the same editable visual source, and one-time scaffolding or an installed package is insufficient |
 | Additional source adapters | Deferred | A second real generator implements the artifact protocol and reveals the behavior that actually varies |
 | Mixed PDF geometry | Deferred | A real mixed-size report and integration evidence from the canonical Chromium version |
+| Agent skill or session integration | Deferred | Reconsider a static skill only after two independent consumer repositories each require manual orientation in at least two sessions after using no-args output and command help. Consider session hooks only if live session-start state is then proven necessary; session-end capture also requires a privacy decision |
 
 ### Managed recipe registry
 
