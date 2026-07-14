@@ -2,9 +2,9 @@
 
 Active implementation goal: **AXI CLI hardening through Goal 5.**
 
-Current next action: **Execute Goal 4 of
-[`docs/plans/axi-cli-hardening.md`](docs/plans/axi-cli-hardening.md): make
-success output precise, contextual, and compact.**
+Current next action: **Execute Goal 5 of
+[`docs/plans/axi-cli-hardening.md`](docs/plans/axi-cli-hardening.md): align the
+documented contract, review the complete change, and run full validation.**
 
 Suggested `/goal` objective:
 
@@ -19,15 +19,14 @@ product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
 
 ## Active Work
 
-- Completed: Goals 1–3. Parsing, invocation, and typed public failures are
-  deterministic. Browser/protocol diagnostics remain structured internally;
-  default stdout shows at most 10 issues and 1,000 characters per authored text
-  field with exact totals, while command-scoped `--full` reveals only complete
-  authored diagnostics.
-- Evidence: `pnpm run check`, the combined CLI/protocol suite, and focused
-  boundary regressions pass. Fixtures cover mixed sources, 13 simultaneous
-  issues, long messages and data URIs, full-mode recovery commands, invalid
-  flag scope, combined resource evidence, and unchanged dependency failures.
+- Completed: Goals 1–4. Parsing, invocation, typed public failures, bounded
+  diagnostics, contextual success help, existence-only home status, and compact
+  page-output paths now have one deterministic contract.
+- Evidence: `pnpm run check` and all 14 CLI tests pass. Exact home tests cover
+  missing, mixed, and present HTML states; a two-page end-to-end fixture proves
+  actual report names, one output-directory field, basename page rows, and
+  directly resolvable HTML-capture and named/explicit PDF-inspection output.
+  The focused Goal 4 implementation review found no issues.
 - Blockers: none.
 
 ## Current Gates

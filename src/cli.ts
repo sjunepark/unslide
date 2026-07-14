@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { accessSync, constants, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, relative, resolve, sep } from "node:path";
+import { basename, delimiter, relative, resolve, sep } from "node:path";
 import { encode } from "@toon-format/toon";
 import { Cause, Effect, Exit, FileSystem } from "effect";
 import { buildReport } from "./unslide/build.js";
@@ -513,19 +513,29 @@ const home = Effect.fn("cli.home")(function* () {
         name: report.name,
         source: projectPath(config, report.sourcePath),
         html: projectPath(config, report.htmlPath),
-        status: exists ? "built" : "not-built",
+        htmlStatus: exists ? "present" : "missing",
       })),
       Effect.mapError((cause) => commandFailure(cause, { command: "home", path: report.htmlPath, report: report.name })),
     ))),
     "reports.scan",
     { project: config.projectRoot },
   );
+  const hasMissingHtml = reports.some((report) => report.htmlStatus === "missing");
+  const hasPresentHtml = reports.some((report) => report.htmlStatus === "present");
+  const help = [
+    ...(hasMissingHtml ? [`Run ${CLI_INVOCATION} build <name>`] : []),
+    ...(hasPresentHtml ? [
+      `Run ${CLI_INVOCATION} inspect <name>`,
+      `Run ${CLI_INVOCATION} capture <name>`,
+    ] : []),
+    ...(!hasPresentHtml ? [`Run ${CLI_INVOCATION} --help`] : []),
+  ];
   writeOutput({
     bin: displayExecutable(),
     description: "Build and inspect explicit-page HTML and PDF reports",
     project: config.projectRoot,
     reports,
-    help: [`Run ${CLI_INVOCATION} build <name>`, `Run ${CLI_INVOCATION} inspect <name>`, `Run ${CLI_INVOCATION} capture <name>`, `Run ${CLI_INVOCATION} export <name>`, `Run ${CLI_INVOCATION} inspect-pdf <name>`],
+    help,
   });
   return 0;
 });
@@ -639,7 +649,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     const result = yield* inspectPdfPages(artifactPath, outputDirectory);
     writeOutput({
       pdf: { path: result.inputPath, output: result.outputDirectory, pageCount: result.pages.length },
-      pages: result.pages.map((page) => ({ index: page.index, file: page.outputPath, width: page.width, height: page.height })),
+      pages: result.pages.map((page) => ({ index: page.index, file: basename(page.outputPath), width: page.width, height: page.height })),
     });
     return 0;
   }
@@ -652,7 +662,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   const report = yield* getReport(config, argv[1]);
   if (command === "build") {
     const result = yield* buildReport(report);
-    writeOutput({ report: { name: result.name, status: "built", html: projectPath(config, result.htmlPath) } });
+    writeOutput({
+      report: { name: result.name, status: "built", html: projectPath(config, result.htmlPath) },
+      help: [
+        `Run ${CLI_INVOCATION} inspect ${result.name}`,
+        `Run ${CLI_INVOCATION} capture ${result.name}`,
+      ],
+    });
     return 0;
   }
   if (command === "inspect") {
@@ -692,6 +708,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
         widthPoints: firstPage?.widthPoints ?? 0,
         heightPoints: firstPage?.heightPoints ?? 0,
       },
+      help: [`Run ${CLI_INVOCATION} inspect-pdf ${report.name}`],
     });
     return 0;
   }
@@ -718,7 +735,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       },
       pages: result.pages.map((page) => ({
         index: page.index,
-        file: projectPath(config, page.outputPath),
+        file: basename(page.outputPath),
         width: page.width,
         height: page.height,
       })),
@@ -734,8 +751,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     })),
   );
   writeOutput({
-    report: { name: report.name, status: "captured", pageCount: result.pages.length },
-    pages: result.pages.map((page) => ({ id: page.id, file: projectPath(config, page.outputPath), width: page.width, height: page.height })),
+    report: {
+      name: report.name,
+      status: "captured",
+      output: projectPath(config, result.outputDirectory),
+      pageCount: result.pages.length,
+    },
+    pages: result.pages.map((page) => ({ id: page.id, file: basename(page.outputPath), width: page.width, height: page.height })),
   });
   return 0;
 });

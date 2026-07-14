@@ -117,19 +117,23 @@ async function runPackageCli(arguments_: string[]): Promise<CliResult> {
   }
 }
 
-async function createProject(prefix = "unslide cli project "): Promise<string> {
+async function createProject(prefix = "unslide cli project ", pageCount = 1): Promise<string> {
   await mkdir(resolve(repositoryRoot, ".tmp"), { recursive: true });
   const projectRoot = await mkdtemp(resolve(repositoryRoot, ".tmp", prefix));
   await mkdir(resolve(projectRoot, "source files"), { recursive: true });
+  const pages = Array.from({ length: pageCount }, (_, index) => {
+    const id = pageCount === 1 ? "fixture" : `fixture-${index + 1}`;
+    return `<main data-unslide-page="${id}">CLI fixture ${index + 1}</main>`;
+  }).join("");
   await writeFile(resolve(projectRoot, "source files", "report.tsx"), `
     import React from "react";
 
     export default (
       <html lang="en">
         <head><meta name="unslide-protocol" content="1" /><title>CLI fixture</title><style>{
-          "@page{size:320px 180px;margin:0}body{margin:0}[data-unslide-page]{width:320px;height:180px;background:white}"
+          "@page{size:320px 180px;margin:0}body{margin:0}[data-unslide-page]{width:320px;height:180px;background:white;break-after:page}[data-unslide-page]:last-child{break-after:auto}"
         }</style></head>
-        <body><main data-unslide-page="fixture">CLI fixture</main></body>
+        <body>${pages}</body>
       </html>
     );
   `);
@@ -253,6 +257,64 @@ test("help commands preserve repository, PATH, and safely quoted direct invocati
     assert.equal(await realpath(spacedExecutable), await realpath(resolve(repositoryRoot, "bin/unslide.mjs")));
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("home output reports HTML existence and contextual next actions", async () => {
+  const projectRoot = await createProject("unslide home output ");
+  const configPath = resolve(projectRoot, "unslide.json");
+  const source = "source files/report.tsx";
+  await writeFile(configPath, JSON.stringify({
+    version: 1,
+    reports: {
+      alpha: { source, html: "generated output/alpha.html", captures: "captures/alpha" },
+      bravo: { source, html: "generated output/bravo.html", captures: "captures/bravo" },
+    },
+  }, null, 2));
+
+  const base = {
+    bin: "/opt/unslide/bin/unslide",
+    description: "Build and inspect explicit-page HTML and PDF reports",
+    project: projectRoot,
+  };
+  const missingReports = [
+    { name: "alpha", source, html: "generated output/alpha.html", htmlStatus: "missing" },
+    { name: "bravo", source, html: "generated output/bravo.html", htmlStatus: "missing" },
+  ];
+
+  try {
+    const missing = await runCli([], projectRoot, stableCliEnvironment);
+    assert.deepEqual(missing.value, {
+      ...base,
+      reports: missingReports,
+      help: ["Run unslide build <name>", "Run unslide --help"],
+    });
+
+    await mkdir(resolve(projectRoot, "generated output"), { recursive: true });
+    await writeFile(resolve(projectRoot, "generated output/alpha.html"), "existing HTML");
+    const mixed = await runCli([], projectRoot, stableCliEnvironment);
+    assert.deepEqual(mixed.value, {
+      ...base,
+      reports: [
+        { ...missingReports[0], htmlStatus: "present" },
+        missingReports[1],
+      ],
+      help: [
+        "Run unslide build <name>",
+        "Run unslide inspect <name>",
+        "Run unslide capture <name>",
+      ],
+    });
+
+    await writeFile(resolve(projectRoot, "generated output/bravo.html"), "existing HTML");
+    const present = await runCli([], projectRoot, stableCliEnvironment);
+    assert.deepEqual(present.value, {
+      ...base,
+      reports: missingReports.map((report) => ({ ...report, htmlStatus: "present" })),
+      help: ["Run unslide inspect <name>", "Run unslide capture <name>"],
+    });
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
   }
 });
 
@@ -737,7 +799,7 @@ test("CLI init rejects unsupported arguments and invalid report names", async ()
 });
 
 test("CLI discovers a project from nested paths and handles spaces end to end", async () => {
-  const projectRoot = await createProject();
+  const projectRoot = await createProject("unslide cli project ", 2);
   const nestedDirectory = resolve(projectRoot, "nested directory", "deeper");
   await mkdir(nestedDirectory, { recursive: true });
 
@@ -750,12 +812,16 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     const build = await runCli(["build", "fixture"], nestedDirectory);
     assert.equal(build.exitCode, 0, build.stdout);
     assert.equal(build.stderr, "");
-    assert.match(await readFile(resolve(projectRoot, "generated output", "report file.html"), "utf8"), /data-unslide-page="fixture"/);
+    assert.deepEqual(build.value.help, [
+      `Run ${shellQuote(cliPath)} inspect fixture`,
+      `Run ${shellQuote(cliPath)} capture fixture`,
+    ]);
+    assert.match(await readFile(resolve(projectRoot, "generated output", "report file.html"), "utf8"), /data-unslide-page="fixture-1"/);
 
     const inspection = await runCli(["inspect", "fixture"], projectRoot);
     assert.equal(inspection.exitCode, 0);
     assert.equal(inspection.stderr, "");
-    assert.equal((inspection.value.report as Record<string, unknown>).pageCount, 1);
+    assert.equal((inspection.value.report as Record<string, unknown>).pageCount, 2);
 
     const capture = await runCli(["capture", "fixture", "--log-level", "debug"], projectRoot);
     assert.equal(capture.exitCode, 0);
@@ -763,19 +829,38 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     assert.ok(captureLogs.some((entry) => entry.annotations.phase === "browser.readiness"));
     assert.ok(captureLogs.some((entry) => entry.message === "page.captured"));
     assert.equal(new Set(captureLogs.map((entry) => entry.annotations.invocationId)).size, 1);
+    const captureReport = capture.value.report as Record<string, unknown>;
+    const capturePages = capture.value.pages as Array<Record<string, unknown>>;
+    assert.equal(captureReport.output, "captured pages");
+    assert.equal(capturePages.length, 2);
+    assert.deepEqual(capturePages.map((page) => page.id), ["fixture-1", "fixture-2"]);
+    assert.deepEqual(capturePages.map((page) => page.file), ["page-01.png", "page-02.png"]);
+    assert.equal(capture.stdout.split("captured pages").length - 1, 1);
+    for (const page of capturePages) {
+      await readFile(resolve(projectRoot, String(captureReport.output), String(page.file)));
+    }
     const png = await readFile(resolve(projectRoot, "captured pages", "page-01.png"));
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [320, 180]);
 
     const exported = await runCli(["export", "fixture"], projectRoot);
     assert.equal(exported.exitCode, 0, exported.stdout);
-    assert.equal((exported.value.report as Record<string, unknown>).pageCount, 1);
+    assert.equal((exported.value.report as Record<string, unknown>).pageCount, 2);
     assert.equal((exported.value.report as Record<string, unknown>).widthPoints, 240);
+    assert.deepEqual(exported.value.help, [`Run ${shellQuote(cliPath)} inspect-pdf fixture`]);
     assert.equal((await readFile(resolve(projectRoot, "generated output", "report file.pdf"))).subarray(0, 5).toString(), "%PDF-");
 
     const pdfInspection = await runCli(["inspect-pdf", "fixture"], projectRoot);
     assert.equal(pdfInspection.exitCode, 0, pdfInspection.stdout);
-    assert.equal((pdfInspection.value.report as Record<string, unknown>).pageCount, 1);
-    assert.equal((pdfInspection.value.report as Record<string, unknown>).status, "pdf-inspected");
+    const pdfReport = pdfInspection.value.report as Record<string, unknown>;
+    const pdfPages = pdfInspection.value.pages as Array<Record<string, unknown>>;
+    assert.equal(pdfReport.pageCount, 2);
+    assert.equal(pdfReport.status, "pdf-inspected");
+    assert.equal(pdfReport.output, "captured pages-pdf");
+    assert.deepEqual(pdfPages.map((page) => page.file), ["page-01.png", "page-02.png"]);
+    assert.equal(pdfInspection.stdout.split("captured pages-pdf").length - 1, 1);
+    for (const page of pdfPages) {
+      await readFile(resolve(projectRoot, String(pdfReport.output), String(page.file)));
+    }
     const pdfPng = await readFile(resolve(projectRoot, "captured pages-pdf", "page-01.png"));
     assert.deepEqual([pdfPng.readUInt32BE(16), pdfPng.readUInt32BE(20)], [320, 181]);
 
@@ -788,7 +873,15 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
       explicitOutput,
     ], nestedDirectory);
     assert.equal(explicitInspection.exitCode, 0, explicitInspection.stdout);
-    assert.equal((explicitInspection.value.pdf as Record<string, unknown>).pageCount, 1);
+    const explicitPdf = explicitInspection.value.pdf as Record<string, unknown>;
+    const explicitPages = explicitInspection.value.pages as Array<Record<string, unknown>>;
+    assert.equal(explicitPdf.pageCount, 2);
+    assert.equal(explicitPdf.output, explicitOutput);
+    assert.deepEqual(explicitPages.map((page) => page.file), ["page-01.png", "page-02.png"]);
+    assert.equal(explicitInspection.stdout.split(explicitOutput).length - 1, 1);
+    for (const page of explicitPages) {
+      await readFile(resolve(String(explicitPdf.output), String(page.file)));
+    }
     assert.equal((await readFile(resolve(explicitOutput, "page-01.png"))).subarray(1, 4).toString(), "PNG");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
