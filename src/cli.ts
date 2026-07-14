@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { relative, resolve, sep } from "node:path";
 import { encode } from "@toon-format/toon";
@@ -10,10 +11,27 @@ import { commandFailure, CommandFailure, type CliFailure } from "./unslide/failu
 import { initializeProject } from "./unslide/init.js";
 import { inspectHtmlArtifact } from "./unslide/inspect.js";
 import { causeMessage } from "./unslide/lifecycle.js";
+import {
+  type CliLogLevel,
+  provideCliLogging,
+  withLogPhase,
+} from "./unslide/logging.js";
 import { applicationLayer } from "./unslide/runtime.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 const CLI_INVOCATION = process.env.UNSLIDE_INVOCATION ?? "pnpm --silent run unslide";
+const LOG_LEVEL_FLAG = "--log-level";
+const LOG_LEVEL_ENV = "UNSLIDE_LOG_LEVEL";
+const LOG_LEVELS = new Set<CliLogLevel>(["off", "info", "debug"]);
+
+interface ParsedLoggingOptions {
+  argv: string[];
+  level: CliLogLevel;
+}
+
+type LoggingOptionsResult =
+  | { ok: true; value: ParsedLoggingOptions }
+  | { message: string; ok: false };
 
 function writeOutput(value: JsonValue): void {
   process.stdout.write(encode(value));
@@ -25,11 +43,63 @@ function displayExecutable(): string {
   return executable.startsWith(`${home}${sep}`) ? `~${executable.slice(home.length)}` : executable;
 }
 
+function logLevelFlag(): JsonValue {
+  return {
+    flag: `${LOG_LEVEL_FLAG} <off|info|debug>`,
+    description: `Emit Effect JSON Lines on stderr (default: ${LOG_LEVEL_ENV} or off)`,
+  };
+}
+
+function parseLogLevel(value: string): CliLogLevel | undefined {
+  return LOG_LEVELS.has(value as CliLogLevel) ? value as CliLogLevel : undefined;
+}
+
+function parseLoggingOptions(argv: string[], environmentValue: string | undefined): LoggingOptionsResult {
+  const joinedFlag = argv.find((argument) => argument.startsWith(`${LOG_LEVEL_FLAG}=`));
+  if (joinedFlag) {
+    return { message: `Use ${LOG_LEVEL_FLAG} <off|info|debug> with a separate value.`, ok: false };
+  }
+
+  const indexes = argv.flatMap((argument, index) => argument === LOG_LEVEL_FLAG ? [index] : []);
+  if (indexes.length > 1) {
+    return { message: `${LOG_LEVEL_FLAG} may be provided only once.`, ok: false };
+  }
+
+  if (indexes.length === 1) {
+    const index = indexes[0] as number;
+    const rawLevel = argv[index + 1];
+    if (!rawLevel || rawLevel.startsWith("-")) {
+      return { message: `${LOG_LEVEL_FLAG} requires one of: off, info, debug.`, ok: false };
+    }
+    const level = parseLogLevel(rawLevel);
+    if (!level) {
+      return { message: `Invalid ${LOG_LEVEL_FLAG} value ${JSON.stringify(rawLevel)}; expected off, info, or debug.`, ok: false };
+    }
+    return {
+      ok: true,
+      value: {
+        argv: argv.filter((_, argumentIndex) => argumentIndex !== index && argumentIndex !== index + 1),
+        level,
+      },
+    };
+  }
+
+  if (environmentValue !== undefined) {
+    const level = parseLogLevel(environmentValue);
+    if (!level) {
+      return { message: `Invalid ${LOG_LEVEL_ENV} value ${JSON.stringify(environmentValue)}; expected off, info, or debug.`, ok: false };
+    }
+    return { ok: true, value: { argv: [...argv], level } };
+  }
+  return { ok: true, value: { argv: [...argv], level: "off" } };
+}
+
 function topHelp(): JsonValue {
   return {
     bin: displayExecutable(),
     description: "Build and inspect explicit-page HTML and PDF reports",
     usage: `${CLI_INVOCATION} <command>`,
+    flags: [logLevelFlag()],
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
       { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
@@ -52,6 +122,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       flags: [
         { flag: "--name <name>", description: "Set the lower-kebab report name (default: report)" },
         { flag: "--yes", description: "Create the planned files without prompting" },
+        logLevelFlag(),
       ],
       examples: [`${CLI_INVOCATION} init`, `${CLI_INVOCATION} init --yes`, `${CLI_INVOCATION} init --name quarterly-review --yes`],
     };
@@ -60,7 +131,10 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
     return {
       command: "inspect",
       usage: `${CLI_INVOCATION} inspect <name> | ${CLI_INVOCATION} inspect --artifact <path>`,
-      flags: [{ flag: "--artifact <path>", description: "Inspect an explicit HTML path instead of a configured report" }],
+      flags: [
+        { flag: "--artifact <path>", description: "Inspect an explicit HTML path instead of a configured report" },
+        logLevelFlag(),
+      ],
       examples: [`${CLI_INVOCATION} inspect operating-review`, `${CLI_INVOCATION} inspect --artifact artifacts/report.html`],
     };
   }
@@ -71,6 +145,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       flags: [
         { flag: "--artifact <path>", description: "Inspect an explicit PDF path instead of a configured report" },
         { flag: "--output <directory>", description: "Write explicit-artifact page images to this directory" },
+        logLevelFlag(),
       ],
       examples: [
         `${CLI_INVOCATION} inspect-pdf operating-review`,
@@ -81,7 +156,7 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
   return {
     command,
     usage: `${CLI_INVOCATION} ${command} <name>`,
-    flags: [],
+    flags: [logLevelFlag()],
     examples: [`${CLI_INVOCATION} ${command} spike`, `${CLI_INVOCATION} ${command} operating-review`],
   };
 }
@@ -135,16 +210,20 @@ function projectPath(config: ProjectConfig, absolutePath: string): string {
 
 const home = Effect.fn("cli.home")(function* () {
   const fs = yield* FileSystem.FileSystem;
-  const config = yield* loadProjectConfig();
-  const reports = yield* Effect.all(Object.values(config.reports).map((report) => fs.exists(report.htmlPath).pipe(
-    Effect.map((exists) => ({
-      name: report.name,
-      source: projectPath(config, report.sourcePath),
-      html: projectPath(config, report.htmlPath),
-      status: exists ? "built" : "not-built",
-    })),
-    Effect.mapError((cause) => commandFailure(cause, { command: "home", path: report.htmlPath, report: report.name })),
-  )));
+  const config = yield* withLogPhase(loadProjectConfig(), "project.load");
+  const reports = yield* withLogPhase(
+    Effect.all(Object.values(config.reports).map((report) => fs.exists(report.htmlPath).pipe(
+      Effect.map((exists) => ({
+        name: report.name,
+        source: projectPath(config, report.sourcePath),
+        html: projectPath(config, report.htmlPath),
+        status: exists ? "built" : "not-built",
+      })),
+      Effect.mapError((cause) => commandFailure(cause, { command: "home", path: report.htmlPath, report: report.name })),
+    ))),
+    "reports.scan",
+    { project: config.projectRoot },
+  );
   writeOutput({
     bin: displayExecutable(),
     description: "Build and inspect explicit-page HTML and PDF reports",
@@ -211,7 +290,11 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       return usageError(`Invalid report name "${reportName}"; use lower-kebab case.`, commandHelp("init"));
     }
 
-    const result = yield* initializeProject(process.cwd(), reportName, write);
+    const result = yield* withLogPhase(
+      initializeProject(process.cwd(), reportName, write),
+      write ? "project.initialize" : "project.plan",
+      { report: reportName },
+    );
     const init = {
       root: result.projectRoot,
       report: result.reportName,
@@ -277,7 +360,7 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     return usageError(`${command} requires exactly one report name.`, commandHelp(command));
   }
 
-  const config = yield* loadProjectConfig();
+  const config = yield* withLogPhase(loadProjectConfig(), "project.load");
   const report = yield* getReport(config, argv[1]);
   if (command === "build") {
     const result = yield* buildReport(report);
@@ -345,21 +428,89 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   return 0;
 });
 
-const arguments_ = process.argv.slice(2);
-const exit = await Effect.runPromiseExit(
-  runCommand(arguments_).pipe(Effect.provide(applicationLayer)),
-);
-let exitCode: number;
-if (Exit.isSuccess(exit)) {
-  exitCode = exit.value;
-} else {
+function invocationCommand(argv: string[]): string {
+  if (argv.length === 0) return "home";
+  if (argv[0] === "--help") return "help";
+  return argv[0] ?? "unknown";
+}
+
+function failureLogAnnotations(cause: Cause.Cause<unknown>): Record<string, unknown> {
+  const primary = cause.reasons[0];
+  let errorTag = "Unknown";
+  if (primary?._tag === "Fail") {
+    const error = primary.error;
+    errorTag = typeof error === "object"
+      && error !== null
+      && "_tag" in error
+      && typeof error._tag === "string"
+      ? error._tag
+      : "Failure";
+  } else if (primary?._tag === "Die") {
+    errorTag = "Defect";
+  } else if (primary?._tag === "Interrupt") {
+    errorTag = "Interrupt";
+  }
+  const errorMessage = {
+    CommandFailure: "Command operation failed.",
+    Defect: "Unexpected defect.",
+    Failure: "Operation failed.",
+    Interrupt: "Operation interrupted.",
+    ProjectConfigFailure: "Project configuration failed.",
+    ProjectNotFound: "Project discovery failed.",
+    ReportNotFound: "Report lookup failed.",
+    Unknown: "Operation failed.",
+  }[errorTag] ?? "Operation failed.";
+  return { errorMessage, errorTag };
+}
+
+function instrumentInvocation<E, R>(
+  effect: Effect.Effect<number, E, R>,
+  command: string,
+): Effect.Effect<number, E, R> {
+  return Effect.gen(function* () {
+    yield* Effect.logInfo("invocation.started");
+    return yield* effect.pipe(Effect.onExit((exit) => Effect.gen(function* () {
+      if (Exit.isFailure(exit)) {
+        yield* Effect.logError("invocation.failed").pipe(
+          Effect.annotateLogs(failureLogAnnotations(exit.cause)),
+        );
+        yield* Effect.logDebug("failure.cause", exit.cause);
+      } else if (exit.value === 0) {
+        yield* Effect.logInfo("invocation.completed").pipe(Effect.annotateLogs("exitCode", 0));
+      } else if (exit.value === 2) {
+        yield* Effect.logWarning("invocation.rejected").pipe(Effect.annotateLogs("exitCode", 2));
+      } else {
+        yield* Effect.logError("invocation.failed").pipe(Effect.annotateLogs("exitCode", exit.value));
+      }
+    })));
+  }).pipe(
+    Effect.annotateLogs({ command, invocationId: randomUUID() }),
+    Effect.withLogSpan("invocation"),
+  );
+}
+
+async function main(rawArguments: string[]): Promise<number> {
+  const logging = parseLoggingOptions(rawArguments, process.env[LOG_LEVEL_ENV]);
+  if (!logging.ok) return usageError(logging.message, topHelp());
+
+  const arguments_ = logging.value.argv;
+  const program = provideCliLogging(
+    instrumentInvocation(runCommand(arguments_), invocationCommand(arguments_)),
+    logging.value.level,
+  ).pipe(
+    Effect.provide(applicationLayer),
+  );
+  const exit = await Effect.runPromiseExit(program);
+  if (Exit.isSuccess(exit)) return exit.value;
+
   const failures = exit.cause.reasons.flatMap((reason) =>
     reason._tag === "Fail" && isCliFailure(reason.error) ? [reason.error] : []);
   const primary = failures[0];
   const hasNonOperationalCause = exit.cause.reasons.some((reason) => reason._tag !== "Fail");
   if (primary && !hasNonOperationalCause && exit.cause.reasons.length === 1) {
-    exitCode = formatCliFailure(primary, arguments_.length === 0 ? "home" : "command");
-  } else if (primary && !hasNonOperationalCause) {
+    return formatCliFailure(primary, arguments_.length === 0 ? "home" : "command");
+  }
+  if (primary && !hasNonOperationalCause) {
     const combined = primary._tag === "CommandFailure"
       ? new CommandFailure({
         cause: exit.cause,
@@ -369,9 +520,9 @@ if (Exit.isSuccess(exit)) {
         report: primary.report,
       })
       : primary;
-    exitCode = formatCliFailure(combined, arguments_.length === 0 ? "home" : "command");
-  } else {
-    exitCode = defectError(new Error(causeMessage(exit.cause), { cause: Cause.squash(exit.cause) }));
+    return formatCliFailure(combined, arguments_.length === 0 ? "home" : "command");
   }
+  return defectError(new Error(causeMessage(exit.cause), { cause: Cause.squash(exit.cause) }));
 }
-process.exitCode = exitCode;
+
+process.exitCode = await main(process.argv.slice(2));

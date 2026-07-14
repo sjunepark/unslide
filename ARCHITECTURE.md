@@ -1,12 +1,5 @@
 # Architecture
 
-Status: **V1, the accepted V2 delivery architecture, and the internal Effect v4
-runtime migration are verified.**
-Artifact protocol v1, headless full-document React authoring, installed CLI and
-scaffolding, canonical HTML capture, and the minimal 0.1.0 package are current;
-the packaged HTML/PDF workflow passes end to end. See `PLAN.md` for the current
-evidence gate.
-
 ## Purpose and Boundaries
 
 Unslide turns user-owned report source and data into a standalone HTML document
@@ -84,6 +77,12 @@ One Effect program owns execution. The executable provides one internal Node
 filesystem/path Layer, and the outer boundary translates typed operational
 failures to the stable CLI payload and exit-code contract. Effect remains an
 implementation detail and does not appear in published authoring declarations.
+
+The same boundary replaces Effect's default logger. Logging is disabled by
+default. The `info` and `debug` CLI levels install a JSON stderr logger with the
+configured minimum level and invocation annotations; `off` supplies no logger
+and keeps diagnostics disabled. Major operations add log spans without changing
+TOON stdout or the typed failure model. The diagnostic event shape is internal.
 
 Configuration may select entries, outputs, inspection locations, and supported
 export behavior. It must not define page geometry, typography, padding, chrome,
@@ -181,7 +180,7 @@ documentation are insufficient.
   readiness independently of React.
 - `src/unslide/browser.ts` owns canonical Chromium loading, shared protocol
   readiness, browser/resource diagnostics, and scoped browser/context/page
-  release without importing React.
+  release in the calling Effect context without importing React.
 - `src/unslide/capture.ts` captures authored page bounds through that browser
   seam and returns deterministic structured results.
 - `src/unslide/page-images.ts` transactionally replaces managed page PNG sets,
@@ -201,8 +200,11 @@ documentation are insufficient.
 - `src/unslide/runtime.ts` provides the one internal Node filesystem/path Layer;
   `src/unslide/failures.ts` and `src/unslide/lifecycle.ts` preserve typed failure,
   interruption, and cleanup evidence across operational scopes.
+- `src/unslide/logging.ts` installs opt-in Effect JSON logging and provides the
+  shared phase instrumentation used across those operational scopes.
 - `src/cli.ts` exposes initialization, HTML build/inspection/capture, PDF export,
-  and PDF inspection with TOON output and stable exit codes.
+  and PDF inspection with TOON output, stable exit codes, and global logging
+  level parsing.
 - `src/unslide/init.ts` plans and safely writes the minimal user-owned project
   scaffold; `src/unslide/react.ts` is the narrow installed authoring entry.
 - `src/spike/` and `src/reports/operating-review/` own their full documents,
@@ -215,15 +217,11 @@ Generated HTML and PDF stay under `artifacts/`; disposable HTML and PDF-native
 captures stay under `.tmp/captures/` and `.tmp/pdf-captures/`. These locations
 are explicit report entries in the root `unslide.json`, not visual policy.
 
-## Related Decisions and Plans
+## Related Decisions
 
-- [D1 — Explicit fixed pages in V1](docs/decisions/0001-explicit-pages.md)
+- [D1 — Explicit fixed pages](docs/decisions/0001-explicit-pages.md)
 - [D2 — Repository-owned rendered preview](docs/decisions/0002-rendered-preview.md)
 - [D3 — Headless artifact protocol and author-owned design](docs/decisions/0003-headless-artifact-protocol.md)
 - [D4 — HTML-first PDF export](docs/decisions/0004-html-first-pdf-export.md)
 - [D5 — Effect v4 for the internal runtime](docs/decisions/0005-effect-v4-internal-runtime.md)
 - [Supported delivery contract](docs/SUPPORT.md)
-- [V2 core plan](docs/plans/v2-core.md)
-- [V2 adoption plan](docs/plans/v2-adoption.md)
-- [V2 PDF plan](docs/plans/v2-pdf.md)
-- [Effect v4 internal runtime plan](docs/plans/effect-v4-adoption.md)

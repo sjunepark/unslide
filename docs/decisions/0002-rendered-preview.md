@@ -2,11 +2,11 @@
 
 Date: 2026-07-13
 
-Status: accepted for the first implementation
+Status: accepted
 
-V2 clarification: the isolated browser path remains accepted behind packaged
-tooling and the headless artifact protocol. PDF-native inspection is specified
-separately by [D4](0004-html-first-pdf-export.md).
+Current clarification: the isolated browser path is provided by packaged
+tooling behind the headless artifact protocol. PDF-native inspection is
+specified separately by [D4](0004-html-first-pdf-export.md).
 
 ## Context
 
@@ -22,7 +22,7 @@ workflow dependent on external browser state and per-agent integration.
 The repository will provide a command that launches an isolated headless
 browser and captures the actual generated report as images.
 
-Playwright with Chromium is the initial implementation direction. It is
+Playwright with Chromium is the canonical implementation. It is
 development tooling, not a runtime dependency of the generated HTML and not a
 required dependency for report recipients.
 
@@ -30,9 +30,9 @@ The capture path should make individual page images easy for vision-capable
 agents to inspect. It may also create a full-document image or PDF when useful,
 but those outputs are secondary.
 
-V1 does not add automated visual scoring, overflow linting, or baseline-image
-regression machinery. The purpose is to let the author or agent see the real
-result.
+This decision does not add automated visual scoring, overflow linting, or
+baseline-image regression machinery. The purpose is to let the author or agent
+see the real result.
 
 ## Consequences
 

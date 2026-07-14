@@ -4,7 +4,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Browser, BrowserContext, Page, Request } from "playwright";
 import { chromium } from "playwright";
 import { Cause, Data, Effect } from "effect";
-import { runScoped, type LifecycleRunOptions } from "./lifecycle.js";
+import { errorMessage } from "./failures.js";
+import { scoped, type ResourceCleanupFailure } from "./lifecycle.js";
+import { logDebug, withLogPhase } from "./logging.js";
 import {
   formatArtifactIssues,
   validateArtifact,
@@ -18,10 +20,10 @@ interface ArtifactBrowserSession {
 
 const NAVIGATION_TIMEOUT_MS = 5_000;
 
-class BrowserFailure extends Data.TaggedError("BrowserFailure")<{
+export class BrowserFailure extends Data.TaggedError("BrowserFailure")<{
   readonly cause?: unknown;
   readonly message: string;
-  readonly phase: "launch" | "context" | "page" | "navigation" | "readiness" | "operation";
+  readonly phase: "access" | "launch" | "context" | "page" | "navigation" | "readiness" | "operation";
 }> {}
 
 function displayResource(url: string): string {
@@ -37,19 +39,19 @@ function displayResource(url: string): string {
  * Opens one canonical HTML artifact in the pinned browser and applies the
  * shared protocol readiness gate. Playwright stays behind this internal seam.
  */
-export async function withLoadedArtifact<T>(
+export function withLoadedArtifact<T>(
   input: string,
   operation: (session: ArtifactBrowserSession) => Promise<T>,
-  options: LifecycleRunOptions = {},
-): Promise<T> {
+): Effect.Effect<T, BrowserFailure | ResourceCleanupFailure> {
   const inputPath = resolve(input);
-  try {
-    await access(inputPath);
-  } catch (error) {
-    throw new Error(
-      `Cannot read HTML artifact ${inputPath}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  const checkAccess = Effect.tryPromise({
+    try: () => access(inputPath),
+    catch: (cause) => new BrowserFailure({
+      cause,
+      message: `Cannot read HTML artifact ${inputPath}: ${errorMessage(cause)}`,
+      phase: "access",
+    }),
+  });
 
   const acquireBrowser = Effect.acquireRelease(
     Effect.tryPromise({
@@ -89,9 +91,11 @@ export async function withLoadedArtifact<T>(
   );
 
   const loadedArtifact = Effect.gen(function* () {
-    const browser = yield* acquireBrowser;
+    yield* checkAccess;
+    const browser = yield* withLogPhase(acquireBrowser, "browser.launch", { path: inputPath });
     const context = yield* acquireContext(browser);
     const page = yield* acquirePage(context);
+    yield* logDebug("browser.page.created", { path: inputPath });
     const browserIssues: string[] = [];
     const pendingResources = new Set<Request>();
     page.on("request", (request) => {
@@ -109,57 +113,72 @@ export async function withLoadedArtifact<T>(
       );
     });
 
-    yield* Effect.tryPromise({
-      try: () => page.goto(pathToFileURL(inputPath).href, {
-        waitUntil: "domcontentloaded",
-        timeout: 0,
-      }),
-      catch: (cause) => new BrowserFailure({
-        cause,
-        message: cause instanceof Error ? cause.message : String(cause),
-        phase: "navigation",
-      }),
-    }).pipe(
-      Effect.timeout(NAVIGATION_TIMEOUT_MS),
-      Effect.mapError((error) => {
-        const pending = [...pendingResources].map((request) => displayResource(request.url()));
-        const detail = Cause.isTimeoutError(error)
-          ? `Navigation did not finish within ${NAVIGATION_TIMEOUT_MS}ms.`
-          : error instanceof Error ? error.message : String(error);
-        return new BrowserFailure({
-          cause: error,
-          message: `Cannot load HTML artifact ${inputPath}${pending.length === 0 ? "" : `. Pending resources: ${pending.join(", ")}`}: ${detail}`,
+    yield* withLogPhase(
+      Effect.tryPromise({
+        try: () => page.goto(pathToFileURL(inputPath).href, {
+          waitUntil: "domcontentloaded",
+          timeout: 0,
+        }),
+        catch: (cause) => new BrowserFailure({
+          cause,
+          message: errorMessage(cause),
           phase: "navigation",
-        });
-      }),
+        }),
+      }).pipe(
+        Effect.timeout(NAVIGATION_TIMEOUT_MS),
+        Effect.mapError((error) => {
+          const pending = [...pendingResources].map((request) => displayResource(request.url()));
+          const detail = Cause.isTimeoutError(error)
+            ? `Navigation did not finish within ${NAVIGATION_TIMEOUT_MS}ms.`
+            : errorMessage(error);
+          return new BrowserFailure({
+            cause: error,
+            message: `Cannot load HTML artifact ${inputPath}${pending.length === 0 ? "" : `. Pending resources: ${pending.join(", ")}`}: ${detail}`,
+            phase: "navigation",
+          });
+        }),
+      ),
+      "browser.navigate",
+      { path: inputPath },
     );
 
     // validateArtifact must remain closure-free for Playwright serialization.
-    const validation = yield* Effect.tryPromise({
-      try: () => page.evaluate(validateArtifact),
-      catch: (cause) => new BrowserFailure({
-        cause,
-        message: cause instanceof Error ? cause.message : String(cause),
-        phase: "readiness",
+    const validation = yield* withLogPhase(
+      Effect.gen(function* () {
+        const result = yield* Effect.tryPromise({
+          try: () => page.evaluate(validateArtifact),
+          catch: (cause) => new BrowserFailure({
+            cause,
+            message: errorMessage(cause),
+            phase: "readiness",
+          }),
+        });
+        const issues = [
+          ...(result.ok ? [] : [formatArtifactIssues(result.issues)]),
+          ...browserIssues,
+          ...[...pendingResources].map((request) => `Resource still pending: ${displayResource(request.url())}`),
+        ];
+        if (issues.length > 0) {
+          return yield* new BrowserFailure({
+            message: `Artifact readiness failed:\n${issues.join("\n")}`,
+            phase: "readiness",
+          });
+        }
+        return result;
       }),
+      "browser.readiness",
+      { path: inputPath },
+    );
+    yield* logDebug("browser.artifact.ready", {
+      pageCount: validation.pages.length,
+      path: inputPath,
     });
-    const issues = [
-      ...(validation.ok ? [] : [formatArtifactIssues(validation.issues)]),
-      ...browserIssues,
-      ...[...pendingResources].map((request) => `Resource still pending: ${displayResource(request.url())}`),
-    ];
-    if (issues.length > 0) {
-      return yield* new BrowserFailure({
-        message: `Artifact readiness failed:\n${issues.join("\n")}`,
-        phase: "readiness",
-      });
-    }
 
     const result = yield* Effect.tryPromise({
       try: () => operation({ page, pages: validation.pages }),
       catch: (cause) => new BrowserFailure({
         cause,
-        message: cause instanceof Error ? cause.message : String(cause),
+        message: errorMessage(cause),
         phase: "operation",
       }),
     });
@@ -176,5 +195,5 @@ export async function withLoadedArtifact<T>(
     return result;
   });
 
-  return runScoped(loadedArtifact, options);
+  return scoped(loadedArtifact);
 }

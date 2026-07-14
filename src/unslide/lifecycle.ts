@@ -1,10 +1,6 @@
 import { Cause, Data, Effect, Exit, Scope } from "effect";
 import { errorMessage } from "./failures.js";
 
-export interface LifecycleRunOptions {
-  readonly signal?: AbortSignal;
-}
-
 export function onceAsync<A>(operation: () => PromiseLike<A>): () => Promise<A> {
   let result: Promise<A> | undefined;
   return () => result ??= Promise.resolve().then(operation);
@@ -23,7 +19,7 @@ export function causeMessage(cause: Cause.Cause<unknown>): string {
   }).join("\n");
 }
 
-class ResourceCleanupFailure extends Data.TaggedError("ResourceCleanupFailure")<{
+export class ResourceCleanupFailure extends Data.TaggedError("ResourceCleanupFailure")<{
   readonly cause: Cause.Cause<never>;
   readonly message: string;
 }> {}
@@ -59,16 +55,4 @@ export function scoped<A, E, R>(
       return yield* primary;
     }),
   );
-}
-
-export function runScoped<A, E>(
-  effect: Effect.Effect<A, E, Scope.Scope>,
-  options: LifecycleRunOptions = {},
-): Promise<A> {
-  const program = scoped(effect);
-
-  return Effect.runPromiseExit(program, options).then((exit) => {
-    if (Exit.isSuccess(exit)) return exit.value;
-    throw new Error(causeMessage(exit.cause), { cause: exit.cause });
-  });
 }

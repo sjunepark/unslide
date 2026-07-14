@@ -2,8 +2,9 @@ import { randomUUID } from "node:crypto";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { Data, Effect, FileSystem, Path } from "effect";
 import { withLoadedArtifact } from "./browser.js";
-import { commandFailure, mapCommandFailure } from "./failures.js";
-import { onceAsync, runScoped, scoped, type LifecycleRunOptions } from "./lifecycle.js";
+import { errorMessage, mapCommandFailure } from "./failures.js";
+import { onceAsync, scoped } from "./lifecycle.js";
+import { logDebug, withLogPhase } from "./logging.js";
 import { PAGE_MARKER_SELECTOR } from "./protocol.js";
 
 // Chromium quantizes CSS print geometry below one point; observed absolute
@@ -105,14 +106,18 @@ function parsePageGeometry(value: string): PageGeometry | undefined {
   return { widthPoints, heightPoints: lengths[1] ?? widthPoints };
 }
 
-async function validatePdf(
+function validatePdf(
   bytes: Uint8Array,
   expectedPageCount: number,
   expectedGeometry: PageGeometry,
   expectedText: ExpectedPageText[],
-  options: LifecycleRunOptions,
-): Promise<PdfPage[]> {
-  if (bytes.byteLength === 0) throw new Error("Chromium produced an empty PDF.");
+) {
+  if (bytes.byteLength === 0) {
+    return Effect.fail(new PdfValidationFailure({
+      message: "Chromium produced an empty PDF.",
+      phase: "validate",
+    }));
+  }
 
   const validate = Effect.gen(function* () {
     const loading = yield* Effect.acquireRelease(
@@ -237,14 +242,7 @@ async function validatePdf(
     return pages;
   });
 
-  try {
-    return await runScoped(validate, options);
-  } catch (error) {
-    throw new Error(
-      `Cannot validate generated PDF: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error },
-    );
-  }
+  return scoped(validate);
 }
 
 /**
@@ -261,8 +259,8 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
   const outputPath = path.resolve(output);
   const context = { command: "export", path: inputPath } as const;
 
-  const printed = yield* Effect.tryPromise({
-    try: (signal) => withLoadedArtifact(inputPath, async ({ page, pages }) => {
+  const printed = yield* mapCommandFailure(withLogPhase(
+    withLoadedArtifact(inputPath, async ({ page, pages }) => {
       await page.emulateMedia({ media: "print" });
       const pageRules = await page.evaluate(() => {
         const baseSizes: string[] = [];
@@ -335,34 +333,48 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         tagged: true,
       });
       return { bytes, expectedPageCount: pages.length, expectedGeometry, expectedText };
-    }, { signal }),
-    catch: (cause) => commandFailure(cause, context),
-  });
+    }),
+    "pdf.print",
+    { path: inputPath },
+  ), context);
 
-  const pdfPages = yield* Effect.tryPromise({
-    try: (signal) => validatePdf(
+  const pdfPages = yield* withLogPhase(
+    mapCommandFailure(
+      validatePdf(
       new Uint8Array(printed.bytes),
       printed.expectedPageCount,
       printed.expectedGeometry,
       printed.expectedText,
-      { signal },
+      ),
+      context,
+      (cause) => `Cannot validate generated PDF: ${errorMessage(cause)}`,
     ),
-    catch: (cause) => commandFailure(cause, context),
-  });
+    "pdf.validate",
+    { pageCount: printed.expectedPageCount, path: outputPath },
+  );
   const outputDirectory = path.dirname(outputPath);
   const stagingPath = path.resolve(outputDirectory, `.unslide-pdf-${randomUUID()}-${path.basename(outputPath)}`);
-  yield* mapCommandFailure(scoped(Effect.gen(function* () {
-    yield* fs.makeDirectory(outputDirectory, { recursive: true });
-    const staging = yield* Effect.acquireRelease(
-      Effect.succeed({ cleanup: true }),
-      (state) => state.cleanup
-        ? fs.remove(stagingPath, { force: true }).pipe(Effect.orDie)
-        : Effect.void,
-    );
-    yield* fs.writeFile(stagingPath, printed.bytes, { flag: "wx" });
-    yield* fs.rename(stagingPath, outputPath);
-    staging.cleanup = false;
-  })), context);
+  yield* withLogPhase(
+    mapCommandFailure(scoped(Effect.gen(function* () {
+      yield* fs.makeDirectory(outputDirectory, { recursive: true });
+      const staging = yield* Effect.acquireRelease(
+        Effect.succeed({ cleanup: true }),
+        (state) => state.cleanup
+          ? fs.remove(stagingPath, { force: true }).pipe(Effect.orDie)
+          : Effect.void,
+      );
+      yield* fs.writeFile(stagingPath, printed.bytes, { flag: "wx" });
+      yield* fs.rename(stagingPath, outputPath);
+      staging.cleanup = false;
+    })), context),
+    "pdf.publish",
+    { pageCount: pdfPages.length, path: outputPath },
+  );
+  yield* logDebug("pdf.published", {
+    bytes: printed.bytes.byteLength,
+    pageCount: pdfPages.length,
+    path: outputPath,
+  });
 
   return { inputPath, outputPath, pages: pdfPages };
 });

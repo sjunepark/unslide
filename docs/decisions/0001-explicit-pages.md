@@ -1,11 +1,11 @@
-# D1 — Explicit Fixed Pages in V1
+# D1 — Explicit Fixed Pages
 
 Date: 2026-07-13
 
 Status: accepted
 
-V2 clarification: explicit page membership remains accepted, but page geometry,
-padding, repeated material, and numbering are report-owned design. See
+Current clarification: explicit page membership remains accepted, but page
+geometry, padding, repeated material, and numbering are report-owned design. See
 [D3](0003-headless-artifact-protocol.md).
 
 ## Context
@@ -21,7 +21,7 @@ deliberately, as in a static presentation.
 
 ## Decision
 
-V1 models a report as an ordered collection of explicit fixed pages.
+Unslide models a report as an ordered collection of explicit fixed pages.
 
 Content stays on the page where report source places it. The framework does not
 measure remaining space and move content to another page. Source may
@@ -34,7 +34,7 @@ automatic repair or layout-lint subsystem.
 
 Benefits:
 
-- The first implementation is small.
+- The implementation remains small.
 - Page count and composition remain visible in source.
 - Headers, footers, and numbering do not require a paged-media engine.
 - Agents can edit report structure using ordinary code.
@@ -47,7 +47,7 @@ Costs:
 - Large tables may need to be split explicitly.
 - Authors must inspect rendered pages before delivery.
 
-These costs are acceptable for the v1 use case.
+These costs are acceptable for deliberately composed static reports.
 
 ## Revisit When
 

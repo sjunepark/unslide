@@ -3,6 +3,7 @@ import { readdir } from "node:fs/promises";
 import { Cause, Effect, Exit, FileSystem, Path } from "effect";
 import { commandFailure, errorMessage, mapCommandFailure, type CommandFailure } from "./failures.js";
 import { scoped } from "./lifecycle.js";
+import { logDebug, withLogPhase } from "./logging.js";
 
 export interface PageImageOutput {
   outputPath: string;
@@ -69,8 +70,17 @@ export function replacePageImages<T extends PageImageOutput>(
         }
       });
 
-      const publicationExit = yield* Effect.exit(publication);
+      const publicationExit = yield* Effect.exit(withLogPhase(
+        publication,
+        kind === "captures" ? "captures.publish" : "images.publish",
+        { output: outputDirectory, pageCount: generated.length },
+      ));
       if (Exit.isFailure(publicationExit)) {
+        yield* logDebug("publication.rollback.started", {
+          output: outputDirectory,
+          publishedCount: published.length,
+          replacedCount: backedUpNames.length,
+        });
         const rollbackErrors: string[] = [];
         for (const name of published) {
           const rollback = yield* Effect.exit(fs.remove(path.resolve(outputDirectory, name), { force: true }));
@@ -84,6 +94,10 @@ export function replacePageImages<T extends PageImageOutput>(
         }
 
         staging.preserve = rollbackErrors.length > 0;
+        yield* logDebug(
+          rollbackErrors.length === 0 ? "publication.rollback.completed" : "publication.rollback.incomplete",
+          { errorCount: rollbackErrors.length, output: outputDirectory, recoveryPath: stagingDirectory },
+        );
         const pageKind = kind === "captures" ? "page captures" : "page images";
         const primaryMessage = errorMessage(Cause.squash(publicationExit.cause));
         const publicationMessage = `Cannot publish ${pageKind}${rollbackErrors.length === 0 ? `; previous ${kind} were restored` : ` and rollback was incomplete (recovery files remain in ${stagingDirectory}): ${rollbackErrors.join("; ")}`}: ${primaryMessage}`;
@@ -100,6 +114,10 @@ export function replacePageImages<T extends PageImageOutput>(
 
       // Superseded managed images remain only in staging. Unrelated files never
       // move and survive cleanup.
+      yield* logDebug("publication.completed", {
+        output: outputDirectory,
+        pageCount: generated.length,
+      });
       return generated;
     })), context);
   });

@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { commandFailure, mapCommandFailure } from "./failures.js";
 import { scoped } from "./lifecycle.js";
+import { logDebug, withLogPhase } from "./logging.js";
 
 export interface WriteReportOptions {
   document: ReactElement;
@@ -103,30 +104,40 @@ export const writeReportHtml = Effect.fn("render.writeReportHtml")(function* (
   { document, outputPath }: WriteReportOptions,
 ) {
   const context = { command: "build", path: outputPath } as const;
-  const html = yield* Effect.try({
-    try: () => {
-      const markup = renderToStaticMarkup(document);
-      assertCompleteStandaloneDocument(markup);
-      return `<!doctype html>\n${markup}\n`;
-    },
-    catch: (cause) => commandFailure(cause, context),
-  });
+  const html = yield* withLogPhase(
+    Effect.try({
+      try: () => {
+        const markup = renderToStaticMarkup(document);
+        assertCompleteStandaloneDocument(markup);
+        return `<!doctype html>\n${markup}\n`;
+      },
+      catch: (cause) => commandFailure(cause, context),
+    }),
+    "html.render",
+    { path: outputPath },
+  );
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const resolvedOutputPath = path.resolve(outputPath);
   const temporaryPath = `${resolvedOutputPath}.tmp-${process.pid}-${randomUUID()}`;
 
-  return yield* mapCommandFailure(scoped(Effect.gen(function* () {
-    yield* fs.makeDirectory(path.dirname(resolvedOutputPath), { recursive: true });
-    const temporary = yield* Effect.acquireRelease(
-      Effect.succeed({ cleanup: true, path: temporaryPath }),
-      (state) => state.cleanup
-        ? fs.remove(state.path, { force: true }).pipe(Effect.orDie)
-        : Effect.void,
-    );
-    yield* fs.writeFileString(temporary.path, html, { flag: "wx" });
-    yield* fs.rename(temporary.path, resolvedOutputPath);
-    temporary.cleanup = false;
-    return resolvedOutputPath;
-  })), context);
+  const published = yield* withLogPhase(
+    mapCommandFailure(scoped(Effect.gen(function* () {
+      yield* fs.makeDirectory(path.dirname(resolvedOutputPath), { recursive: true });
+      const temporary = yield* Effect.acquireRelease(
+        Effect.succeed({ cleanup: true, path: temporaryPath }),
+        (state) => state.cleanup
+          ? fs.remove(state.path, { force: true }).pipe(Effect.orDie)
+          : Effect.void,
+      );
+      yield* fs.writeFileString(temporary.path, html, { flag: "wx" });
+      yield* fs.rename(temporary.path, resolvedOutputPath);
+      temporary.cleanup = false;
+      return resolvedOutputPath;
+    })), context),
+    "html.publish",
+    { path: resolvedOutputPath },
+  );
+  yield* logDebug("artifact.published", { bytes: Buffer.byteLength(html), path: resolvedOutputPath });
+  return published;
 });

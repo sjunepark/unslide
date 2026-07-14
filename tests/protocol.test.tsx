@@ -362,17 +362,17 @@ test("capture tracks concurrent requests to the same URL independently", async (
 test("loaded artifacts release Chromium after success and operational failure", async () => {
   const inputPath = resolve(fixtureDirectory, "protocol-valid.html");
   let successfulBrowser: Browser | undefined;
-  await withLoadedArtifact(inputPath, async ({ page }) => {
+  await runUnslide(withLoadedArtifact(inputPath, async ({ page }) => {
     successfulBrowser = page.context().browser() ?? undefined;
-  });
+  }));
   assert.equal(successfulBrowser?.isConnected(), false);
 
   let failedBrowser: Browser | undefined;
   await assert.rejects(
-    withLoadedArtifact(inputPath, async ({ page }) => {
+    runUnslide(withLoadedArtifact(inputPath, async ({ page }) => {
       failedBrowser = page.context().browser() ?? undefined;
       throw new Error("fixture operation failed");
-    }),
+    })),
     /fixture operation failed/,
   );
   assert.equal(failedBrowser?.isConnected(), false);
@@ -385,13 +385,12 @@ test("interrupting a loaded artifact closes the underlying Chromium work", async
     markStarted = resolveStarted;
   });
   let browser: Browser | undefined;
-  const pending = withLoadedArtifact(
-    resolve(fixtureDirectory, "protocol-valid.html"),
-    async ({ page }) => {
+  const pending = runUnslide(
+    withLoadedArtifact(resolve(fixtureDirectory, "protocol-valid.html"), async ({ page }) => {
       browser = page.context().browser() ?? undefined;
       markStarted?.();
       return new Promise<never>(() => {});
-    },
+    }),
     { signal: controller.signal },
   );
 
@@ -403,7 +402,7 @@ test("interrupting a loaded artifact closes the underlying Chromium work", async
 
 test("loaded artifacts retain primary and Chromium cleanup failures together", async () => {
   await assert.rejects(
-    withLoadedArtifact(resolve(fixtureDirectory, "protocol-valid.html"), async ({ page }) => {
+    runUnslide(withLoadedArtifact(resolve(fixtureDirectory, "protocol-valid.html"), async ({ page }) => {
       const browser = page.context().browser();
       assert.ok(browser);
       const close = browser.close.bind(browser);
@@ -412,7 +411,7 @@ test("loaded artifacts retain primary and Chromium cleanup failures together", a
         throw new Error("fixture browser cleanup failed");
       };
       throw new Error("fixture primary operation failed");
-    }),
+    })),
     /fixture primary operation failed[\s\S]*Cleanup failed: fixture browser cleanup failed/,
   );
 });
