@@ -1,5 +1,6 @@
-import { lstat, readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { lstat } from "node:fs/promises";
+import { Cause, Effect, Exit, FileSystem, Path } from "effect";
+import { commandFailure, errorMessage, type CommandFailureContext } from "./failures.js";
 
 export type InitFileState = "create" | "created" | "unchanged" | "conflict";
 
@@ -95,25 +96,48 @@ function scaffoldFiles(projectRoot: string, reportName: string): Array<{ relativ
   ];
 }
 
-async function planFiles(projectRoot: string, reportName: string): Promise<PlannedFile[]> {
-  return Promise.all(scaffoldFiles(projectRoot, reportName).map(async ({ relativePath, contents }) => {
-    const path = resolve(projectRoot, relativePath);
+const planFiles = Effect.fn("init.planFiles")(function* (
+  projectRoot: string,
+  reportName: string,
+  context: CommandFailureContext,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const pathService = yield* Path.Path;
+  const planned: PlannedFile[] = [];
+  for (const { relativePath, contents } of scaffoldFiles(projectRoot, reportName)) {
+    const path = pathService.resolve(projectRoot, relativePath);
     let state: InitFileState = "create";
-    try {
-      const metadata = await lstat(path);
-      state = metadata.isFile() && !metadata.isSymbolicLink() && await readFile(path, "utf8") === contents
+    const metadata = yield* Effect.promise(() => lstat(path).then(
+      (value) => ({ _tag: "Found" as const, value }),
+      (cause) => ({ _tag: "Failed" as const, cause }),
+    ));
+    if (metadata._tag === "Found") {
+      state = metadata.value.isFile()
+        && !metadata.value.isSymbolicLink()
+        && (yield* fs.readFileString(path)) === contents
         ? "unchanged"
         : "conflict";
-    } catch (error) {
-      const code = error instanceof Error && "code" in error ? error.code : undefined;
-      if (code !== "ENOENT") throw error;
+    } else {
+      const code = metadata.cause instanceof Error && "code" in metadata.cause
+        ? metadata.cause.code
+        : undefined;
+      if (code !== "ENOENT") return yield* commandFailure(metadata.cause, context);
     }
-    return { path, relativePath, contents, state };
-  }));
-}
+    planned.push({ path, relativePath, contents, state });
+  }
+  return planned;
+});
 
-export async function initializeProject(projectRoot: string, reportName: string, write: boolean): Promise<InitResult> {
-  const files = await planFiles(projectRoot, reportName);
+export const initializeProject = Effect.fn("init.initializeProject")(function* (
+  projectRoot: string,
+  reportName: string,
+  write: boolean,
+) {
+  const context = { command: "init", path: projectRoot, report: reportName } as const;
+  const fs = yield* FileSystem.FileSystem;
+  const files = yield* planFiles(projectRoot, reportName, context).pipe(
+    Effect.mapError((cause) => commandFailure(cause, context)),
+  );
   if (files.some((file) => file.state === "conflict")) {
     return { projectRoot, reportName, status: "conflict", files };
   }
@@ -129,16 +153,27 @@ export async function initializeProject(projectRoot: string, reportName: string,
   }
 
   const created: PlannedFile[] = [];
-  try {
-    for (const file of creates) {
-      await writeFile(file.path, file.contents, { flag: "wx" });
-      file.state = "created";
-      created.push(file);
+  for (const file of creates) {
+    const writeExit = yield* Effect.exit(fs.writeFileString(file.path, file.contents, { flag: "wx" }));
+    if (Exit.isFailure(writeExit)) {
+      const cause = Cause.squash(writeExit.cause);
+      const message = `Cannot finish initialization${created.length === 0 ? "" : `; these safely created files remain: ${created.map((createdFile) => createdFile.relativePath).join(", ")}`}: ${errorMessage(cause)}`;
+      if (writeExit.cause.reasons.some((reason) => reason._tag !== "Fail")) {
+        return yield* Effect.failCause(created.length === 0
+          ? writeExit.cause
+          : Cause.combine(
+            writeExit.cause,
+            Cause.fail(commandFailure(writeExit.cause, context, message)),
+          ));
+      }
+      return yield* commandFailure(
+        writeExit.cause,
+        context,
+        message,
+      );
     }
-  } catch (error) {
-    throw new Error(
-      `Cannot finish initialization${created.length === 0 ? "" : `; these safely created files remain: ${created.map((file) => file.relativePath).join(", ")}`}: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    file.state = "created";
+    created.push(file);
   }
 
   return {
@@ -147,4 +182,4 @@ export async function initializeProject(projectRoot: string, reportName: string,
     status: creates.length > 0 ? "created" : "unchanged",
     files,
   };
-}
+});

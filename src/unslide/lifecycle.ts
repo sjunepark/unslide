@@ -1,4 +1,5 @@
 import { Cause, Data, Effect, Exit, Scope } from "effect";
+import { errorMessage } from "./failures.js";
 
 export interface LifecycleRunOptions {
   readonly signal?: AbortSignal;
@@ -9,11 +10,7 @@ export function onceAsync<A>(operation: () => PromiseLike<A>): () => Promise<A> 
   return () => result ??= Promise.resolve().then(operation);
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function causeMessage(cause: Cause.Cause<unknown>): string {
+export function causeMessage(cause: Cause.Cause<unknown>): string {
   return cause.reasons.map((reason) => {
     switch (reason._tag) {
       case "Fail":

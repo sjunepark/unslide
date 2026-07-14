@@ -1,4 +1,4 @@
-import { Data } from "effect";
+import { Cause, Data, Effect } from "effect";
 
 export class ProjectNotFound extends Data.TaggedError("ProjectNotFound")<{
   readonly message: string;
@@ -25,5 +25,57 @@ export class CommandFailure extends Data.TaggedError("CommandFailure")<{
   readonly path?: string;
   readonly report?: string;
 }> {}
+
+export interface CommandFailureContext {
+  readonly command: string;
+  readonly path?: string;
+  readonly report?: string;
+}
+
+export function errorMessage(error: unknown): string {
+  if (
+    error instanceof Error
+    && "_tag" in error
+    && error._tag === "PlatformError"
+    && "cause" in error
+    && error.cause instanceof Error
+  ) {
+    return error.cause.message;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function commandFailure(
+  cause: unknown,
+  context: CommandFailureContext,
+  message?: string,
+): CommandFailure {
+  return cause instanceof CommandFailure && message === undefined
+    ? cause
+    : new CommandFailure({ cause, message: message ?? errorMessage(cause), ...context });
+}
+
+/** Maps every typed failure in a Cause without collapsing combined cleanup evidence. */
+export function mapCommandFailure<A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+  context: CommandFailureContext,
+  message: (cause: E) => string = errorMessage,
+): Effect.Effect<A, CommandFailure, R> {
+  return Effect.catchCause(effect, (cause) => Effect.failCause(Cause.map(
+    cause,
+    (failure) => failure instanceof CommandFailure
+      ? failure
+      : commandFailure(
+        failure,
+        context,
+        typeof failure === "object"
+        && failure !== null
+        && "_tag" in failure
+        && failure._tag === "ResourceCleanupFailure"
+          ? errorMessage(failure)
+          : message(failure),
+      ),
+  )));
+}
 
 export type CliFailure = ProjectNotFound | ProjectConfigFailure | ReportNotFound | CommandFailure;

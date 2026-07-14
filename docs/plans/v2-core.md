@@ -82,8 +82,8 @@ observable contract and exit criteria must not.
   diagnostics, failed-font reporting, and bounded page-scoped image failure
   context without importing `Page` or `foundation.css`.
 - `pnpm run check`, `pnpm test`, and `pnpm run validate` pass. Regenerated V1
-  capture hashes match the pre-migration images, and all 3 spike pages, all 8
-  operating-review pages, and both independent fixture pages were inspected.
+  capture hashes match the pre-migration images, and every regenerated report
+  and independent fixture page was inspected.
 - The required implementation reviews fixed a serialized-browser handler
   defect, bounded font and image readiness, and added failed-resource coverage;
   the final bounded recheck reported no remaining safe findings or decisions.
@@ -162,9 +162,10 @@ visual policy.
   absent runtime design, complete-document enforcement, explicit CSS/raster/
   SVG/font inlining, browser resource readiness, unresolved-resource errors,
   and safe output behavior.
-- `pnpm run check` and all 12 tests pass. Both reports regenerate at 3 and 8
-  pages, all 11 HTML captures were inspected without fit or visual defects, and
-  generated artifacts contain no scripts, linked styles, or external URLs.
+- `pnpm run check` and the focused tests pass. Both reports regenerate at their
+  authored page counts, every HTML capture was inspected without fit or visual
+  defects, and generated artifacts contain no scripts, linked styles, or
+  external URLs.
 - The implementation review and diet lens retained explicit report-local
   duplication, fixed data-URL `srcset` handling, expanded supported resource
   diagnostics, and replaced placeholder asset checks with real browser-loaded
@@ -232,10 +233,10 @@ the React authoring implementation and of page design.
 - Tests cover structured mixed-geometry capture, byte-identical repeated runs,
   deterministic names, safe stale cleanup, preservation after validation and
   hidden-page failures, console errors, and failed local resources.
-- `pnpm run check` and all 17 tests pass. Repeated captures of the eight-page
-  A4 operating review and two-page unrelated semantic fixture produced
-  identical SHA-256 hashes, and every resulting image was inspected without
-  fit or visual defects.
+- `pnpm run check` and the focused tests pass. Repeated captures of the A4
+  operating review and unrelated semantic fixture produced identical SHA-256
+  hashes, and every resulting image was inspected without fit or visual
+  defects.
 - The required implementation review found no remaining safe or
   decision-level issue after its bounded recheck.
 

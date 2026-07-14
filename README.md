@@ -123,12 +123,14 @@ only the nonvisual React authoring entry from the installed package.
 ## Current Authoring Path
 
 `src/unslide/render.tsx` accepts a complete report-owned React document and
-writes standalone HTML. It supplies explicit local-asset helpers and rejects
-unresolved resource dependencies, but injects no document shell, stylesheet,
-page wrapper, geometry, chrome, or typography. Each proof report owns those
-choices beside its source. Local tarball installation is proven; the package's
-minimal file list, compatibility contract, and private 0.x release state are
-verified through a clean external consumer.
+writes standalone HTML. The separate Promise-based asset helpers support
+explicit local inlining, while rendering rejects unresolved resource
+dependencies and injects no document shell, stylesheet, page wrapper, geometry,
+chrome, or typography. Each proof report owns those choices beside its source.
+Local tarball installation is proven; the package's minimal file list,
+compatibility contract, and private 0.x release state are verified through a
+clean external consumer. Effect v4 coordinates internal tooling but is absent
+from the public authoring declarations.
 
 ## Package Contract
 

@@ -32,7 +32,7 @@ browsers, PDF engines, and rasterizers are not currently claimed.
 | PDF inspection | One ordered 96-DPI PNG per actual PDF page, using no HTML or browser state |
 | Content exercised | Local WOFF2, raster and SVG images, inline SVG, links, Korean and English text, authored print colors |
 | Semantics exercised | Document title and language, heading outline, marked structure tree, link annotation |
-| Publication | Generated files replace prior managed output only after successful validation or rendering |
+| Publication | HTML/PDF publish atomically; managed page-image sets restore prior output on failure when possible and retain recovery staging after incomplete rollback |
 
 HTML remains canonical. One marked HTML page must produce one PDF page, and all
 pages in a supported PDF use one common geometry. Project configuration selects

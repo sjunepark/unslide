@@ -9,13 +9,17 @@ import test from "node:test";
 import type { Browser } from "playwright";
 import { chromium } from "playwright";
 import { withLoadedArtifact } from "../src/unslide/browser.js";
-import { captureHtmlPages } from "../src/unslide/capture.js";
+import { captureHtmlPages as captureHtmlPagesEffect } from "../src/unslide/capture.js";
 import {
   PAGE_MARKER_ATTRIBUTE,
   PROTOCOL_META_NAME,
   UNSLIDE_PROTOCOL_VERSION,
   validateArtifact,
 } from "../src/unslide/protocol.js";
+import { runUnslide } from "./runtime.js";
+
+const captureHtmlPages = (input: string, output: string) =>
+  runUnslide(captureHtmlPagesEffect(input, output));
 
 const fixtureDirectory = resolve("tests/fixtures");
 

@@ -1,9 +1,8 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import { getDocument, VerbosityLevel } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { Data, Effect } from "effect";
-import { onceAsync, runScoped, scoped, type LifecycleRunOptions } from "./lifecycle.js";
+import { Data, Effect, FileSystem, Path } from "effect";
+import { commandFailure, errorMessage, mapCommandFailure } from "./failures.js";
+import { onceAsync, scoped } from "./lifecycle.js";
 import { replacePageImages } from "./page-images.js";
 
 const RASTER_DPI = 96;
@@ -29,21 +28,20 @@ class PdfInspectionFailure extends Data.TaggedError("PdfInspectionFailure")<{
 }> {}
 
 /** Renders the existing PDF itself; source HTML and browser state are unused. */
-export async function inspectPdfPages(
+export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(function* (
   input: string,
   output: string,
-  options: LifecycleRunOptions = {},
-): Promise<PdfInspectionResult> {
-  const inputPath = resolve(input);
-  const outputDirectory = resolve(output);
-  let bytes: Buffer;
-  try {
-    bytes = await readFile(inputPath);
-  } catch (error) {
-    throw new Error(`Cannot read PDF ${inputPath}: ${error instanceof Error ? error.message : String(error)}`);
-  }
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const inputPath = path.resolve(input);
+  const outputDirectory = path.resolve(output);
+  const context = { command: "inspect-pdf", path: inputPath } as const;
+  const bytes = yield* fs.readFile(inputPath).pipe(
+    Effect.mapError((cause) => commandFailure(cause, context, `Cannot read PDF ${inputPath}: ${errorMessage(cause)}`)),
+  );
 
-  const pages = await replacePageImages(outputDirectory, "images", async (stagingDirectory) => {
+  const pages = yield* replacePageImages(outputDirectory, "images", (stagingDirectory) => {
     const inspect = Effect.gen(function* () {
       const loading = yield* Effect.acquireRelease(
         Effect.try({
@@ -57,7 +55,7 @@ export async function inspectPdfPages(
           },
           catch: (cause) => new PdfInspectionFailure({
             cause,
-            message: cause instanceof Error ? cause.message : String(cause),
+            message: errorMessage(cause),
             phase: "load",
           }),
         }),
@@ -67,7 +65,7 @@ export async function inspectPdfPages(
         try: () => loading.task.promise,
         catch: (cause) => new PdfInspectionFailure({
           cause,
-          message: cause instanceof Error ? cause.message : String(cause),
+          message: errorMessage(cause),
           phase: "load",
         }),
       });
@@ -95,7 +93,7 @@ export async function inspectPdfPages(
               },
               catch: (cause) => new PdfInspectionFailure({
                 cause,
-                message: `Cannot load PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
+                message: `Cannot load PDF page ${index}: ${errorMessage(cause)}`,
                 phase: "page",
               }),
             }),
@@ -119,7 +117,7 @@ export async function inspectPdfPages(
               try: () => createCanvas(width, height),
               catch: (cause) => new PdfInspectionFailure({
                 cause,
-                message: `Cannot create a canvas for PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
+                message: `Cannot create a canvas for PDF page ${index}: ${errorMessage(cause)}`,
                 phase: "render",
               }),
             }),
@@ -142,7 +140,7 @@ export async function inspectPdfPages(
               }),
               catch: (cause) => new PdfInspectionFailure({
                 cause,
-                message: `Cannot start rendering PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
+                message: `Cannot start rendering PDF page ${index}: ${errorMessage(cause)}`,
                 phase: "render",
               }),
             }),
@@ -165,7 +163,7 @@ export async function inspectPdfPages(
             ),
             catch: (cause) => new PdfInspectionFailure({
               cause,
-              message: `Cannot render PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
+              message: `Cannot render PDF page ${index}: ${errorMessage(cause)}`,
               phase: "render",
             }),
           });
@@ -174,19 +172,22 @@ export async function inspectPdfPages(
             try: () => canvas.encode("png"),
             catch: (cause) => new PdfInspectionFailure({
               cause,
-              message: `Cannot encode PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
+              message: `Cannot encode PDF page ${index}: ${errorMessage(cause)}`,
               phase: "encode",
             }),
           }));
-          yield* Effect.uninterruptible(Effect.tryPromise({
-            try: () => writeFile(resolve(stagingDirectory, fileName), png, { flag: "wx" }),
-            catch: (cause) => new PdfInspectionFailure({
+          yield* Effect.uninterruptible(fs.writeFile(
+            path.resolve(stagingDirectory, fileName),
+            png,
+            { flag: "wx" },
+          ).pipe(
+            Effect.mapError((cause) => new PdfInspectionFailure({
               cause,
-              message: `Cannot write PDF page ${index}: ${cause instanceof Error ? cause.message : String(cause)}`,
+              message: `Cannot write PDF page ${index}: ${errorMessage(cause)}`,
               phase: "write",
-            }),
-          }));
-          return { index, width, height, outputPath: resolve(outputDirectory, fileName) };
+            })),
+          ));
+          return { index, width, height, outputPath: path.resolve(outputDirectory, fileName) };
         }));
         rendered.push(renderedPage);
       }
@@ -194,15 +195,12 @@ export async function inspectPdfPages(
       return rendered;
     });
 
-    try {
-      return await runScoped(inspect, options);
-    } catch (error) {
-      throw new Error(
-        `Cannot rasterize PDF ${inputPath}: ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error },
-      );
-    }
+    return mapCommandFailure(
+      scoped(inspect),
+      context,
+      (cause) => `Cannot rasterize PDF ${inputPath}: ${errorMessage(cause)}`,
+    );
   });
 
   return { inputPath, outputDirectory, pages };
-}
+});

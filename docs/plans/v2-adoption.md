@@ -67,8 +67,8 @@ HTML capture, backed by deterministic schema-validated JSON configuration.
 - CLI tests cover help, invalid input, nested discovery, spaces, standalone
   artifacts, missing entries, inherited names, path overlap and escape, and
   symlink containment.
-- Type checking and all 21 focused tests passed; both proof reports were built,
-  inspected, and captured through the CLI, and all 11 page images were visually
+- Type checking and the focused tests passed; both proof reports were built,
+  inspected, and captured through the CLI, and every page image was visually
   inspected without defects.
 - The required implementation review applied the command-flag, package-output,
   symlink-containment, and inherited-name fixes; the bounded recheck found no
@@ -139,13 +139,13 @@ tooling while owning all report design source.
 - A locally packed tarball was installed in an external temporary project. The
   installed executable initialized, built, inspected, and captured a 960×540
   report without copied runtime files or workspace imports.
-- The spike now proves three 900×1200 portrait, chrome-free pages with distinct
-  typography and spacing; the operating review retains eight report-owned A4
-  landscape pages. All 12 proof and consumer page images were inspected without
-  defects.
+- The spike now proves its authored 900×1200 portrait, chrome-free pages with
+  distinct typography and spacing; the operating review retains its
+  report-owned A4 landscape pages. Every proof and consumer page image was
+  inspected without defects.
 - The V1 copy-in guide and capture wrapper were removed. Current README and
   workflow documentation describe only the verified installed path.
-- Frozen install, type checking, all 25 focused tests, both proof-report CLI
+- Frozen install, type checking, the focused tests, both proof-report CLI
   workflows, and Markdown links passed. The required implementation review
   applied race-safe recovery, executable identity, and documentation fixes and
   found no remaining safe issues.
@@ -226,7 +226,7 @@ exports, errors, and upgrade behavior are credible outside this repository.
   documented without broader support claims. The
   PDF evidence is now complete; the first release remains private 0.x pending a
   later stable release decision.
-- Type checking, all 33 focused tests, package build and file inspection,
+- Type checking, the focused tests, package build and file inspection,
   production dependency audit, permissive-license review, and the clean packed
   consumer passed. The required diet review found no remaining safe findings.
 

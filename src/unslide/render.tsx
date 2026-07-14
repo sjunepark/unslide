@@ -1,57 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, extname, resolve } from "node:path";
+import { Effect, FileSystem, Path } from "effect";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { commandFailure, mapCommandFailure } from "./failures.js";
+import { scoped } from "./lifecycle.js";
 
 export interface WriteReportOptions {
   document: ReactElement;
   outputPath: string;
-}
-
-const mediaTypes: Record<string, string> = {
-  ".avif": "image/avif",
-  ".gif": "image/gif",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".svg": "image/svg+xml",
-  ".webp": "image/webp",
-  ".woff": "font/woff",
-  ".woff2": "font/woff2",
-};
-
-/** Read report-owned text such as CSS without making it runtime-owned policy. */
-export async function readTextAsset(path: string): Promise<string> {
-  const resolvedPath = resolve(path);
-  try {
-    return await readFile(resolvedPath, "utf8");
-  } catch (error) {
-    throw new Error(
-      `Cannot read local text asset ${resolvedPath}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-}
-
-/** Inline a local binary asset so the completed HTML has no file dependency. */
-export async function inlineAsset(path: string): Promise<string> {
-  const resolvedPath = resolve(path);
-  const mediaType = mediaTypes[extname(resolvedPath).toLowerCase()];
-
-  if (!mediaType) {
-    throw new Error(`Cannot inline unsupported local asset type: ${resolvedPath}`);
-  }
-
-  let contents: Buffer;
-  try {
-    contents = await readFile(resolvedPath);
-  } catch (error) {
-    throw new Error(
-      `Cannot read local asset ${resolvedPath}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  return `data:${mediaType};base64,${contents.toString("base64")}`;
 }
 
 function assertCompleteStandaloneDocument(html: string): void {
@@ -143,22 +99,34 @@ function assertCompleteStandaloneDocument(html: string): void {
   }
 }
 
-export async function writeReportHtml({ document, outputPath }: WriteReportOptions): Promise<string> {
-  const markup = renderToStaticMarkup(document);
-  assertCompleteStandaloneDocument(markup);
-
-  const html = `<!doctype html>\n${markup}\n`;
-  const resolvedOutputPath = resolve(outputPath);
+export const writeReportHtml = Effect.fn("render.writeReportHtml")(function* (
+  { document, outputPath }: WriteReportOptions,
+) {
+  const context = { command: "build", path: outputPath } as const;
+  const html = yield* Effect.try({
+    try: () => {
+      const markup = renderToStaticMarkup(document);
+      assertCompleteStandaloneDocument(markup);
+      return `<!doctype html>\n${markup}\n`;
+    },
+    catch: (cause) => commandFailure(cause, context),
+  });
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const resolvedOutputPath = path.resolve(outputPath);
   const temporaryPath = `${resolvedOutputPath}.tmp-${process.pid}-${randomUUID()}`;
 
-  await mkdir(dirname(resolvedOutputPath), { recursive: true });
-  try {
-    await writeFile(temporaryPath, html, { flag: "wx" });
-    await rename(temporaryPath, resolvedOutputPath);
-  } catch (error) {
-    await rm(temporaryPath, { force: true });
-    throw error;
-  }
-
-  return resolvedOutputPath;
-}
+  return yield* mapCommandFailure(scoped(Effect.gen(function* () {
+    yield* fs.makeDirectory(path.dirname(resolvedOutputPath), { recursive: true });
+    const temporary = yield* Effect.acquireRelease(
+      Effect.succeed({ cleanup: true, path: temporaryPath }),
+      (state) => state.cleanup
+        ? fs.remove(state.path, { force: true }).pipe(Effect.orDie)
+        : Effect.void,
+    );
+    yield* fs.writeFileString(temporary.path, html, { flag: "wx" });
+    yield* fs.rename(temporary.path, resolvedOutputPath);
+    temporary.cleanup = false;
+    return resolvedOutputPath;
+  })), context);
+});
