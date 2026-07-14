@@ -8,19 +8,17 @@ New to the codebase? Open the [interactive project guide](docs/PROJECT-GUIDE.htm
 for the product mental model, runtime flow, code map, tests, and review focus.
 
 The project is intentionally narrower than a presentation framework or a
-publishing engine. V1 is for static reports that are laid out page by page. It
-does not automatically move content between pages.
+publishing engine. It serves static reports laid out page by page and does not
+automatically move content between pages.
 
-Status: **V1 and the accepted V2 delivery scope are complete.** The
-CLI initializes schema-validated projects and builds, inspects, and captures
-named reports through installed, versioned tooling. Chromium exports validated
-PDFs, and the CLI renders those PDFs to target-native page images. The packaged
-workflow is verified end to end; repository execution state is maintained in
-`PLAN.md`.
+The CLI initializes schema-validated projects and builds, inspects, and
+captures named reports through installed, versioned tooling. Chromium exports
+validated PDFs, and the CLI renders those PDFs to target-native page images.
+Repository execution state is maintained in `PLAN.md`.
 
 ## Rendering Spike
 
-The first implementation uses React's static server renderer for familiar TSX
+The small proof report uses React's static server renderer for familiar TSX
 semantics. It produces one self-contained HTML file; React and Playwright are
 not needed by a recipient opening that file.
 
@@ -129,8 +127,7 @@ dependencies and injects no document shell, stylesheet, page wrapper, geometry,
 chrome, or typography. Each proof report owns those choices beside its source.
 Local tarball installation is proven; the package's minimal file list,
 compatibility contract, and private 0.x release state are verified through a
-clean external consumer. Effect v4 coordinates internal tooling but is absent
-from the public authoring declarations.
+clean external consumer.
 
 ## Package Contract
 
@@ -169,12 +166,7 @@ The first release remains private and 0.x. A stable public release requires an
 explicit later decision; 0.1.0 does not promise automated upgrades or
 semantic-version stability.
 
-## V1 in One Sentence
-
-Create a small report from typed code and data, render it to a local static HTML
-file, and let a human or coding agent inspect real browser-rendered page images.
-
-## Accepted V2 Direction
+## Product Boundary
 
 - HTML is the canonical report artifact.
 - TypeScript and TSX remain the first authoring direction, while the artifact
@@ -191,8 +183,8 @@ file, and let a human or coding agent inspect real browser-rendered page images.
 - Optional visual recipes may generate editable source but will not be runtime
   requirements.
 
-The commands above are the supported repository workflow today. Deferred PDF
-and recipe capabilities require later evidence-backed decisions.
+The commands above are the supported repository workflow today. Deferred PDF,
+adapter, and recipe capabilities require later evidence-backed decisions.
 
 ## Working Principle
 

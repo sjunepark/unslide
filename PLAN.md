@@ -1,6 +1,5 @@
 # Plan
 
-Status: **V1, V2 delivery, and the Effect v4 internal migration are complete.**
 There is no active implementation goal.
 
 Current next action: **Gather evidence from real consumer reports for one

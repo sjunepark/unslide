@@ -2,7 +2,7 @@
 
 ## Start Here
 
-- Read `PRODUCT.md` for the product boundary and accepted V2 direction.
+- Read `PRODUCT.md` for the product boundary and current direction.
 - Read `docs/DESIGN.md` before shaping authoring behavior.
 - Read `ARCHITECTURE.md` for responsibilities and invariants.
 - Use `PLAN.md` as the live execution state and take the current next action.
@@ -11,12 +11,12 @@
 - Read the decision records under `docs/decisions/` before revisiting an
   accepted constraint.
 
-## Current Phase
+## Current State
 
-V1, the accepted V2 scope, and the Effect v4 internal migration are complete.
-The repository is at the consumer-evidence gates recorded in `PLAN.md`; do not
-implement deferred scope before an explicit decision accepts it. When work is
-accepted, execute one numbered goal at a time and keep its live plan current.
+The packaged HTML/PDF workflow is current. The repository is at the
+consumer-evidence gates recorded in `PLAN.md`; do not implement deferred scope
+before an explicit decision accepts it. When work is accepted, execute one
+numbered goal at a time and keep its live plan current.
 
 ## Commands
 
@@ -36,7 +36,7 @@ accepted, execute one numbered goal at a time and keep its live plan current.
   `.tmp/pdf-captures/operating-review/`.
 - `pnpm run check` — type-check report and tooling source.
 - `pnpm test` — run focused generation and Chromium capture health checks.
-- `pnpm run validate` — run all v1 checks and regenerate both reports.
+- `pnpm run validate` — run all checks and regenerate both reports.
 
 ## Scope
 
@@ -58,12 +58,12 @@ recipe upgrades require a later explicit scope decision before implementation.
 
 ## Change Expectations
 
-- Update `PLAN.md` in place when a phase advances or the next action changes.
+- Update `PLAN.md` in place when the next action changes.
 - Update an accepted decision record when its decision changes; do not leave
   conflicting current guidance elsewhere.
 - Keep root documents concise and move detailed rationale into focused files
   under `docs/`.
-- Prefer working code from the current phase over speculative interface examples
+- Prefer working code and current contracts over speculative interface examples
   in documentation.
 - Once code exists, add only commands that have been run successfully from the
   repository root.

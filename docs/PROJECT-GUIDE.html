@@ -569,12 +569,12 @@
           <a href="#status">Current status</a>
           <a href="#remember">What to remember</a>
         </nav>
-        <p class="sidebar-note">Built from the repository’s product, design, architecture, plans, decisions, source, and 33-test suite on 13 July 2026.</p>
+        <p class="sidebar-note">Built from the repository’s product, design, architecture, decisions, source, and test suite.</p>
       </aside>
 
       <main>
         <section class="section hero" id="start">
-          <div class="status-line"><span class="status-dot"></span> Version 0.1.0 · V1 and accepted V2 complete</div>
+          <div class="status-line"><span class="status-dot"></span> Version 0.1.0 · Packaged HTML/PDF workflow verified</div>
           <h1>Understand Unslide.</h1>
           <p class="lede">A guided mental model of the product, its boundaries, the HTML-to-PDF delivery pipeline, and the code that makes the contract trustworthy.</p>
           <div class="hero-actions">
@@ -585,7 +585,7 @@
             <div><strong>1</strong><span>canonical artifact</span></div>
             <div><strong>3</strong><span>ownership layers</span></div>
             <div><strong>6</strong><span>CLI workflows</span></div>
-            <div><strong>33</strong><span>focused tests</span></div>
+            <div><strong>2</strong><span>delivery targets</span></div>
           </div>
         </section>
 
@@ -790,11 +790,11 @@
 
         <section class="section" id="status">
           <h2>Where the project stands</h2>
-          <p class="section-intro">All accepted V2 delivery work is complete. The project is now waiting for real adoption evidence, not another speculative subsystem.</p>
+          <p class="section-intro">The packaged delivery workflow is current. The project is waiting for real adoption evidence before adding another subsystem.</p>
           <div class="status-track">
-            <div class="status-step"><strong>Core · complete</strong><span>Artifact protocol, headless React authoring, canonical HTML capture.</span></div>
-            <div class="status-step"><strong>Adoption · complete</strong><span>CLI/config, safe scaffold, migration, hardened 0.1.0 package.</span></div>
-            <div class="status-step"><strong>PDF · complete</strong><span>Chromium export, PDF-native inspection, packed-consumer hardening.</span></div>
+            <div class="status-step"><strong>Authoring and HTML</strong><span>Artifact protocol, report-owned React source, and canonical HTML capture.</span></div>
+            <div class="status-step"><strong>Installed workflow</strong><span>CLI, validated configuration, safe scaffolding, and the packaged 0.1.0 contract.</span></div>
+            <div class="status-step"><strong>PDF delivery</strong><span>Chromium export, PDF-native inspection, and packed-consumer validation.</span></div>
           </div>
           <div class="next-action"><h3>Current next action</h3><p>Exercise Unslide in a second real consumer report. Record repeated visual source, adapter needs, or mixed-geometry needs—and reopen scope only if that evidence satisfies an existing gate.</p></div>
           <div class="gates">
@@ -811,7 +811,7 @@
           <details class="confusion"><summary>Does a passing protocol check mean the page looks good?</summary><p>No. The protocol checks page identity and static readiness. It does not judge layout, measure overflow, or approve visual quality. Every page image still needs inspection.</p></details>
           <details class="confusion"><summary>Does `export` rebuild the HTML first?</summary><p>No. Commands are composable and explicit. `capture` and `export` consume existing HTML; `inspect-pdf` consumes an existing PDF. Rebuild upstream artifacts when source changes.</p></details>
           <details class="confusion"><summary>Is the report-local `Page` component part of Unslide?</summary><p>No. The operating review owns that helper because its headers, footers, numbering, and A4 geometry are specific to that report. The spike proves those concepts are optional.</p></details>
-          <details class="confusion"><summary>Why does PRODUCT.md discuss V1 limits if PDF exists now?</summary><p>V1 is historical baseline evidence. Accepted V2 added the headless protocol, package adoption, and validated HTML-first PDF workflow. Current behavior is summarized by PLAN.md and ARCHITECTURE.md.</p></details>
+          <details class="confusion"><summary>Does the installed package prescribe report design?</summary><p>No. The package owns build, validation, capture, and export mechanics. Report source owns the complete document, geometry, styling, and print behavior.</p></details>
         </section>
 
         <section class="section remember" id="remember">

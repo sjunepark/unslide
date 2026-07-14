@@ -1,13 +1,8 @@
 # Product Design
 
-Status: **V1 behavior and the accepted V2 delivery design are proven.** Artifact
-protocol v1, full-document React authoring, installed project workflows, safe
-scaffolding, protocol-only canonical capture, and the hardened 0.1.0 package are
-implemented and verified through packaged HTML/PDF delivery.
-
-This document describes the intended authoring experience and ownership model.
-Exact TypeScript names and command syntax remain implementation outcomes unless
-they already exist in the V1 workflow.
+This document describes the current authoring experience and ownership model.
+Concrete TypeScript names and command syntax live in the implementation and
+workflow documentation.
 
 ## Desired Experience
 
@@ -122,9 +117,9 @@ authoring module:
   path; and
 - capture or export failures identify the page or resource involved.
 
-React is the first source adapter because V1 proved typed TSX and static server
-rendering. The HTML contract must remain usable by other generators without
-requiring a generalized plugin interface in V2.
+React is the first source adapter because the proof reports establish typed TSX
+and static server rendering. The HTML contract remains usable by other
+generators without requiring a generalized plugin interface.
 
 ## Project Configuration
 
@@ -147,7 +142,7 @@ A source registry is optional later work. If evidence justifies it, registry
 items should be visual recipes or complete report starters that users own after
 installation. Modified generated source must never be overwritten silently.
 Managed upgrades would require provenance hashes, dry-run diffs, and an
-explicit conflict path; that system is not part of the initial V2 core.
+explicit conflict path; that system is not part of the current product.
 
 ## HTML Inspection
 
@@ -181,7 +176,7 @@ The exporter publishes only after those checks pass. PDF-native inspection then
 rasterizes only that PDF at a fixed 96 DPI into a separate ordered PNG set;
 both proof reports pass this target-native path.
 
-Initial V2 supports arbitrary report-wide page geometry but does not promise
+Current support permits arbitrary report-wide page geometry but does not promise
 mixed page sizes or orientations in one PDF. Mixed geometry requires a separate
 evidence-backed decision because it may require per-page printing and PDF
 merging.
@@ -190,7 +185,7 @@ Tagged output and outlines are useful defaults, not a claim of PDF/UA
 compliance. Formal accessibility, PDF/A, encryption, signing, attachments, and
 other publishing requirements remain separate future capabilities.
 
-## V2 Completion Evidence
+## Implementation Evidence
 
 The implemented interface is proven by the following coexisting evidence:
 
@@ -207,17 +202,17 @@ The implemented interface is proven by the following coexisting evidence:
 
 Automatic pagination, automatic fit repair, a visual editor, animations,
 business calculations, a mandatory design system, and speculative renderer
-plugins remain outside the accepted direction.
+plugins remain outside the current product boundary.
 
-## Evidence from V1
+## Evidence Behind the Design
 
-The three-page spike and eight-page operating review proved explicit page
+The three-page spike and eight-page operating review prove explicit page
 composition, typed data, standalone HTML, isolated Chromium capture, and the
 need for rendered inspection. They also showed that report-specific figures,
 tables, bilingual layouts, and visual systems are clearest as direct source.
 
-V1 centralized A4 geometry and chrome because both initial reports repeated
-them. That was useful implementation evidence, but copying that visual
+The initial reports shared A4 geometry and chrome because they repeated those
+choices. That was useful implementation evidence, but copying the visual
 foundation into other repositories would distribute policy and maintenance
-together. V2 retains the proven rendering mechanics while moving all visual
-policy back to report-owned source.
+together. The current design retains the rendering mechanics while keeping all
+visual policy in report-owned source.

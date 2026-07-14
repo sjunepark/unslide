@@ -1,12 +1,5 @@
 # Architecture
 
-Status: **V1, the accepted V2 delivery architecture, and the internal Effect v4
-runtime migration are verified.**
-Artifact protocol v1, headless full-document React authoring, installed CLI and
-scaffolding, canonical HTML capture, and the minimal 0.1.0 package are current;
-the packaged HTML/PDF workflow passes end to end. See `PLAN.md` for the current
-evidence gate.
-
 ## Purpose and Boundaries
 
 Unslide turns user-owned report source and data into a standalone HTML document
@@ -217,7 +210,7 @@ are explicit report entries in the root `unslide.json`, not visual policy.
 
 ## Related Decisions
 
-- [D1 — Explicit fixed pages in V1](docs/decisions/0001-explicit-pages.md)
+- [D1 — Explicit fixed pages](docs/decisions/0001-explicit-pages.md)
 - [D2 — Repository-owned rendered preview](docs/decisions/0002-rendered-preview.md)
 - [D3 — Headless artifact protocol and author-owned design](docs/decisions/0003-headless-artifact-protocol.md)
 - [D4 — HTML-first PDF export](docs/decisions/0004-html-first-pdf-export.md)

@@ -1,7 +1,7 @@
 # HTML Artifact Protocol v1
 
 Protocol v1 is the nonvisual contract between a standalone HTML report and
-Unslide's browser tooling. It does not depend on React or the V1 page
+Unslide's browser tooling. It does not depend on React or a prescribed page
 foundation.
 
 ## Page contract

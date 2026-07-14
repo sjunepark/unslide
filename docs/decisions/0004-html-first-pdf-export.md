@@ -2,7 +2,7 @@
 
 Date: 2026-07-13
 
-Status: accepted and verified for V2
+Status: accepted
 
 ## Context
 
@@ -11,9 +11,9 @@ would create a second visual truth. Building PDF pages from HTML screenshots
 would preserve appearance at the cost of real text, semantics, links, and
 vector output.
 
-V1 already uses a pinned Playwright-managed Chromium build to judge the
-canonical standalone HTML. Chromium also supplies a print-to-PDF path that can
-apply report-owned paged-media CSS.
+The browser inspection workflow already uses a pinned Playwright-managed
+Chromium build to judge canonical standalone HTML. Chromium also supplies a
+print-to-PDF path that can apply report-owned paged-media CSS.
 
 ## Decision
 

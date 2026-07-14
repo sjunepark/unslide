@@ -1,9 +1,9 @@
 # Repository Workflow
 
-This document records commands that work in the current implementation. The V2
-artifact protocol, headless full-document authoring, and canonical capture path
-are active in these commands. Chromium PDF export and PDF-native inspection are
-also implemented and verified through the packed consumer workflow.
+This document records commands that work in the current implementation. The
+artifact protocol, headless full-document authoring, canonical capture,
+Chromium PDF export, and PDF-native inspection paths are verified through the
+packed consumer workflow.
 
 ## Supported Development Environment
 
@@ -135,9 +135,9 @@ files, restores prior managed images when possible, and retains recovery
 staging if rollback is incomplete. The public `unslide/react` asset helpers
 remain Promise-based, and packed declarations expose no Effect types.
 
-The accepted V2 direction supersedes copy-in as the adoption model. Build,
-validation, capture, export, and PDF inspection run from the hardened locally
-packed 0.1.0 tooling. See
+The current delivery model uses installed tooling rather than copied
+implementation files. Build, validation, capture, export, and PDF inspection
+run from the hardened locally packed 0.1.0 tooling. See
 [D3](decisions/0003-headless-artifact-protocol.md) and
 [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
