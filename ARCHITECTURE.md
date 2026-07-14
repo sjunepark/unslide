@@ -97,6 +97,14 @@ Configuration may select entries, outputs, inspection locations, and supported
 export behavior. It must not define page geometry, typography, padding, chrome,
 or other visual policy.
 
+### Package distribution
+
+The root package is published to npm as `unslide`. Release Please owns package
+versions, changelog entries, `v<version>` source tags, and GitHub Releases. A
+tag-triggered workflow validates the tagged source before publishing the npm
+package with trusted-publisher provenance. Release mechanics do not change the
+runtime or artifact protocol boundaries.
+
 ### Chromium tooling
 
 One pinned Playwright-managed Chromium build is the canonical browser for HTML
@@ -233,4 +241,5 @@ are explicit report entries in the root `unslide.json`, not visual policy.
 - [D3 — Headless artifact protocol and author-owned design](docs/decisions/0003-headless-artifact-protocol.md)
 - [D4 — HTML-first PDF export](docs/decisions/0004-html-first-pdf-export.md)
 - [D5 — Effect v4 for the internal runtime](docs/decisions/0005-effect-v4-internal-runtime.md)
+- [D6 — Public npm distribution](docs/decisions/0006-public-npm-distribution.md)
 - [Supported delivery contract](docs/SUPPORT.md)

@@ -1,9 +1,9 @@
 # Plan
 
-Completed implementation goal: **AXI CLI hardening through Goal 5.**
+Prepared implementation goal: **Goal 6 — public npm distribution.**
 
-Current next action: **No implementation action is active. Await an explicit
-scope decision before starting a deferred capability.**
+Current next action: **Review and merge the release-setup change, then publish
+and tag the explicitly confirmed `0.1.0` bootstrap from that `main` commit.**
 
 This file is the live execution state. Update current decisions, evidence,
 blockers, and the next action in place; do not append session history. Durable
@@ -12,6 +12,16 @@ product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
 
 ## Active Work
 
+- Prepared: Goal 6 makes `unslide` a public npm package. Release Please owns
+  subsequent versions, changelog entries, tags, and GitHub Releases; tagged
+  source is revalidated before OIDC trusted publishing. The first `0.1.0`
+  publish and matching tag remain manual because npm requires the package to
+  exist before trusted publishing can be attached.
+- Evidence: `pnpm run check`, `npm pack --dry-run`, `pnpm run validate`, the
+  Release Please config schema check, workflow YAML parsing, and `actionlint`
+  pass. Validation covers the packed clean consumer and every configured
+  HTML/PDF proof pipeline. The required implementation and diet review applied
+  the safe immutable-tag retry check and found no remaining safe findings.
 - Completed: Goals 1–5. Parsing, invocation, typed public failures, bounded
   diagnostics, contextual success help, existence-only home status, and compact
   page-output paths now have one documented deterministic contract.
@@ -24,7 +34,10 @@ product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
   failures, operation-time browser diagnostics, and authored PDF validation
   detail. The required implementation review and diet pass found no remaining
   safe findings.
-- Blockers: none.
+- Blockers: the GitHub `RELEASE_PLEASE_TOKEN`, `main` protection, initial npm
+  authentication, and trusted-publisher registration are external setup. The
+  release skill also requires exact `0.1.0` confirmation before publishing,
+  tagging, pushing, or merging a generated release PR.
 
 ## Current Gates
 

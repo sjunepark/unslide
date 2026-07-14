@@ -126,19 +126,12 @@ Treat enabled logs as sensitive because phase annotations include local paths.
 Debug logs additionally include full Effect causes, where an existing failure
 message may contain authored text.
 
-## Adopt from the Local Package
+## Install
 
-The verified pre-release path uses a packed tarball. From this repository:
-
-```sh
-pnpm pack --pack-destination .tmp/package
-```
-
-In an existing pnpm project, enforce dependency engine ranges, allow the pinned
-`esbuild` install script, and explicitly reject Effect's optional native
-MessagePack accelerator in `pnpm-workspace.yaml`, then install that tarball and
-the managed browser using the command in the
-[supported delivery contract](docs/SUPPORT.md):
+Unslide is distributed as the public `unslide` npm package. In an existing
+pnpm project, enforce dependency engine ranges, allow the pinned `esbuild`
+install script, and explicitly reject Effect's optional native MessagePack
+accelerator in `pnpm-workspace.yaml`:
 
 ```yaml
 engineStrict: true
@@ -148,7 +141,8 @@ allowBuilds:
 ```
 
 ```sh
-pnpm add /path/printed/by/pnpm-pack.tgz
+pnpm add unslide
+pnpm dlx playwright@1.61.1 install chromium
 pnpm exec unslide init
 pnpm exec unslide init --yes
 pnpm exec unslide build report
@@ -163,6 +157,14 @@ The first `init` is a dry run. `--yes` creates only `unslide.json`,
 files. The generated source owns its complete document and styling and imports
 only the nonvisual React authoring entry from the installed package.
 
+To verify unpublished local changes, replace `pnpm add unslide` with a packed
+tarball built from this repository:
+
+```sh
+pnpm pack --pack-destination .tmp/package
+pnpm add /path/printed/by/pnpm-pack.tgz
+```
+
 ## Current Authoring Path
 
 `src/unslide/render.tsx` accepts a complete report-owned React document and
@@ -170,9 +172,8 @@ writes standalone HTML. The separate Promise-based asset helpers support
 explicit local inlining, while rendering rejects unresolved resource
 dependencies and injects no document shell, stylesheet, page wrapper, geometry,
 chrome, or typography. Each proof report owns those choices beside its source.
-Local tarball installation is proven; the package's minimal file list,
-compatibility contract, and private 0.x release state are verified through a
-clean external consumer.
+Packed installation is proven through a clean external consumer before the
+same package contents are published to npm.
 
 ## Package Contract
 
@@ -202,9 +203,9 @@ contracts. Explicit unsupported versions fail with manual migration guidance;
 the CLI does not rewrite user-owned configuration or report source. Artifacts
 created before 0.1.0 without protocol metadata remain compatible as v1.
 
-The first release remains private and 0.x. A stable public release requires an
-explicit later decision; 0.1.0 does not promise automated upgrades or
-semantic-version stability.
+The public package remains 0.x. Version 0.1.0 does not promise automated
+upgrades or 1.0-level compatibility; breaking public-contract changes require
+an explicit pre-1.0 minor release and migration note.
 
 ## Product Boundary
 
