@@ -15,6 +15,8 @@ Before writing Effect code, run `effect-solutions list`, then `effect-solutions 
 - Read `docs/DESIGN.md` for authoring changes, `ARCHITECTURE.md` for system
   boundaries, and the relevant `docs/decisions/` record before changing an
   accepted constraint. Read any active detailed plan completely.
+- Read `docs/RELEASE.md` before preparing a release or changing release
+  automation.
 - Execute one numbered goal at a time. Update `PLAN.md` in place when its
   decisions, evidence, blockers, or next action change.
 
@@ -43,3 +45,13 @@ Before writing Effect code, run `effect-solutions list`, then `effect-solutions 
   behavior instead of recording volatile totals, generated dimensions, dated
   audit results, or other facts that command output already owns. Keep numeric
   values when they define a contract or preserve historical decision context.
+
+## Release and Publishing
+
+- Release Please owns normal version bumps, `CHANGELOG.md`, source tags, and
+  GitHub Releases. Do not edit those generated artifacts manually outside the
+  documented bootstrap or fallback path.
+- Use Conventional Commits. Before 1.0, `feat:` and `fix:` produce patch
+  releases; `!` or a `BREAKING CHANGE:` footer produces a minor release.
+- A version `x.y.z` must be published only from the matching `vx.y.z` source
+  tag. The release workflow publishes the npm package and no other artifact.

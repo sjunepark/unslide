@@ -34,19 +34,18 @@ anything to generated reports.
 
 ## Initialize a Consumer
 
-The verified local-package workflow starts by packing this repository:
+In an existing pnpm project, first configure `engineStrict: true`,
+`allowBuilds.esbuild: true`, and `allowBuilds.msgpackr-extract: false` in
+`pnpm-workspace.yaml`. Then install the public package and its managed browser:
 
 ```sh
-pnpm pack --pack-destination .tmp/package
+pnpm add unslide
+pnpm dlx playwright@1.61.1 install chromium
 ```
 
-In an existing pnpm project, configure `engineStrict: true`,
-`allowBuilds.esbuild: true`, and `allowBuilds.msgpackr-extract: false` in
-`pnpm-workspace.yaml`, install the resulting tarball and the managed browser
-using the command in the [supported delivery contract](SUPPORT.md), and run:
+Initialize and use the installed package:
 
 ```sh
-pnpm add /path/printed/by/pnpm-pack.tgz
 pnpm exec unslide init
 pnpm exec unslide init --yes
 pnpm exec unslide build report
@@ -60,6 +59,10 @@ The first `init` command shows the planned file writes. The confirmed command
 creates a minimal `unslide.json`, a complete React document, and one clearly
 removable CSS file. A repeated run is an unchanged no-op; differing files
 produce a structured conflict without being overwritten.
+
+For unpublished repository changes, run `pnpm pack --pack-destination
+.tmp/package` and install the resulting tarball instead. The clean-consumer
+tests use this path to verify the exact package before publication.
 
 ## Author, Render, and Inspect
 
@@ -163,3 +166,6 @@ capture, export, and inspect a standalone report outside this repository.
 See the [supported delivery contract](SUPPORT.md) for the canonical environment,
 verified content and semantics, accessibility limits, repeatability boundary,
 and explicitly deferred features.
+
+Release ownership, bootstrap requirements, credentials, and the automated npm
+publishing flow are documented in [RELEASE.md](RELEASE.md).

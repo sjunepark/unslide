@@ -1,0 +1,145 @@
+name: Publish npm package
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing source tag to publish, for example v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    name: Verify release identity
+    runs-on: ubuntu-latest
+    outputs:
+      package_name: ${{ steps.package.outputs.package_name }}
+      package_version: ${{ steps.package.outputs.package_version }}
+      source_tag: ${{ steps.package.outputs.source_tag }}
+
+    steps:
+      - name: Check out source tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          fetch-depth: 0
+
+      - name: Read package metadata
+        id: package
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            SOURCE_TAG="$DISPATCH_TAG"
+          else
+            SOURCE_TAG="$GITHUB_REF_NAME"
+          fi
+
+          if [ "$PACKAGE_NAME" != "unslide" ]; then
+            echo "Unexpected package name: $PACKAGE_NAME" >&2
+            exit 1
+          fi
+
+          if [ "$SOURCE_TAG" != "v$PACKAGE_VERSION" ]; then
+            echo "Tag $SOURCE_TAG does not match package version v$PACKAGE_VERSION." >&2
+            exit 1
+          fi
+
+          TAG_SHA=$(git rev-parse "refs/tags/$SOURCE_TAG^{commit}")
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
+            echo "Checked-out commit $HEAD_SHA does not match tag $SOURCE_TAG at $TAG_SHA." >&2
+            exit 1
+          fi
+
+          echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "package_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "source_tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
+
+  validate:
+    name: Validate release artifact
+    runs-on: ubuntu-latest
+    needs: metadata
+
+    steps:
+      - name: Check out source tag
+        uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ needs.metadata.outputs.source_tag }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+
+      - name: Enable the pinned package manager
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install canonical Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Validate source and proof reports
+        run: pnpm run validate
+
+      - name: Inspect public package contents
+        run: npm pack --dry-run
+
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs:
+      - metadata
+      - validate
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PACKAGE_NAME: ${{ needs.metadata.outputs.package_name }}
+      PACKAGE_VERSION: ${{ needs.metadata.outputs.package_version }}
+
+    steps:
+      - name: Check out source tag
+        uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ needs.metadata.outputs.source_tag }}
+
+      - name: Set up Node and npm registry
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          registry-url: https://registry.npmjs.org/
+          package-manager-cache: false
+
+      - name: Use npm with trusted publishing support
+        run: |
+          npm install --global npm@11.18.0
+          npm --version
+
+      - name: Enable the pinned package manager
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish package
+        run: |
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "$PACKAGE_NAME@$PACKAGE_VERSION is already published; skipping npm publish."
+          else
+            npm publish --access public
+          fi

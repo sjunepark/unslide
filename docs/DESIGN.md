@@ -134,9 +134,11 @@ unknown fields.
 
 ## Distribution and Recipes
 
-Stable behavior belongs in a versioned package so fixes and migrations remain
-local to the implementation. One-time project scaffolding may create report
-source and configuration.
+Stable behavior belongs in the public, versioned `unslide` npm package so fixes
+and migrations remain local to the implementation. Public 0.x releases may
+change the package contract through explicitly marked breaking releases; 1.0
+stability requires independent consumer evidence. One-time project scaffolding
+may create report source and configuration.
 
 A source registry is optional later work. If evidence justifies it, registry
 items should be visual recipes or complete report starters that users own after

@@ -131,7 +131,8 @@ considered stable.
 - Cross-browser pixel parity or multiple rendering engines.
 - A large design system or catalogue of speculative report primitives.
 - PPTX, DOCX, or PDF as primary authoring formats.
-- A stable public package interface before real reports have exercised it.
+- A 1.0 stability promise before independent consumers have exercised the
+  public 0.x package contract.
 
 ## Delivery Model
 
@@ -145,10 +146,11 @@ PDF remains derived from canonical HTML through Chromium and is inspected from
 the produced PDF. See [D4](docs/decisions/0004-html-first-pdf-export.md) for the
 accepted print and validation contract.
 
-Stable behavior is packaged instead of copied into adopter repositories.
-Project configuration remains operational: report entries and
-delivery/inspection output paths. Design values do not belong in project
-configuration.
+Stable behavior is distributed as the public `unslide` npm package instead of
+being copied into adopter repositories. Public releases remain 0.x until
+independent consumer evidence justifies a 1.0 compatibility promise. Project
+configuration remains operational: report entries and delivery/inspection
+output paths. Design values do not belong in project configuration.
 
 ## Deferred Capabilities
 

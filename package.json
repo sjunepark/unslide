@@ -1,9 +1,28 @@
 {
   "name": "unslide",
   "version": "0.1.0",
-  "private": true,
+  "description": "Code-first tooling for explicit fixed-page HTML reports and validated PDF output.",
+  "keywords": [
+    "reports",
+    "html",
+    "pdf",
+    "playwright",
+    "react"
+  ],
+  "homepage": "https://github.com/sjunepark/unslide#readme",
+  "bugs": {
+    "url": "https://github.com/sjunepark/unslide/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sjunepark/unslide.git"
+  },
   "packageManager": "pnpm@11.12.0+sha512.820a6fbd0d9f04c226638002aead1e45340a9139dd5dc077c1d83ef44aa2481c8eb6637b4c9aa696a3c7e35ba818e49cf27213e5f2b91138d09b7a3e26e898ba",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "engines": {
     "node": ">=24.15 <25"
