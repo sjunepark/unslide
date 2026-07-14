@@ -5,12 +5,6 @@ Completed implementation goal: **AXI CLI hardening through Goal 5.**
 Current next action: **No implementation action is active. Await an explicit
 scope decision before starting a deferred capability.**
 
-Suggested `/goal` objective:
-
-> Execute `docs/plans/axi-cli-hardening.md` one numbered goal at a time through
-> Goal 5, then stop after the hardened CLI contract, documentation, required
-> implementation review, and full validation are complete.
-
 This file is the live execution state. Update current decisions, evidence,
 blockers, and the next action in place; do not append session history. Durable
 product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
@@ -21,14 +15,15 @@ product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
 - Completed: Goals 1–5. Parsing, invocation, typed public failures, bounded
   diagnostics, contextual success help, existence-only home status, and compact
   page-output paths now have one documented deterministic contract.
-- Evidence: `pnpm run check`, all 60 tests, and `pnpm run validate` pass,
-  including both proof-report HTML/PDF pipelines. Direct executable probes cover
-  no-args output, every command help form, unknown input with help, all eight
-  operational codes, bounded/full diagnostics, spaced paths, and PATH/absolute
-  invocation. PR feedback coverage now includes package-manager-aware help,
-  malformed configuration detail, combined failures, operation-time browser
-  diagnostics, and authored PDF validation detail. The required implementation
-  review and diet pass found no remaining safe findings.
+- Evidence: `pnpm run check`, `pnpm test`, and `pnpm run validate` pass,
+  including the configured proof-report HTML/PDF pipelines. Direct executable
+  probes cover no-args output, every command help form, unknown input with help,
+  all documented operational codes, bounded/full diagnostics, spaced paths,
+  and PATH/absolute invocation. PR feedback coverage includes
+  package-manager-aware help, malformed configuration detail, combined
+  failures, operation-time browser diagnostics, and authored PDF validation
+  detail. The required implementation review and diet pass found no remaining
+  safe findings.
 - Blockers: none.
 
 ## Current Gates

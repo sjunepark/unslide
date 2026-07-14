@@ -33,8 +33,13 @@ Before writing Effect code, run `effect-solutions list`, then `effect-solutions 
 - Install with `pnpm install --frozen-lockfile` and
   `pnpm exec playwright install chromium`.
 - Run `pnpm run check` for source changes, `pnpm test` for rendering or capture
-  changes, and `pnpm run validate` for the full suite and both proof reports.
+  changes, and `pnpm run validate` for the full suite and all configured proof
+  reports.
 - For a report change, run its `render`, `capture`, `export`, and `inspect-pdf`
   scripts from `package.json`; inspect every HTML and PDF page image.
 - For contract or scope changes, keep `PRODUCT.md`, `docs/DESIGN.md`,
   `ARCHITECTURE.md`, `PLAN.md`, and relevant decisions consistent.
+- In live plans and current-state docs, name validation commands and covered
+  behavior instead of recording volatile totals, generated dimensions, dated
+  audit results, or other facts that command output already owns. Keep numeric
+  values when they define a contract or preserve historical decision context.

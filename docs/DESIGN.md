@@ -174,7 +174,7 @@ Export succeeds only when:
 
 The exporter publishes only after those checks pass. PDF-native inspection then
 rasterizes only that PDF at a fixed 96 DPI into a separate ordered PNG set;
-both proof reports pass this target-native path.
+the configured proof reports pass this target-native path.
 
 Current support permits arbitrary report-wide page geometry but does not promise
 mixed page sizes or orientations in one PDF. Mixed geometry requires a separate
@@ -196,7 +196,8 @@ The implemented interface is proven by the following coexisting evidence:
 - a clean consumer fixture installs the versioned tooling instead of copying
   implementation files;
 - HTML capture works through the common artifact protocol; and
-- browser-produced PDF export and PDF-native inspection pass for both reports.
+- browser-produced PDF export and PDF-native inspection pass for the configured
+  proof reports.
 
 ## Continuing Scope Boundaries
 
@@ -206,10 +207,10 @@ plugins remain outside the current product boundary.
 
 ## Evidence Behind the Design
 
-The three-page spike and eight-page operating review prove explicit page
-composition, typed data, standalone HTML, isolated Chromium capture, and the
-need for rendered inspection. They also showed that report-specific figures,
-tables, bilingual layouts, and visual systems are clearest as direct source.
+The contrasting spike and operating review prove explicit page composition,
+typed data, standalone HTML, isolated Chromium capture, and the need for
+rendered inspection. They also showed that report-specific figures, tables,
+bilingual layouts, and visual systems are clearest as direct source.
 
 The initial reports shared A4 geometry and chrome because they repeated those
 choices. That was useful implementation evidence, but copying the visual

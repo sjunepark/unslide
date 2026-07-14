@@ -33,8 +33,8 @@ pnpm run export:spike
 pnpm run inspect-pdf:spike
 ```
 
-Open `artifacts/spike/report.html` in an ordinary browser. Inspect the three
-page images under `.tmp/captures/spike/`. Generated HTML is kept under
+Open `artifacts/spike/report.html` in an ordinary browser. Inspect every page
+image under `.tmp/captures/spike/`. Generated HTML is kept under
 `artifacts/`; the validated PDF is `artifacts/spike/report.pdf`; disposable HTML
 and PDF inspection output is kept under `.tmp/captures/` and
 `.tmp/pdf-captures/` respectively.
@@ -44,7 +44,7 @@ Change values in `src/spike/data.ts` or composition in
 The author must correct overflow in source; the tooling does not detect or
 repair it.
 
-The credible eight-page operating report uses the same loop:
+The credible operating report uses the same loop:
 
 ```sh
 pnpm run render:report
@@ -136,7 +136,9 @@ pnpm pack --pack-destination .tmp/package
 
 In an existing pnpm project, enforce dependency engine ranges, allow the pinned
 `esbuild` install script, and explicitly reject Effect's optional native
-MessagePack accelerator in `pnpm-workspace.yaml`, then install that tarball:
+MessagePack accelerator in `pnpm-workspace.yaml`, then install that tarball and
+the managed browser using the command in the
+[supported delivery contract](docs/SUPPORT.md):
 
 ```yaml
 engineStrict: true
@@ -146,8 +148,7 @@ allowBuilds:
 ```
 
 ```sh
-pnpm add /path/to/unslide/.tmp/package/unslide-0.1.0.tgz
-pnpm dlx playwright@1.61.1 install chromium
+pnpm add /path/printed/by/pnpm-pack.tgz
 pnpm exec unslide init
 pnpm exec unslide init --yes
 pnpm exec unslide build report
@@ -175,7 +176,7 @@ clean external consumer.
 
 ## Package Contract
 
-The 0.1.0 tarball intentionally exposes only:
+The current tarball intentionally exposes only:
 
 - the `unslide` executable;
 - `unslide/react` for React plus local-asset helpers;
@@ -190,16 +191,11 @@ of the installed contract.
 
 ## Supported Environment and Compatibility
 
-Version 0.1.0 supports Node.js 24.15 or newer within the Node 24 release line
-and pnpm 11.12 on the verified macOS arm64 environment. HTML capture and PDF
-export use Playwright 1.61.1 and its managed
-Chromium; PDF validation and rasterization use PDF.js 6.1.200, with
-`@napi-rs/canvas` 1.0.2 providing the pinned Node canvas. Run
-`pnpm dlx playwright@1.61.1 install chromium` before the first capture or export.
-Other Node versions, package managers, operating systems, and browser engines
-are not yet claimed. See the [supported delivery contract](docs/SUPPORT.md) for
-the exact matrix, repeatability boundary, accessibility limits, and deferred PDF
-features.
+See the [supported delivery contract](docs/SUPPORT.md) for the authoritative
+environment and dependency matrix, browser-install command, repeatability
+boundary, accessibility limits, and deferred PDF features. `package.json` and
+the committed lockfile remain authoritative for the current package and
+development dependency pins.
 
 `unslide.json` version 1 and artifact protocol v1 are the current persisted
 contracts. Explicit unsupported versions fail with manual migration guidance;

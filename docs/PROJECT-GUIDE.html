@@ -574,7 +574,7 @@
 
       <main>
         <section class="section hero" id="start">
-          <div class="status-line"><span class="status-dot"></span> Version 0.1.0 · Packaged HTML/PDF workflow verified</div>
+          <div class="status-line"><span class="status-dot"></span> Private pre-stable package · HTML-first PDF delivery</div>
           <h1>Understand Unslide.</h1>
           <p class="lede">A guided mental model of the product, its boundaries, the HTML-to-PDF delivery pipeline, and the code that makes the contract trustworthy.</p>
           <div class="hero-actions">
@@ -582,10 +582,10 @@
             <a class="button secondary" href="#code-map">Open the code map</a>
           </div>
           <div class="hero-summary" aria-label="Project facts">
-            <div><strong>1</strong><span>canonical artifact</span></div>
-            <div><strong>3</strong><span>ownership layers</span></div>
-            <div><strong>6</strong><span>CLI workflows</span></div>
-            <div><strong>2</strong><span>delivery targets</span></div>
+            <div><strong>HTML</strong><span>canonical artifact</span></div>
+            <div><strong>Clear</strong><span>ownership boundaries</span></div>
+            <div><strong>TOON</strong><span>automation output</span></div>
+            <div><strong>HTML/PDF</strong><span>delivery targets</span></div>
           </div>
         </section>
 
@@ -699,7 +699,7 @@
             <div class="file-detail" aria-live="polite">
               <p class="path" id="file-path">src/cli.ts</p>
               <h3 id="file-title">The user-facing orchestrator</h3>
-              <p class="summary" id="file-summary">Parses the six workflows, loads named reports, delegates to internal modules, and returns structured TOON output with stable exit codes.</p>
+              <p class="summary" id="file-summary">Parses the public command grammar, loads named reports, delegates to internal modules, and returns structured TOON output with stable exit codes.</p>
               <dl>
                 <dt>Owns</dt><dd id="file-owns">Command grammar, help, result shaping, exit codes 0/1/2</dd>
                 <dt>Calls</dt><dd id="file-calls">Config, build, inspect, capture, export, PDF inspection, init</dd>
@@ -711,7 +711,7 @@
         </section>
 
         <section class="section" id="proof">
-          <h2>Why there are two proof reports</h2>
+          <h2>How the proof reports establish contrast</h2>
           <p class="section-intro">The fixtures demonstrate that the runtime understands protocol behavior, not one house style.</p>
           <div class="proof-pair">
             <div class="report-proof">
@@ -741,12 +741,12 @@
           <h2>Tests and evidence</h2>
           <p class="section-intro">The suite proves each boundary separately, then installs the packed product in a clean external consumer and exercises the whole lifecycle.</p>
           <div class="test-map" aria-label="Test suite map">
-            <div class="test-cell"><strong>Workflow</strong><span>5</span><p>Complete documents, no injected design, embedded assets, capture safety.</p></div>
-            <div class="test-cell"><strong>Protocol</strong><span>13</span><p>Markers, readiness, browser diagnostics, geometry independence.</p></div>
-            <div class="test-cell"><strong>CLI</strong><span>7</span><p>TOON output, discovery, safe paths, config, commands, init.</p></div>
-            <div class="test-cell"><strong>PDF export</strong><span>5</span><p>Authored geometry, text, page parity, atomic publication.</p></div>
-            <div class="test-cell"><strong>PDF inspect</strong><span>2</span><p>Actual-PDF rasterization, repeatability, rollback.</p></div>
-            <div class="test-cell"><strong>Adoption</strong><span>1</span><p>Packed clean consumer, minimal exports, full delivery workflow.</p></div>
+            <div class="test-cell"><strong>Workflow</strong><span>AUTHORING</span><p>Complete documents, no injected design, embedded assets, capture safety.</p></div>
+            <div class="test-cell"><strong>Protocol</strong><span>BROWSER</span><p>Markers, readiness, browser diagnostics, geometry independence.</p></div>
+            <div class="test-cell"><strong>CLI</strong><span>CONTRACT</span><p>TOON output, discovery, safe paths, config, commands, init.</p></div>
+            <div class="test-cell"><strong>PDF export</strong><span>PRINT</span><p>Authored geometry, text, page parity, atomic publication.</p></div>
+            <div class="test-cell"><strong>PDF inspect</strong><span>NATIVE</span><p>Actual-PDF rasterization, repeatability, rollback.</p></div>
+            <div class="test-cell"><strong>Adoption</strong><span>PACKAGED</span><p>Packed clean consumer, minimal exports, full delivery workflow.</p></div>
           </div>
           <div class="commands">
             <h3>Commands you will actually use</h3>
@@ -776,13 +776,13 @@
             <div class="limits">
               <h3>Know the support boundary</h3>
               <ul>
-                <li>Verified environment: macOS arm64, Node 24.15, pnpm 11.12.</li>
+                <li>Canonical versions live in the <a href="SUPPORT.md">supported delivery contract</a>.</li>
                 <li>One common page geometry per PDF.</li>
                 <li>No automatic pagination or overflow repair.</li>
                 <li>No async-ready author signal in protocol v1.</li>
                 <li>No PDF/A, signing, encryption, forms, or alternate engines.</li>
                 <li>Tagged output is evidence—not PDF/UA or WCAG certification.</li>
-                <li>Version 0.1.0 is a private pre-stable contract.</li>
+                <li>The current package remains a private pre-stable contract.</li>
               </ul>
             </div>
           </div>
@@ -793,10 +793,10 @@
           <p class="section-intro">The packaged delivery workflow is current. The project is waiting for real adoption evidence before adding another subsystem.</p>
           <div class="status-track">
             <div class="status-step"><strong>Authoring and HTML</strong><span>Artifact protocol, report-owned React source, and canonical HTML capture.</span></div>
-            <div class="status-step"><strong>Installed workflow</strong><span>CLI, validated configuration, safe scaffolding, and the packaged 0.1.0 contract.</span></div>
+            <div class="status-step"><strong>Installed workflow</strong><span>CLI, validated configuration, safe scaffolding, and the current private package contract.</span></div>
             <div class="status-step"><strong>PDF delivery</strong><span>Chromium export, PDF-native inspection, and packed-consumer validation.</span></div>
           </div>
-          <div class="next-action"><h3>Current next action</h3><p>Exercise Unslide in a second real consumer report. Record repeated visual source, adapter needs, or mixed-geometry needs—and reopen scope only if that evidence satisfies an existing gate.</p></div>
+          <div class="next-action"><h3>Current next action</h3><p>No implementation action is active. Await an explicit scope decision before starting a deferred capability; use real adoption evidence to evaluate the gates below.</p></div>
           <div class="gates">
             <div class="gate"><strong>Recipe registry</strong><p>Wait for the same editable visual source to recur across independent consumers.</p></div>
             <div class="gate"><strong>Source adapters</strong><p>Wait for a second generator to reveal which authoring behavior truly varies.</p></div>
@@ -876,9 +876,9 @@
       };
 
       const files = {
-        cli: ["src/cli.ts", "The user-facing orchestrator", "Parses the six workflows, loads named reports, delegates to internal modules, and returns structured TOON output with stable exit codes.", "Command grammar, help, result shaping, exit codes 0/1/2", "Config, build, inspect, capture, export, PDF inspection, init", "Rendering logic, browser behavior, visual policy", "../src/cli.ts"],
+        cli: ["src/cli.ts", "The user-facing orchestrator", "Parses the public command grammar, loads named reports, delegates to internal modules, and returns structured TOON output with stable exit codes.", "Command grammar, help, result shaping, exit codes 0/1/2", "Config, build, inspect, capture, export, PDF inspection, init", "Rendering logic, browser behavior, visual policy", "../src/cli.ts"],
         config: ["src/unslide/config.ts", "The operational safety boundary", "Finds the nearest unslide.json, validates schema v1, resolves project-relative paths, and prevents escapes, symlink escapes, and source/output overlap.", "Project discovery, schema validation, safe path resolution", "Ajv, filesystem metadata", "Any visual setting", "../src/unslide/config.ts"],
-        init: ["src/unslide/init.ts", "The safe one-time scaffold", "Plans or creates exactly three user-owned files. Identical files are unchanged; differing files are conflicts and are never overwritten.", "Dry run, deterministic source, conflict safety", "Filesystem primitives", "Managed recipes or source upgrades", "../src/unslide/init.ts"],
+        init: ["src/unslide/init.ts", "The safe one-time scaffold", "Plans or creates a minimal set of user-owned files. Identical files are unchanged; differing files are conflicts and are never overwritten.", "Dry run, deterministic source, conflict safety", "Filesystem primitives", "Managed recipes or source upgrades", "../src/unslide/init.ts"],
         build: ["src/unslide/build.ts", "The TSX entry adapter", "Loads a named TS/TSX entry, requires its default export to be a React element, and hands the complete document to serialization.", "Source evaluation and authoring-entry validation", "tsx import API, renderer", "Artifact protocol or browser capture", "../src/unslide/build.ts"],
         render: ["src/unslide/render.tsx", "The standalone document writer", "Renders static markup, enforces a complete <html> root, rejects unresolved resource references, and atomically replaces the HTML output.", "Serialization, asset helpers, standalone enforcement", "React server rendering, filesystem", "Document shell, CSS, page frame, geometry", "../src/unslide/render.tsx"],
         react: ["src/unslide/react.ts", "The narrow public authoring entry", "Re-exports React plus readTextAsset and inlineAsset. It is intentionally the package’s only JavaScript authoring export.", "Minimal supported authoring API", "React and renderer helpers", "Browser, validator, capture, or PDF APIs", "../src/unslide/react.ts"],
@@ -888,8 +888,8 @@
         pdf: ["src/unslide/pdf.ts", "The validated print pipeline", "Prints canonical HTML with Chromium, requires authored page geometry, then verifies PDF readability, count, geometry, and extractable text before publication.", "Semantic export policy and PDF validation", "Browser gate, PDF.js", "Parallel layout, screenshot assembly, raw browser options", "../src/unslide/pdf.ts"],
         "pdf-inspection": ["src/unslide/pdf-inspection.ts", "The target-native PDF inspector", "Reads only an existing PDF and rasterizes each actual page through PDF.js and Node canvas at a fixed 96 DPI.", "PDF-to-PNG evidence", "PDF.js, @napi-rs/canvas", "HTML or browser state", "../src/unslide/pdf-inspection.ts"],
         images: ["src/unslide/page-images.ts", "The transactional image publisher", "Generates a complete page set in isolation, swaps only managed page PNGs, preserves unrelated files, and restores prior evidence on publication failure.", "Staging, cleanup, rollback", "Filesystem primitives", "Image rendering itself", "../src/unslide/page-images.ts"],
-        spike: ["src/spike/", "The contrast proof", "A three-page portrait report with its own document, typography, spacing, CSS, data model, and no required repeated chrome.", "One complete visual system", "unslide/react only", "Runtime defaults", "../src/spike/report.tsx"],
-        report: ["src/reports/operating-review/", "The credible report trial", "An eight-page A4 landscape operating review with report-local page reuse, charts, tables, bilingual content, repeated material, and print behavior.", "A richer report-specific visual system", "unslide/react only", "Framework-owned Page or chrome concepts", "../src/reports/operating-review/report.tsx"]
+        spike: ["src/spike/", "The contrast proof", "A portrait report with its own document, typography, spacing, CSS, data model, and no required repeated chrome.", "One complete visual system", "unslide/react only", "Runtime defaults", "../src/spike/report.tsx"],
+        report: ["src/reports/operating-review/", "The credible report trial", "An A4 landscape operating review with report-local page reuse, charts, tables, bilingual content, repeated material, and print behavior.", "A richer report-specific visual system", "unslide/react only", "Framework-owned Page or chrome concepts", "../src/reports/operating-review/report.tsx"]
       };
 
       const scenarios = {

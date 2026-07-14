@@ -2,20 +2,6 @@
 
 Status: complete
 
-## Suggested `/goal` objective
-
-> Execute `docs/plans/axi-cli-hardening.md` one numbered goal at a time. Harden
-> the existing Unslide CLI against the accepted AXI findings while preserving
-> TOON stdout, diagnostic-only stderr, exit codes 0/1/2, the explicit parser,
-> and the current product boundaries. Keep `PLAN.md` and this plan's current
-> state updated in place, and finish with the repository's implementation
-> review and full validation.
-
-On activation, first update `PLAN.md` to record this plan as accepted work and
-Goal 1 as the current next action. That administrative update reconciles the
-new `/goal` with the repository's prior evidence-gathering next action; it does
-not count as a numbered implementation goal.
-
 ## Objective
 
 Make the current agent-facing CLI more deterministic, actionable, and
@@ -265,12 +251,12 @@ full diagnostic output, paths containing spaces, and PATH/absolute invocation.
 - Completed: Goals 1–5. The README is the canonical automation contract;
   workflow and architecture documentation now link to or describe the same
   failure, diagnostic, invocation, and success-output boundaries.
-- Validation: `pnpm run check`, all 58 tests, and `pnpm run validate` pass,
-  including both proof-report pipelines. Direct executable probes cover no-args
-  output, all command help forms, unknown input with help, every stable
-  operational code, default/full diagnostics, spaced paths, and PATH/absolute
-  invocation. The implementation review with diet lens and focused CLI-contract
-  subagent found no remaining findings.
+- Validation: `pnpm run check`, `pnpm test`, and `pnpm run validate` pass,
+  including the configured proof-report pipelines. Direct executable probes
+  cover no-args output, all command help forms, unknown input with help, every
+  documented operational code, default/full diagnostics, spaced paths, and
+  PATH/absolute invocation. The implementation review with diet lens and
+  focused CLI-contract subagent found no remaining findings.
 - Next action: none under this plan; await an explicit scope decision before
   starting a deferred capability.
 - Blockers: none.

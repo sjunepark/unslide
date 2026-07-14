@@ -20,6 +20,13 @@ table records the exact environment used for complete validation. Other
 operating systems, architectures, Node major versions, package managers,
 browsers, PDF engines, and rasterizers are not currently claimed.
 
+Install the managed browser that matches this package before the first capture
+or export:
+
+```sh
+pnpm dlx playwright@1.61.1 install chromium
+```
+
 ## Supported Behavior
 
 | Area | Contract |

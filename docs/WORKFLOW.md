@@ -7,18 +7,17 @@ packed consumer workflow.
 
 ## Supported Development Environment
 
-The workflow is verified on macOS with Apple silicon, Node.js 24.15, pnpm 11,
-and the Playwright-managed Chromium build. Chromium is the canonical preview
+The workflow is verified in the canonical environment recorded in the
+[supported delivery contract](SUPPORT.md). Chromium is the canonical preview
 and print engine. The delivered HTML needs only a modern local browser; it does
 not need Node.js, Playwright, a server, or a running application.
 
 The repository does not claim cross-browser pixel parity or support multiple
 capture engines.
 
-The packaged 0.1.0 contract supports Node.js 24.15 or newer within the Node 24
-release line, pnpm 11.12, and the pinned Playwright 1.61.1 Chromium on the
-verified macOS arm64 environment. Other Node versions, package managers,
-operating systems, and browser engines are not yet claimed.
+The support contract is authoritative for exact versions and unclaimed
+environments; `package.json` and the committed lockfile own the current package
+and development dependency pins.
 
 ## Install
 
@@ -43,11 +42,11 @@ pnpm pack --pack-destination .tmp/package
 
 In an existing pnpm project, configure `engineStrict: true`,
 `allowBuilds.esbuild: true`, and `allowBuilds.msgpackr-extract: false` in
-`pnpm-workspace.yaml`, install the resulting tarball, and run:
+`pnpm-workspace.yaml`, install the resulting tarball and the managed browser
+using the command in the [supported delivery contract](SUPPORT.md), and run:
 
 ```sh
-pnpm add /path/to/unslide-0.1.0.tgz
-pnpm dlx playwright@1.61.1 install chromium
+pnpm add /path/printed/by/pnpm-pack.tgz
 pnpm exec unslide init
 pnpm exec unslide init --yes
 pnpm exec unslide build report
@@ -145,41 +144,22 @@ remain Promise-based, and packed declarations expose no Effect types.
 
 The current delivery model uses installed tooling rather than copied
 implementation files. Build, validation, capture, export, and PDF inspection
-run from the hardened locally packed 0.1.0 tooling. See
+run from the hardened locally packed tooling. See
 [D3](decisions/0003-headless-artifact-protocol.md) and
 [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 ## Repository Evidence
 
-The workflow was verified on 14 July 2026 on macOS 26.5.1 arm64 with Node.js
-24.15.0, pnpm 11.12.0, Playwright 1.61.1,
-and its managed Chromium build:
+`pnpm run validate` is the authoritative current evidence for source checks,
+tests, and every configured proof-report HTML/PDF pipeline. Do not copy totals
+or generated page measurements into this document; inspect the command output
+and artifacts from the run being reviewed.
 
-- `pnpm install --frozen-lockfile` completed from the committed lockfile;
-- `pnpm exec playwright install chromium` completed successfully;
-- `pnpm run validate` passed the protocol, authoring, CLI, PDF, lifecycle, and
-  clean-consumer suites and generated both delivery artifacts plus their HTML
-  and PDF-native capture sets;
-- every generated page image was visually inspected;
-- both HTML artifacts contained no external URLs, scripts, or linked styles;
-- direct local opening required no server or Playwright runtime;
-- the contrasting fixture captured as three 900×1200 portrait pages while the
-  operating review retained eight A4 landscape pages;
-- canonical Chromium exported three 540×720-point portrait PDF pages and eight
-  841.92×594.96-point A4-landscape PDF pages; PDF.js rasterized them to three
-  720×960 and eight 1123×794 PNGs, all visually inspected;
-- a packed tarball initialized, built, inspected, and captured a standalone
-  960×540 consumer report outside the repository, then exported and inspected
-  its validated PDF twice with stable structure and identical raster hashes;
-- the packed report preserved local font/raster/SVG assets, Korean and English
-  text, an authored link and print color, title/language metadata, tags, and a
-  heading outline; and
-- every repository-local Markdown link resolved.
-
-The production dependency audit reported no known vulnerabilities. Shipped
-dependencies use permissive MIT, Apache-2.0, BSD-3-Clause, or ISC licenses; no
-copyleft dependency is present. Version 0.1.0 remains a private 0.x contract
-rather than a stable public release.
+Validation does not make a visual judgment. After a report change, inspect
+every generated HTML and PDF-native page image. The packed-consumer workflow
+also remains the proof that installed tooling can initialize, build, inspect,
+capture, export, and inspect a standalone report outside this repository.
 
 See the [supported delivery contract](SUPPORT.md) for the canonical environment,
-accessibility limits, repeatability boundary, and explicitly deferred features.
+verified content and semantics, accessibility limits, repeatability boundary,
+and explicitly deferred features.
