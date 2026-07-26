@@ -1,171 +1,103 @@
 # Repository Workflow
 
-This document records commands that work in the current implementation. The
-artifact protocol, headless full-document authoring, canonical capture,
-Chromium PDF export, and PDF-native inspection paths are verified through the
-packed consumer workflow.
+This runbook owns repository setup, proof-report commands, generated outputs,
+and validation. Public installation and CLI automation belong in
+[README.md](../README.md).
 
-## Supported Development Environment
-
-The workflow is verified in the canonical environment recorded in the
-[supported delivery contract](SUPPORT.md). Chromium is the canonical preview
-and print engine. The delivered HTML needs only a modern local browser; it does
-not need Node.js, Playwright, a server, or a running application.
-
-The repository does not claim cross-browser pixel parity or support multiple
-capture engines.
-
-The support contract is authoritative for exact versions and unclaimed
-environments; `package.json` and the committed lockfile own the current package
-and development dependency pins.
-
-## Install
-
-From the repository root:
+## Setup
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
 ```
 
-The frozen install uses the committed lockfile, and pnpm is pinned through
-`package.json`. Browser installation is development-only and does not add
-anything to generated reports.
+The supported environment is recorded in the
+[Supported Delivery Contract](SUPPORT.md). Chromium is the canonical capture
+and print engine; generated HTML requires no development runtime to open.
 
-## Initialize a Consumer
+## Report Loop
 
-In an existing pnpm project, first configure `engineStrict: true`,
-`allowBuilds.esbuild: true`, and `allowBuilds.msgpackr-extract: false` in
-`pnpm-workspace.yaml`. Then install the public package and its managed browser:
-
-```sh
-pnpm add unslide
-pnpm dlx playwright@1.61.1 install chromium
-```
-
-Initialize and use the installed package:
-
-```sh
-pnpm exec unslide init
-pnpm exec unslide init --yes
-pnpm exec unslide build report
-pnpm exec unslide inspect report
-pnpm exec unslide capture report
-pnpm exec unslide export report
-pnpm exec unslide inspect-pdf report
-```
-
-The first `init` command shows the planned file writes. The confirmed command
-creates a minimal `unslide.json`, a complete React document, and one clearly
-removable CSS file. A repeated run is an unchanged no-op; differing files
-produce a structured conflict without being overwritten.
-
-For unpublished repository changes, run `pnpm pack --pack-destination
-.tmp/package` and install the resulting tarball instead. The clean-consumer
-tests use this path to verify the exact package before publication.
-
-## Author, Render, and Inspect
-
-The small fixture lives under `src/spike/`; the credible report lives under
-`src/reports/operating-review/`.
-
-All repository report commands route through the schema-validated CLI and
+The compact fixture lives in `src/spike/`; the richer trial lives in
+`src/reports/operating-review/`. Their configured paths are canonical in
 [`unslide.json`](../unslide.json).
 
 | Task | Command | Output |
 |---|---|---|
-| Render fixture | `pnpm run render:spike` | `artifacts/spike/report.html` |
-| Capture fixture | `pnpm run capture:spike` | `.tmp/captures/spike/page-*.png` |
+| Build fixture HTML | `pnpm run render:spike` | `artifacts/spike/report.html` |
+| Capture fixture HTML | `pnpm run capture:spike` | `.tmp/captures/spike/` |
 | Export fixture PDF | `pnpm run export:spike` | `artifacts/spike/report.pdf` |
-| Inspect fixture PDF | `pnpm run inspect-pdf:spike` | `.tmp/pdf-captures/spike/page-*.png` |
-| Render real report | `pnpm run render:report` | `artifacts/operating-review/report.html` |
-| Capture real report | `pnpm run capture:report` | `.tmp/captures/operating-review/page-*.png` |
-| Export real-report PDF | `pnpm run export:report` | `artifacts/operating-review/report.pdf` |
-| Inspect real-report PDF | `pnpm run inspect-pdf:report` | `.tmp/pdf-captures/operating-review/page-*.png` |
-| Run all repository checks | `pnpm run validate` | Both delivery artifacts and both target-native capture sets |
+| Inspect fixture PDF | `pnpm run inspect-pdf:spike` | `.tmp/pdf-captures/spike/` |
+| Build trial HTML | `pnpm run render:report` | `artifacts/operating-review/report.html` |
+| Capture trial HTML | `pnpm run capture:report` | `.tmp/captures/operating-review/` |
+| Export trial PDF | `pnpm run export:report` | `artifacts/operating-review/report.pdf` |
+| Inspect trial PDF | `pnpm run inspect-pdf:report` | `.tmp/pdf-captures/operating-review/` |
 
-The direct forms are `pnpm --silent run unslide build <name>`, `pnpm --silent
-run unslide inspect <name>`, `pnpm --silent run unslide capture <name>`, `pnpm
---silent run unslide export <name>`, and `pnpm --silent run unslide inspect-pdf
-<name>`.
-Run `pnpm --silent run unslide` from the project root or any nested directory
-to see the live report list. The nearest
-`unslide.json` defines the project root, and its source, HTML, optional PDF,
-HTML-capture, and optional PDF-capture paths resolve relative to that directory.
-The standalone form is `unslide inspect-pdf --artifact <path> --output
-<directory>` and does not require project discovery.
-
-See the README's [CLI automation contract](../README.md#cli-automation-contract)
-for TOON stdout, exit codes, stable failures, flags, bounded diagnostics, and
-portable recovery commands. Execution logging is opt-in and diagnostic-only.
-Treat logging as sensitive because it can include local paths and full Effect
-causes. Treat `--full` output as sensitive too: it may include complete
-report-authored messages and resource identifiers even though dependency causes
-remain excluded.
-
-Open an artifact directly on macOS:
+Repository aliases call the same schema-validated CLI:
 
 ```sh
-open artifacts/operating-review/report.html
-open artifacts/operating-review/report.pdf
+pnpm --silent run unslide build <name>
+pnpm --silent run unslide inspect <name>
+pnpm --silent run unslide capture <name>
+pnpm --silent run unslide export <name>
+pnpm --silent run unslide inspect-pdf <name>
 ```
 
-The authoring loop is intentionally manual: change typed data or report TSX,
-render, capture, inspect every page image, and correct wording or layout in
-source. The commands do not detect, redistribute, shrink, or repair overflow.
+Run `pnpm --silent run unslide` from the project root or a nested directory to
+list the nearest project's reports. See the README
+[automation contract](../README.md#cli-automation-contract) for structured
+output, failures, flags, diagnostics, and portable recovery commands.
 
-Capture discovers pages through the implemented
-[`data-unslide-page` protocol](PROTOCOL.md), validates their IDs and static
-visual resources, and then captures marked elements in document order.
+The authoring loop is:
+
+1. Change typed data, document source, or report-owned CSS.
+2. Build the HTML.
+3. Capture and inspect every HTML page image.
+4. Export the PDF when required.
+5. Inspect every PDF-native page image.
+6. Correct the same source and repeat.
+
+The tooling validates the [page protocol](PROTOCOL.md) and static resources. It
+does not measure or repair fit. PDF export does reject page-count divergence,
+which can expose unintended print fragmentation.
 
 ## Artifact Ownership
 
 - `artifacts/` contains generated standalone HTML and validated PDF delivery
-  artifacts.
-- `.tmp/captures/` contains disposable browser-rendered inspection images.
+  files.
+- `.tmp/captures/` contains disposable Chromium screenshots of marked HTML
+  pages.
 - `.tmp/pdf-captures/` contains disposable images rasterized from the actual
-  PDFs at 96 DPI.
-- Both directories are ignored by Git and can be regenerated from source.
-- Report data and domain conclusions stay in each report's typed caller-owned
-  object. Unslide does not calculate them.
+  PDFs.
+- `artifacts/` and `.tmp/` are ignored by Git and can be regenerated from
+  report source.
 
-## Current Module Decision
+Report data and conclusions remain in caller-owned typed source. Generated
+files are evidence, not an authoring format.
 
-The repository-local React writer serializes a complete author-owned document,
-provides explicit local-asset inlining, and injects no visual source. Each
-report owns page geometry, chrome or its absence, styles, and print behavior.
-The protocol-only capture module, canonical Chromium PDF exporter, and
-PDF.js/Node-canvas rasterizer are implemented, and repository commands delegate
-through the CLI. PDF inspection reads no source HTML or browser state.
+## Validate
 
-Internally, one Effect v4 program owns CLI execution and receives one Node
-filesystem/path Layer at the executable boundary. HTML and PDF publish through
-atomic same-directory replacement. Page-image publication preserves unrelated
-files, restores prior managed images when possible, and retains recovery
-staging if rollback is incomplete. The public `unslide/react` asset helpers
-remain Promise-based, and packed declarations expose no Effect types.
+```sh
+pnpm run check
+pnpm test
+pnpm run validate
+npm pack --dry-run
+```
 
-The current delivery model uses installed tooling rather than copied
-implementation files. Build, validation, capture, export, and PDF inspection
-run from the hardened locally packed tooling. See
-[D3](decisions/0003-headless-artifact-protocol.md) and
-[`ARCHITECTURE.md`](../ARCHITECTURE.md).
-
-## Repository Evidence
-
-`pnpm run validate` is the authoritative current evidence for source checks,
-tests, and every configured proof-report HTML/PDF pipeline. Do not copy totals
-or generated page measurements into this document; inspect the command output
-and artifacts from the run being reviewed.
+- `check` validates TypeScript and Effect language-service rules.
+- `test` exercises source-level and packaged behavioral contracts.
+- `validate` additionally runs every configured HTML/PDF proof pipeline.
+- `npm pack --dry-run` verifies the public package contents.
 
 Validation does not make a visual judgment. After a report change, inspect
-every generated HTML and PDF-native page image. The packed-consumer workflow
-also remains the proof that installed tooling can initialize, build, inspect,
-capture, export, and inspect a standalone report outside this repository.
+every generated HTML and PDF-native page image.
 
-See the [supported delivery contract](SUPPORT.md) for the canonical environment,
-verified content and semantics, accessibility limits, repeatability boundary,
-and explicitly deferred features.
+To verify unpublished package changes in a clean consumer, create a tarball and
+install the path printed by pnpm:
 
-Release ownership, bootstrap requirements, credentials, and the automated npm
-publishing flow are documented in [RELEASE.md](RELEASE.md).
+```sh
+pnpm pack --pack-destination .tmp/package
+```
+
+The adoption tests automate this path. Architecture and publication behavior
+belong in [ARCHITECTURE.md](../ARCHITECTURE.md); release operations belong in
+[Release](RELEASE.md).

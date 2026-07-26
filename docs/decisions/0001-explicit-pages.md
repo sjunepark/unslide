@@ -4,10 +4,6 @@ Date: 2026-07-13
 
 Status: accepted
 
-Current clarification: explicit page membership remains accepted, but page
-geometry, padding, repeated material, and numbering are report-owned design. See
-[D3](0003-headless-artifact-protocol.md).
-
 ## Context
 
 Static reports need predictable page dimensions, padding, headers, footers, and
@@ -26,6 +22,10 @@ Unslide models a report as an ordered collection of explicit fixed pages.
 Content stays on the page where report source places it. The framework does not
 measure remaining space and move content to another page. Source may
 conditionally add or remove whole pages.
+
+Report source owns page geometry, padding, repeated material, and numbering.
+The explicit-page model adds no visual page policy; [D3](0003-headless-artifact-protocol.md)
+records that ownership boundary.
 
 Overflow is resolved through visual inspection and a source change. There is no
 automatic repair or layout-lint subsystem.

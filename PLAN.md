@@ -1,81 +1,38 @@
 # Plan
 
-Completed implementation goal: **Goal 6 — public npm distribution.**
+Active implementation goal: **none**.
 
-Current next action: **Use the public package and monitor the first subsequent
-Release Please pull request before accepting another product capability.**
+Current next action: **exercise the public package in independent consumers,
+record evidence against the gates below, and verify the first
+Release Please-generated release before widening product scope.**
 
-This file is the live execution state. Update current decisions, evidence,
-blockers, and the next action in place; do not append session history. Durable
-product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
-`ARCHITECTURE.md`, `docs/SUPPORT.md`, and `docs/decisions/`.
+This file owns current execution state and unresolved evidence gates. Durable
+product, design, architecture, support, and release policy belong in their
+focused documents and decision records.
 
-## Active Work
+## Current State
 
-- Completed: Goal 6 publishes `unslide@0.1.0` from the matching `v0.1.0` source
-  tag. Release Please owns subsequent versions, changelog entries, tags, and
-  GitHub Releases; tagged source is revalidated before OIDC trusted publishing.
-  npm trusts only `sjunepark/unslide`'s `release.yml` for automated publishing,
-  disallows ordinary publishing tokens, and `main` requires pull requests plus
-  the project CI check. The Release Please credential is sourced from the
-  maintainer's credential vault rather than an unmanaged per-project token.
-- Evidence: `pnpm run check`, `npm pack --dry-run`, `pnpm run validate`, the
-  Release Please config schema check, workflow YAML parsing, and `actionlint`
-  pass. Validation covers the packed clean consumer and every configured
-  HTML/PDF proof pipeline. The required implementation and diet review applied
-  the safe immutable-tag retry check and found no remaining safe findings.
-- Completed: Goals 1–5. Parsing, invocation, typed public failures, bounded
-  diagnostics, contextual success help, existence-only home status, and compact
-  page-output paths now have one documented deterministic contract.
-- Evidence: `pnpm run check`, `pnpm test`, and `pnpm run validate` pass,
-  including the configured proof-report HTML/PDF pipelines. Direct executable
-  probes cover no-args output, every command help form, unknown input with help,
-  all documented operational codes, bounded/full diagnostics, spaced paths,
-  and PATH/absolute invocation. PR feedback coverage includes
-  package-manager-aware help, malformed configuration detail, combined
-  failures, operation-time browser diagnostics, and authored PDF validation
-  detail. The required implementation review and diet pass found no remaining
-  safe findings.
-- Blockers: none for the accepted public npm distribution scope.
+- The accepted implementation goals through public distribution are complete.
+  The public package is `unslide@0.1.0`, and `v0.1.0` identifies its
+  reviewed source.
+- The hardened CLI contract is canonical in [README.md](README.md); release
+  policy and operations belong to
+  [D6](docs/decisions/0006-public-npm-distribution.md) and
+  [docs/RELEASE.md](docs/RELEASE.md).
+- Release Please is configured, but the first subsequent automated release has
+  not yet been proven.
+- Blockers: none.
 
-## Current Gates
+## Evidence Gates
 
-| Capability | State | Evidence required to reconsider |
-|---|---|---|
-| Managed recipe registry | Deferred | At least two independent consumers repeatedly need the same editable visual source, and one-time scaffolding or an installed package is insufficient |
-| Additional source adapters | Deferred | A second real generator implements the artifact protocol and reveals the behavior that actually varies |
-| Mixed PDF geometry | Deferred | A real mixed-size report and integration evidence from the canonical Chromium version |
-| Agent skill or session integration | Deferred | Reconsider a static skill only after two independent consumer repositories each require manual orientation in at least two sessions after using no-args output and command help. Consider session hooks only if live session-start state is then proven necessary; session-end capture also requires a privacy decision |
+| Capability | Reconsider when |
+|---|---|
+| Managed recipe registry | At least two independent consumers repeatedly need the same editable visual source and one-time scaffolding is insufficient. Any proposal must define source ownership, provenance, dry-run diffs, modification detection, conflicts, and registry trust. |
+| Additional source adapters | A second real generator implements the artifact protocol and reveals which behavior actually varies. |
+| Mixed PDF geometry | A real mixed-size report exists and the canonical Chromium version has integration evidence for a reliable path. |
+| Agent skill or session integration | Two independent consumer repositories each require manual orientation in multiple sessions after using no-args output and command help. Session hooks additionally require evidence that live state is necessary; session-end capture requires a privacy decision. |
+| Unslide-owned browser installer | Multiple supported environments or package-manager workflows show recurring failure with the pinned Playwright installation command. |
 
-### Managed recipe registry
-
-A positive decision must define source ownership and optionality plus
-provenance, hashes, dry-run diffs, modification detection, conflicts, and
-registry trust. No visual recipe may become a runtime dependency.
-
-### Additional source adapters
-
-Do not publish a renderer plugin interface around the React implementation
-before the second implementation exposes a proven seam.
-
-### Mixed PDF geometry
-
-Supported PDF export permits arbitrary report-wide geometry but assumes one
-geometry per PDF.
-
-## Guardrails
-
-Keep automatic pagination or repair, visual editing, presentation behavior,
-universal report schemas, business calculations, mandatory design systems, and
-visual project configuration outside the product unless a later decision
-explicitly changes scope.
-
-For accepted future work:
-
-- execute one numbered goal at a time;
-- add a focused detailed plan only when the goal needs one;
-- prove behavior through public seams and real fixtures;
-- document commands only after they run successfully;
-- finish implementation goals with the required code-review pass; and
-- update the relevant decision record and all conflicting current guidance
-  when an accepted constraint changes.
+No deferred capability is active work until its evidence gate is met and an
+explicit scope decision accepts it. When work is accepted, execute one numbered
+goal at a time and add a focused detailed plan only if the goal needs one.

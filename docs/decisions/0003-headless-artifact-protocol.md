@@ -20,12 +20,17 @@ adopters centralized behavior upgrades and complete design ownership.
 
 Unslide separates stable behavior from visual source.
 
-The canonical seam is a small HTML artifact protocol. A valid artifact is
-standalone HTML whose explicit pages carry ordered unique nonvisual markers and
-whose visual resources have a reliable readiness path. New artifacts declare
-their protocol version in nonvisual document metadata. Missing metadata remains
-a v1 compatibility case for artifacts created before the packaged contract;
-explicit unsupported versions fail without automatic source rewriting.
+The delivery contract has two layers. The first-party React writer produces a
+standalone HTML artifact and rejects recognized unresolved resource
+dependencies. Browser tooling consumes a smaller HTML protocol: explicit pages
+carry ordered unique nonvisual markers, and loaded documents expose bounded
+static readiness. The protocol does not prescribe how another generator
+packages resources.
+
+New artifacts declare their protocol version in nonvisual document metadata.
+Missing metadata remains a v1 compatibility case for artifacts created before
+the packaged contract; explicit unsupported versions fail without automatic
+source rewriting.
 
 Report source owns the complete document and all design decisions, including
 DOM structure, elements, page geometry, margins, padding, fonts, assets,
@@ -38,8 +43,8 @@ behavior belongs in versioned tooling. React remains the first authoring module
 because the proof reports establish it, while the HTML protocol remains
 independent of React.
 
-Project configuration describes operational paths and explicitly selected tool
-behavior. It does not describe visual design.
+Project configuration describes report source and derived-artifact paths. It
+does not describe visual design.
 
 One-time scaffolds and optional recipes may install editable visual source. They
 are not required by the runtime. A managed source registry is deferred until

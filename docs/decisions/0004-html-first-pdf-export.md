@@ -22,8 +22,9 @@ through the supported Chromium print pipeline.
 
 Report source owns print media, page size, orientation, margins, page breaks,
 color adjustment, and repeated material. The exporter does not inject headers,
-footers, paper geometry, or layout rules. It prefers CSS-defined page size and
-includes backgrounds by default.
+footers, paper geometry, or layout rules. It requires one active, unqualified
+base `@page` rule with a supported concrete size and includes backgrounds by
+default.
 
 The exporter exposes durable Unslide concepts rather than the browser's raw PDF
 option object. Tagged PDF and document outlines are supported defaults, not a
