@@ -39,10 +39,15 @@ invalid.
 Browser loading and protocol validation use bounded waits for document load,
 `document.fonts.ready`, and every HTML image to load and decode. Failures
 identify the pending or failed resource and, when applicable, its marked page.
+PDF export repeats readiness after applying print media and also waits for
+tracked requests, so resources activated only for print are covered before
+Chromium prints.
 
-Document, font, image-load, and image-decode waits are bounded to five seconds
-each. Protocol v1 has no author-controlled asynchronous readiness signal; that
-remains deferred until a real asynchronous visual establishes the contract.
+Document, font, image-load, image-decode, and tracked-request waits are bounded
+to five seconds each. Protocol v1 supports static visual resources. It does not
+stabilize animations or delayed client rendering and has no author-controlled
+asynchronous readiness signal; those capabilities remain deferred until real
+inputs establish their contracts.
 
 Readiness validation does not inspect CSS, measure overflow, repair content, or
 apply visual defaults. It also does not enforce the first-party React writer's

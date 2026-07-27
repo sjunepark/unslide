@@ -24,7 +24,9 @@ Report source owns print media, page size, orientation, margins, page breaks,
 color adjustment, and repeated material. The exporter does not inject headers,
 footers, paper geometry, or layout rules. It requires one active, unqualified
 base `@page` rule with a supported concrete size and includes backgrounds by
-default.
+default. After switching to print media, it repeats bounded static readiness
+for fonts and HTML images and waits for tracked resource requests before
+printing.
 
 The exporter exposes durable Unslide concepts rather than the browser's raw PDF
 option object. Tagged PDF and document outlines are supported defaults, not a
@@ -32,10 +34,15 @@ claim of formal accessibility conformance.
 
 For the initial supported path, every marked HTML page must produce exactly one
 PDF page, and all pages in one PDF use a common geometry. The exporter parses
-the result and fails with an actionable error when page counts differ.
+the result and fails with an actionable error when page counts differ. These
+checks are structural delivery validation, not a generic visual-fidelity
+judgment.
 
 Visual inspection rasterizes the actual PDF into one image per PDF page. HTML
-screenshots are not accepted as evidence of PDF correctness.
+screenshots are not accepted as evidence of PDF correctness, and every
+PDF-native page image must be inspected. Reports that require exact print color
+adjustment request it in their own CSS; broader color reproduction remains
+environment-dependent.
 
 ## Consequences
 

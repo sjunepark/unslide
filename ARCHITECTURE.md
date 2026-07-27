@@ -3,8 +3,8 @@
 ## Purpose and Boundaries
 
 Unslide turns caller-owned data and report source into a standalone HTML
-document made of explicit pages. It can capture that HTML, derive a validated
-PDF, and rasterize the PDF for inspection.
+document made of explicit pages. It can capture that HTML, derive a
+structurally validated PDF, and rasterize the PDF for visual inspection.
 
 Callers own business calculations and domain models. Report source owns the
 complete document, page composition, geometry, styling, assets, print rules,
@@ -51,9 +51,9 @@ inspection evidence.
    actionable browser evidence, and run the protocol validator.
 4. `capture` screenshots marked elements in document order and transactionally
    replaces the managed HTML-page image set.
-5. `export` applies print media, requires authored page geometry, creates a
-   PDF, verifies page parity, geometry, and extractable text, then atomically
-   publishes it.
+5. `export` applies print media, reruns bounded readiness for print-active
+   static resources, requires authored page geometry, creates a PDF, verifies
+   page parity, geometry, and extractable text, then atomically publishes it.
 6. `inspect-pdf` reads only the existing PDF and transactionally replaces its
    target-native page-image set.
 
@@ -103,11 +103,15 @@ when possible, and retains recovery staging when rollback cannot finish.
   order.
 - Protocol validation observes identity and static readiness; it does not judge
   CSS, measure overflow, or repair content.
+- Protocol v1 does not stabilize animations, delayed client rendering, or an
+  author-controlled asynchronous completion signal.
 - Unslide never moves content between pages.
 - Capture and PDF export consume canonical HTML, not a preview-only copy.
 - PDF export prints HTML rather than assembling screenshots.
 - One marked HTML page produces one PDF page for supported exports.
 - Supported PDFs use one report-wide geometry.
+- PDF validation is structural; PDF-native page images remain the visual
+  evidence.
 - PDF inspection renders the produced PDF, never source HTML.
 - Business calculations and domain models stay outside Unslide.
 - Project configuration remains operational and nonvisual.

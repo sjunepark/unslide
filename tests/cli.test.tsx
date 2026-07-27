@@ -861,7 +861,9 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
     assert.equal(creation.stderr, "");
     assert.equal((creation.value.init as Record<string, unknown>).status, "created");
     assert.match(await readFile(resolve(projectRoot, "quarterly-review.tsx"), "utf8"), /data-unslide-page="welcome"/);
-    assert.match(await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8"), /Optional starter styling/);
+    const starterCss = await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8");
+    assert.match(starterCss, /Optional starter styling/);
+    assert.match(starterCss, /print-color-adjust:\s*exact/);
 
     const repeat = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
     assert.equal(repeat.exitCode, 0);

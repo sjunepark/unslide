@@ -3,9 +3,9 @@
 Active implementation goal: **Goal 1 — harden PDF export readiness and its
 visual-fidelity contract.**
 
-Current next action: **reproduce the print-only resource race from
-[issue #8](https://github.com/sjunepark/unslide/issues/8) in a focused export
-test, then add bounded print-media readiness before PDF generation.**
+Current next action: **deliver Goal 1 through its pull request and
+[issue #8](https://github.com/sjunepark/unslide/issues/8), address all review
+feedback, then resume the deferred independent-consumer evidence work.**
 
 This file owns current execution state and unresolved evidence gates. Durable
 product, design, architecture, support, and release policy belong in their
@@ -60,6 +60,23 @@ PDF-native page image; consistency across `PRODUCT.md`, `docs/DESIGN.md`,
 `ARCHITECTURE.md`, `docs/PROTOCOL.md`, `docs/SUPPORT.md`, `docs/WORKFLOW.md`,
 the accepted PDF decision, and public guidance; and a final code review with no
 unresolved actionable findings.
+
+Current evidence:
+
+- The print-only image regression failed before the export change and now
+  proves bounded failure plus the expected PDF-native pixel after success.
+- Export readiness is repeated after print activation and shares one bounded
+  tracked-resource deadline across the readiness pass.
+- The starter, packed-consumer proof, public guidance, protocol, support
+  boundary, workflow, architecture, and accepted PDF decision now express the
+  static-input, structural-validation, color-ownership, and linked-build
+  contracts consistently.
+- `pnpm run validate` passed after the implementation, including configured
+  proof-report generation, and every generated HTML and PDF-native page image
+  was inspected. The final reviewed diff passed the command again, and all
+  generated proof-report image hashes matched the inspected set.
+- The final implementation review has no unresolved safe-fix or
+  decision-required findings.
 
 Non-goals: manual or system Print-to-PDF support, generic pixel-difference
 scoring, an exact-color guarantee for arbitrary color spaces or rendering

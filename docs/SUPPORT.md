@@ -33,16 +33,22 @@ pnpm dlx playwright@1.61.1 install chromium
 | Authoring | Complete report-owned React/TSX documents producing standalone HTML |
 | Artifact | Protocol v1 ordered unique page markers and static resource readiness |
 | HTML capture | One screen-media Chromium PNG per marked page |
-| PDF export | Chromium print media, authored common geometry, backgrounds, and no browser header/footer |
-| PDF validation | Readable nonempty file, marker/page-count parity, authored/common geometry, and extractable text |
+| PDF export | Chromium print media, bounded readiness for print-active static resources, authored common geometry, backgrounds, and no browser header/footer |
+| PDF validation | Structural checks for a readable nonempty file, marker/page-count parity, authored/common geometry, and extractable text |
 | PDF inspection | One ordered 96-DPI PNG per actual PDF page, using no HTML or browser state |
-| Content exercised | Local WOFF2, raster and SVG images, inline SVG, links, Korean and English text, and authored print colors |
+| Content exercised | Local WOFF2, raster and SVG images, inline SVG, links, Korean and English text, and authored exact print-color adjustment |
 | Semantics exercised | Document title and language, heading outline, marked structure tree, and link annotation |
 | Publication | Atomic HTML/PDF replacement and recoverable managed page-image replacement |
 
 HTML remains canonical. One marked HTML page produces one PDF page, and all
 pages in a supported PDF share one geometry. Project configuration selects
 source and output paths; report source owns every visual choice.
+
+Successful PDF validation does not establish visual equivalence with HTML. It
+does not detect lost fills, changed colors, clipped visuals, or shifted layout;
+inspect every PDF-native page image before delivery. Exact print-color
+adjustment is report-owned CSS, and exact reproduction across environments or
+arbitrary color spaces is not guaranteed.
 
 Within the reference environment, validation requires stable page structure
 and PDF-native PNG output across repeated packed-consumer runs. Chromium embeds
@@ -70,6 +76,8 @@ guaranteed; inline local assets when delivery must not depend on the host.
 - encryption or permission controls;
 - digital signatures;
 - attachments, AcroForms, or XFA;
+- animations, delayed client rendering, or an author-controlled asynchronous
+  readiness signal;
 - alternate print engines or rasterizers; or
 - formal accessibility certification.
 

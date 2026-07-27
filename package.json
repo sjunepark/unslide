@@ -1,7 +1,7 @@
 {
   "name": "unslide",
   "version": "0.1.0",
-  "description": "Code-first tooling for explicit fixed-page HTML reports and validated PDF output.",
+  "description": "Code-first tooling for explicit fixed-page HTML reports and structurally validated PDF output.",
   "keywords": [
     "reports",
     "html",

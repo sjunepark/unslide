@@ -41,7 +41,9 @@ without copying its implementation.
 The author owns content fit. Unslide does not move content, shrink text,
 truncate values, or otherwise repair overflow. PDF validation may expose
 unintended fragmentation through page-count mismatch, but the correction
-remains a source change.
+remains a source change. Successful export proves structural delivery
+invariants, not generic visual fidelity; the actual PDF pages still require
+inspection.
 
 ## Principles
 
@@ -70,8 +72,8 @@ Using repository commands and documentation alone, an agent should be able to:
 - regenerate standalone HTML;
 - capture readable images for every marked page;
 - identify and correct an obvious visual problem; and
-- deliver HTML and, when required, a validated PDF without manipulating a
-  binary authoring file.
+- deliver HTML and, when required, a structurally validated and visually
+  inspected PDF without manipulating a binary authoring file.
 
 Credibility requires real report trials and packed-consumer evidence, not only
 a toy page or an internal API test.
@@ -81,7 +83,8 @@ a toy page or an internal API test.
 Unslide does not provide:
 
 - automatic pagination, content redistribution, or fit repair;
-- presentation controls, animations, or slide navigation;
+- presentation controls, animations, delayed client rendering, or slide
+  navigation;
 - a drag-and-drop editor;
 - a finance-specific or universal report-data model;
 - business calculation or provenance infrastructure;

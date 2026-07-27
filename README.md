@@ -2,8 +2,8 @@
 
 Unslide builds explicit fixed-page reports from TypeScript, React, HTML, and
 CSS. The canonical artifact is standalone HTML; the same HTML can be captured
-in Chromium, exported to a validated PDF, and inspected as target-native page
-images.
+in Chromium, exported to a structurally validated PDF, and inspected as
+target-native page images.
 
 Reports own the complete document, geometry, styling, print rules, and content
 fit. Unslide owns only the nonvisual build, validation, capture, and export
@@ -50,9 +50,11 @@ pnpm exec unslide inspect-pdf report
 ```
 
 `capture` and `export` consume existing HTML, and `inspect-pdf` consumes
-an existing PDF. Rebuild upstream artifacts after changing source. The tooling
-does not measure or repair content fit, although PDF export rejects page-count
-divergence that can reveal unintended print fragmentation.
+an existing PDF. Rebuild upstream artifacts after changing source. Export
+waits boundedly for static resources activated by print media, then checks PDF
+structure; it does not establish visual fidelity. Inspect every PDF-native page
+image. The tooling does not measure or repair content fit, although page-count
+validation can reveal unintended print fragmentation.
 
 ## Authoring Contract
 
@@ -65,6 +67,11 @@ resource dependencies are rejected by the first-party writer.
 HTML remains independently viewable without React, Node.js, Playwright, or a
 server. PDF and inspection images are derived delivery evidence, not parallel
 authoring formats.
+
+Protocol v1 supports static visual resources. Animations, delayed client
+rendering, and an author-controlled asynchronous readiness signal are not
+supported inputs. Print color adjustment is report-owned CSS, and exact color
+reproduction across rendering environments is not guaranteed.
 
 The project [JSON Schema](schema/unslide.schema.json) rejects unknown fields.
 Configuration loading additionally rejects paths that escape the project root
@@ -140,6 +147,11 @@ pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
 pnpm run validate
 ```
+
+Linked consumers execute compiled `dist`. After changing this repository's
+package source, run `pnpm run build:package` before using a link, or run
+`pnpm pack --pack-destination .tmp/package` and install the fresh tarball.
+The production CLI does not detect stale linked builds.
 
 See the
 [Repository Workflow](https://github.com/sjunepark/unslide/blob/main/docs/WORKFLOW.md)

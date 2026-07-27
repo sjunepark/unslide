@@ -57,13 +57,15 @@ The authoring loop is:
 6. Correct the same source and repeat.
 
 The tooling validates the [page protocol](PROTOCOL.md) and static resources. It
-does not measure or repair fit. PDF export does reject page-count divergence,
-which can expose unintended print fragmentation.
+does not measure or repair fit. PDF export waits for print-active static
+resources and rejects page-count divergence, which can expose unintended print
+fragmentation. Its PDF checks are structural, so successful export never
+replaces inspection of every PDF-native page image.
 
 ## Artifact Ownership
 
-- `artifacts/` contains generated standalone HTML and validated PDF delivery
-  files.
+- `artifacts/` contains generated standalone HTML and structurally validated
+  PDF delivery files.
 - `.tmp/captures/` contains disposable Chromium screenshots of marked HTML
   pages.
 - `.tmp/pdf-captures/` contains disposable images rasterized from the actual
@@ -97,6 +99,11 @@ install the path printed by pnpm:
 ```sh
 pnpm pack --pack-destination .tmp/package
 ```
+
+A linked consumer runs the package's compiled `dist`, not current TypeScript
+source. After changing local package source, run `pnpm run build:package` before
+executing through the link, or pack and install a fresh tarball as above.
+Production commands do not attempt linked-build freshness detection.
 
 The adoption tests automate this path. Architecture and publication behavior
 belong in [ARCHITECTURE.md](../ARCHITECTURE.md); release operations belong in

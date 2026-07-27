@@ -72,9 +72,10 @@ failures but never restyles or repairs a report.
 
 The HTML protocol stays smaller than any authoring implementation. It defines
 version metadata, ordered unique page markers, and bounded readiness for the
-document, fonts, and images. Protocol v1 has no author-controlled asynchronous
-readiness signal. See [HTML Artifact Protocol v1](PROTOCOL.md) for the
-normative contract.
+document, fonts, and images. Protocol v1 supports static visual resources, not
+animations or delayed client rendering, and has no author-controlled
+asynchronous readiness signal. See [HTML Artifact Protocol v1](PROTOCOL.md)
+for the normative contract.
 
 React is the first supported source implementation because the proof reports
 establish typed TSX and static server rendering. A generalized renderer seam
@@ -96,12 +97,15 @@ DOM structures and geometries and uses no personal browser state.
 PDF export applies report-owned print CSS. A report must provide one active,
 unqualified base `@page` size using a supported named size or positive
 absolute dimensions. Export rejects missing, non-concrete, or ambiguous sizing
-instead of accepting Chromium's implicit Letter fallback.
+instead of accepting Chromium's implicit Letter fallback. Export waits again
+after print media activates so print-only static resources are ready. Exact
+print color adjustment remains an authored CSS choice.
 
 For supported export, one marked HTML page must produce one PDF page and all
 pages in a PDF share one geometry. The produced PDF is validated before
-publication, then rasterized directly for inspection. HTML screenshots are not
-PDF evidence.
+publication for structural delivery invariants, not generic visual fidelity.
+It is then rasterized directly for inspection; every PDF-native page image is
+required evidence, and HTML screenshots are not PDF evidence.
 
 Tagged output and outlines are useful defaults, not claims of PDF/UA or WCAG
 conformance. Exact environment, semantics, accessibility limits, repeatability,

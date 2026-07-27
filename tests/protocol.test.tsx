@@ -370,9 +370,11 @@ test("capture tracks concurrent requests to the same URL independently", async (
     const inputPath = resolve(directory, "duplicate-request.html");
     await writeFile(inputPath, `<!doctype html><html><body><script>void fetch("${origin}/shared"); void fetch("${origin}/shared");</script><main data-unslide-page="one"><img src="${origin}/gate.png" alt=""></main></body></html>`);
 
+    const startedAt = Date.now();
     await assert.rejects(captureHtmlPages(inputPath, resolve(directory, "captures")), (error) =>
       rejectedDiagnostics(error).some((issue) =>
         issue.code === "resource-pending" && /\/shared/.test(String(issue.resource))));
+    assert.ok(Date.now() - startedAt < 7_000);
     assert.equal(sharedRequests, 2);
   } finally {
     server.closeAllConnections();
@@ -411,6 +413,41 @@ test("operation failures retain browser diagnostics collected during the operati
     (error) => rejectedDiagnostics(error).some((issue) =>
       issue.code === "console-error" && /operation fixture diagnostic/.test(String(issue.message))),
   );
+});
+
+test("closing a page during readiness rejects without leaving validation unobserved", async () => {
+  let markRequested: (() => void) | undefined;
+  const requested = new Promise<void>((resolveRequested) => {
+    markRequested = resolveRequested;
+  });
+  const server = createServer(() => markRequested?.());
+
+  try {
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const resourceUrl = `http://127.0.0.1:${address.port}/pending.png`;
+    const startedAt = Date.now();
+
+    await assert.rejects(runUnslide(withLoadedArtifact(
+      resolve(fixtureDirectory, "protocol-valid.html"),
+      async ({ page, waitForReadiness }) => {
+        await page.evaluate((url) => {
+          const image = document.createElement("img");
+          image.src = url;
+          document.body.append(image);
+        }, resourceUrl);
+        await requested;
+        const readiness = waitForReadiness();
+        setTimeout(() => void page.close(), 100);
+        await readiness;
+      },
+    )));
+    assert.ok(Date.now() - startedAt < 2_000);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
+  }
 });
 
 test("interrupting a loaded artifact closes the underlying Chromium work", async () => {

@@ -270,8 +270,9 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
   const context = { artifact: "html", command: "export", path: inputPath } as const;
 
   const printed = yield* mapCommandFailure(withLogPhase(
-    withLoadedArtifact(inputPath, async ({ page, pages }) => {
+    withLoadedArtifact(inputPath, async ({ page, pages, waitForReadiness }) => {
       await page.emulateMedia({ media: "print" });
+      await waitForReadiness();
       const pageRules = await page.evaluate(() => {
         const baseSizes: string[] = [];
         const qualifiedSizes: string[] = [];

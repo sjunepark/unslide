@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { resolve } from "node:path";
+import { createCanvas } from "@napi-rs/canvas";
 import test from "node:test";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { exportHtmlPdf as exportHtmlPdfEffect } from "../src/unslide/pdf.js";
@@ -61,6 +64,28 @@ async function pdfRuntimePrototypes(bytes: Uint8Array) {
   page.cleanup();
   await loadingTask.destroy();
   return prototypes;
+}
+
+async function firstPdfPagePixel(bytes: Uint8Array, x: number, y: number): Promise<number[]> {
+  const loadingTask = getDocument({ data: new Uint8Array(bytes) });
+  try {
+    const document = await loadingTask.promise;
+    const page = await document.getPage(1);
+    try {
+      const viewport = page.getViewport({ scale: 96 / 72 });
+      const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+      await page.render({
+        canvas: canvas as unknown as HTMLCanvasElement,
+        viewport,
+        background: "#ffffff",
+      }).promise;
+      return [...canvas.getContext("2d").getImageData(x, y, 1, 1).data];
+    } finally {
+      page.cleanup();
+    }
+  } finally {
+    await loadingTask.destroy();
+  }
 }
 
 test("exports a readable text PDF with authored common geometry", async () => {
@@ -210,6 +235,53 @@ test("shares artifact readiness failures for missing images and fonts", async ()
       },
     );
   } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("waits boundedly for a print-only image and preserves it in PDF-native output", { timeout: 20_000 }, async () => {
+  const directory = await temporaryDirectory("unslide pdf print readiness ");
+  const inputPath = resolve(directory, "report.html");
+  const outputPath = resolve(directory, "report.pdf");
+  const image = '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="#ed1c24"/></svg>';
+  let responseDelayMs = 350;
+  const server = createServer((_request, response) => {
+    setTimeout(() => {
+      response.writeHead(200, { "Content-Type": "image/svg+xml" });
+      response.end(image);
+    }, responseDelayMs);
+  });
+  await new Promise<void>((resolveListen, rejectListen) => {
+    server.once("error", rejectListen);
+    server.listen(0, "127.0.0.1", resolveListen);
+  });
+  const { port } = server.address() as AddressInfo;
+
+  try {
+    const printArtifact = artifact(
+      "@page{size:4in 3in;margin:0}body{margin:0}img{display:block;width:1in;height:1in}",
+      `<main data-unslide-page="one"><picture><source media="print" srcset="http://127.0.0.1:${port}/print.svg"><img alt="Print-only red square" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'/%3E"></picture><p>Print resource readiness</p></main>`,
+    );
+    await writeFile(inputPath, printArtifact);
+
+    const startedAt = Date.now();
+    await exportHtmlPdf(inputPath, outputPath);
+    assert.ok(Date.now() - startedAt >= responseDelayMs - 50, "export returned before the print-only resource response");
+    assert.deepEqual(await firstPdfPagePixel(await readFile(outputPath), 48, 48), [237, 28, 36, 255]);
+
+    await writeFile(outputPath, "prior delivery");
+    responseDelayMs = 5_500;
+    await writeFile(inputPath, printArtifact.replace("/print.svg", "/print.svg?timeout"));
+    const timeoutStartedAt = Date.now();
+    await assert.rejects(exportHtmlPdf(inputPath, outputPath), (error: unknown) => {
+      assert.ok(artifactIssues(error).some((issue) => issue.code === "image-readiness" || issue.code === "resource-pending"));
+      return true;
+    });
+    const timeoutElapsedMs = Date.now() - timeoutStartedAt;
+    assert.ok(timeoutElapsedMs >= 4_500 && timeoutElapsedMs < 7_500, `unexpected readiness bound: ${timeoutElapsedMs}ms`);
+    assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
+  } finally {
+    await new Promise<void>((resolveClose, rejectClose) => server.close((error) => error ? rejectClose(error) : resolveClose()));
     await rm(directory, { recursive: true, force: true });
   }
 });
