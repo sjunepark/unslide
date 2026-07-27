@@ -1,11 +1,11 @@
 # Plan
 
-Active implementation goal: **Goal 1 — harden PDF export readiness and its
-visual-fidelity contract.**
+Active implementation goal: **none. Goal 1 — harden PDF export readiness and
+its visual-fidelity contract — is complete in
+[PR #9](https://github.com/sjunepark/unslide/pull/9).**
 
-Current next action: **deliver Goal 1 through its pull request and
-[issue #8](https://github.com/sjunepark/unslide/issues/8), address all review
-feedback, then resume the deferred independent-consumer evidence work.**
+Current next action: **scope the independent-consumer evidence and first
+Release Please-generated release as separate work before beginning it.**
 
 This file owns current execution state and unresolved evidence gates. Durable
 product, design, architecture, support, and release policy belong in their
@@ -77,6 +77,10 @@ Current evidence:
   generated proof-report image hashes matched the inspected set.
 - The final implementation review has no unresolved safe-fix or
   decision-required findings.
+- [PR #9](https://github.com/sjunepark/unslide/pull/9) passed required checks;
+  all Codex and CodeRabbit feedback was replied to and resolved. Issue
+  [#8](https://github.com/sjunepark/unslide/issues/8) records the decisions and
+  validation evidence.
 
 Non-goals: manual or system Print-to-PDF support, generic pixel-difference
 scoring, an exact-color guarantee for arbitrary color spaces or rendering

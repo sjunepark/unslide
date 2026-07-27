@@ -6,8 +6,8 @@ contract.
 
 ## State
 
-Status: implementation, review, validation, and visual evidence are complete;
-pull-request delivery and feedback handling remain.
+Status: complete. [PR #9](https://github.com/sjunepark/unslide/pull/9) carries
+the implementation and delivery record.
 
 Included scope is the print-only PDF-native regression, post-print bounded
 readiness, structural-versus-visual guidance, report-owned exact print-color
@@ -32,8 +32,14 @@ Release Please-generated release remain deferred.
   proof-report images matched the inspected set exactly.
 - Independent implementation review found no remaining safe-fix or
   decision-required findings.
+- GitHub validation and security checks passed. Every Codex and CodeRabbit
+  thread was replied to and resolved; the generic docstring-coverage suggestion
+  was not applied because the change adds no public API and the repository
+  documents non-obvious contracts rather than mechanical inner functions.
+- Issue [#8](https://github.com/sjunepark/unslide/issues/8) records the accepted
+  boundaries and final evidence.
 
 ## Next Action
 
-Record the decision and validation evidence on issue #8, then complete
-pull-request delivery and feedback handling.
+Use [PLAN.md](../PLAN.md) to scope the excluded independent-consumer and first
+Release Please-generated release work separately.
