@@ -8,9 +8,9 @@ Status: accepted
 
 Unslide's public model is intentionally small, but its tooling coordinates many
 failure-prone resources: filesystem publication, Chromium, PDF.js loading
-tasks, canvases, deadlines, cleanup, and rollback. The current Promise-based
-implementation works, yet these operations do not share a typed failure model
-or structured lifetime management.
+tasks, canvases, deadlines, cleanup, and rollback. The earlier Promise-based
+implementation worked, yet these operations did not share a typed failure
+model or structured lifetime management.
 
 Effect can improve those internal mechanics. Starting with Effect v3 would add
 a second migration because v4 has native APIs and design conventions that

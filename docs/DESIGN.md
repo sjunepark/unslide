@@ -1,221 +1,124 @@
 # Product Design
 
-This document describes the current authoring experience and ownership model.
-Concrete TypeScript names and command syntax live in the implementation and
-workflow documentation.
+This document defines the authoring experience and ownership model. The
+[artifact protocol](PROTOCOL.md) owns browser-consumption requirements, the
+[support contract](SUPPORT.md) owns verified delivery limits, and
+[Repository Workflow](WORKFLOW.md) owns commands.
 
-## Desired Experience
+## Authoring Experience
 
 An author or coding agent should be able to:
 
 1. Prepare display-ready values in ordinary code.
-2. Compose a known set of explicit pages with arbitrary HTML and CSS.
-3. Mark those pages for Unslide without adopting a prescribed page element.
+2. Compose explicit pages with arbitrary HTML and CSS.
+3. Mark those pages without adopting a prescribed element or page component.
 4. Build one standalone HTML artifact.
 5. Inspect the actual browser-rendered pages.
-6. Export the same HTML through the canonical browser to PDF when needed.
+6. Export the same HTML through the supported browser when PDF is needed.
 7. Inspect the actual PDF pages and revise source until both targets are right.
 
-The author decides every visual property. Unslide makes the build and inspection
-loop predictable.
+The author decides every visual property. Unslide makes the lifecycle
+predictable.
 
-## Conceptual Vocabulary
+## Vocabulary
 
-These terms describe behavior rather than required source syntax.
+| Term | Meaning |
+|---|---|
+| Report | User-owned source and data that produce a complete ordered document |
+| Page | An explicitly composed capturable region and, for supported PDF export, one printed sheet |
+| Page marker | A nonvisual protocol attribute that gives a page a stable unique identity and observable order |
+| Repeated material | Any report-owned structure reused across pages, such as a label, logo, or number |
+| HTML artifact | The canonical standalone delivery output |
+| PDF artifact | A delivery output printed from canonical HTML, not a second renderer |
+| Inspection artifact | A disposable image rendered from the HTML or PDF target being judged |
+| Recipe | Optional editable visual source; never a runtime requirement |
 
-### Report
+These terms describe behavior, not required React components, classes, or DOM
+structure.
 
-User-owned source and data that produce an ordered static document. A report
-owns its complete HTML structure, document metadata, styles, fonts, assets, and
-page composition.
+## Ownership
 
-### Page
+### Caller
 
-One explicitly composed region intended for independent capture and, when PDF
-is requested, one printed sheet. A page may use any element and any geometry.
-Content does not automatically continue to another page.
+The caller owns business calculations, domain models, provenance, conclusions,
+and values prepared for display. Unslide does not introduce an expression
+language or universal report schema.
 
-### Page marker
+### Report source
 
-A nonvisual artifact-protocol marker that gives a page a stable unique identity
-and makes its order observable to tooling. The marker does not add an element,
-class, style, size, padding, or chrome.
+Report source owns:
 
-### Repeated material
-
-Any report-owned structure repeated across pages, such as a title, logo,
-confidentiality notice, running label, or page number. Unslide does not name or
-require header, footer, or chrome regions. Ordinary source may reuse whatever
-the report needs.
-
-### HTML artifact
-
-The canonical standalone output. It retains semantic HTML and real text, opens
-without the Unslide development runtime, and supplies the input for capture and
-PDF export.
-
-### PDF artifact
-
-A derived delivery output produced by printing the canonical HTML through the
-supported browser. It is not a second renderer or authoring source.
-
-### Inspection artifact
-
-A disposable image rendered from the delivery target being judged. HTML
-inspection captures HTML pages; PDF inspection rasterizes the generated PDF
-pages.
-
-### Recipe
-
-Optional editable source that demonstrates a design or repeated report-local
-pattern. Recipes may include page geometry, typography, repeated material,
-tables, or figures, but the rendering tool never requires them.
-
-## Author-Owned Design
-
-Report source owns all visual and structural decisions, including:
-
-- the full document tree and semantic elements;
-- page dimensions, orientation, margins, padding, and overflow behavior;
+- the complete document tree and semantics;
+- explicit page sequence and conditional pages;
+- dimensions, orientation, margins, padding, and overflow behavior;
 - screen and print layout;
-- fonts, colors, rules, backgrounds, and design tokens;
-- repeated material and page numbering, or their absence;
-- CSS organization and optional styling dependencies; and
-- page-specific and conditional composition.
+- fonts, assets, colors, typography, and design tokens; and
+- repeated material, numbering, or their absence.
 
-The reusable renderer must not inject a reset, foundation stylesheet, wrapper,
-page frame, or default chrome. It may validate observable artifact behavior but
-must not repair or restyle the report.
+Normal code may reuse report-local components or split content manually.
+Unslide does not measure remaining space or redistribute content.
 
-## Explicit Composition and Content Fit
+### Unslide
 
-Page membership remains readable in source. Normal code may conditionally add
-or remove a whole page, and authors may split content manually. Unslide does
-not measure remaining space and move content between pages.
+Unslide owns compilation, standalone serialization, protocol validation,
+isolated Chromium operation, capture, PDF export, target-native inspection, and
+safe artifact publication.
 
-Overflow remains an authoring problem. Inspection should expose it, and export
-validation may report that marked HTML pages produced an unexpected number of
-PDF sheets. Tooling must not silently shrink, truncate, or redistribute content.
+The renderer injects no document shell, reset, stylesheet, page frame,
+geometry, chrome, or typography. Validation may report observable contract
+failures but never restyles or repairs a report.
 
-## Data Flow
+## Artifact Boundary
 
-Data enters report source through ordinary typed values. Callers own business
-calculations, domain models, provenance, and conclusions. The authoring module
-does not introduce a proprietary expression language or universal report
-schema.
+The HTML protocol stays smaller than any authoring implementation. It defines
+version metadata, ordered unique page markers, and bounded readiness for the
+document, fonts, and images. Protocol v1 supports static visual resources, not
+animations or delayed client rendering, and has no author-controlled
+asynchronous readiness signal. See [HTML Artifact Protocol v1](PROTOCOL.md)
+for the normative contract.
 
-## Artifact Protocol
-
-The public artifact contract should remain smaller and more durable than any
-authoring module:
-
-- the output is independently viewable HTML;
-- pages are discoverable in document order through a versioned nonvisual
-  marker;
-- page identities are present and unique;
-- fonts, images, and optional asynchronous visuals have an observable readiness
-  path; and
-- capture or export failures identify the page or resource involved.
-
-React is the first source adapter because the proof reports establish typed TSX
-and static server rendering. The HTML contract remains usable by other
-generators without requiring a generalized plugin interface.
+React is the first supported source implementation because the proof reports
+establish typed TSX and static server rendering. A generalized renderer seam
+remains deferred until a second real implementation reveals what varies.
 
 ## Project Configuration
 
-Project configuration tells tooling how to operate. It may describe report
-entries, output paths, inspection directories, registry locations, or explicit
-export choices.
+Configuration tells tooling where report source and derived artifacts live.
+The [JSON Schema](../schema/unslide.schema.json) is the field-level source of
+truth. Geometry, fonts, margins, colors, chrome, and all other visual choices
+remain in source.
 
-It must not become a design schema. Fonts, page sizes, margins, padding,
-colors, chrome, and visual tokens stay in source. Configuration should be
-schema-validated and deterministic, with clear diagnostics for unsupported or
-unknown fields.
+## HTML and PDF Inspection
 
-## Distribution and Recipes
+HTML capture loads canonical HTML in isolated Chromium, waits for protocol
+readiness, and writes one image per marked element. It works across unrelated
+DOM structures and geometries and uses no personal browser state.
 
-Stable behavior belongs in the public, versioned `unslide` npm package so fixes
-and migrations remain local to the implementation. Public 0.x releases may
-change the package contract through explicitly marked breaking releases; 1.0
-stability requires independent consumer evidence. One-time project scaffolding
-may create report source and configuration.
+PDF export applies report-owned print CSS. A report must provide one active,
+unqualified base `@page` size using a supported named size or positive
+absolute dimensions. Export rejects missing, non-concrete, or ambiguous sizing
+instead of accepting Chromium's implicit Letter fallback. Export waits again
+after print media activates so print-only static resources are ready. Exact
+print color adjustment remains an authored CSS choice.
 
-A source registry is optional later work. If evidence justifies it, registry
-items should be visual recipes or complete report starters that users own after
-installation. Modified generated source must never be overwritten silently.
-Managed upgrades would require provenance hashes, dry-run diffs, and an
-explicit conflict path; that system is not part of the current product.
+For supported export, one marked HTML page must produce one PDF page and all
+pages in a PDF share one geometry. The produced PDF is validated before
+publication for structural delivery invariants, not generic visual fidelity.
+It is then rasterized directly for inspection; every PDF-native page image is
+required evidence, and HTML screenshots are not PDF evidence.
 
-## HTML Inspection
+Tagged output and outlines are useful defaults, not claims of PDF/UA or WCAG
+conformance. Exact environment, semantics, accessibility limits, repeatability,
+and deferred PDF features belong to the [support contract](SUPPORT.md).
 
-The capture path loads the canonical HTML in isolated Chromium, waits for
-visual readiness, discovers the marked pages, and writes one image per page.
-It must work for unrelated DOM structures and page geometries.
+## Recipes and Continuing Scope
 
-The browser profile remains isolated and requires no login state. Inspection
-artifacts are disposable and do not become authoring source.
+Scaffolding may create removable report source and styling. A managed recipe
+registry remains deferred until repeated adoption proves that one-time source
+is insufficient; any future design must preserve user ownership, modification
+safety, and an explicit conflict path.
 
-## PDF Export and Inspection
-
-PDF export prints the canonical HTML with Chromium print media. Report CSS owns
-paper geometry, page breaks, color adjustment, and print-specific presentation.
-The exporter requires an active, unqualified base `@page` rule with a concrete
-named size or positive absolute dimensions, includes report backgrounds, and
-requests tagged output and a document outline without exposing the raw browser
-option surface as Unslide's interface. Missing, non-concrete, or ambiguous
-`@page` sizing fails instead of falling back to browser Letter geometry.
-
-Export succeeds only when:
-
-- the HTML artifact satisfies the page protocol;
-- required resources are ready;
-- the browser produces a readable PDF;
-- the number of PDF pages equals the number of marked HTML pages; and
-- PDF geometry matches the authored size, all pages share it, and expected text
-  remains extractable.
-
-The exporter publishes only after those checks pass. PDF-native inspection then
-rasterizes only that PDF at a fixed 96 DPI into a separate ordered PNG set;
-the configured proof reports pass this target-native path.
-
-Current support permits arbitrary report-wide page geometry but does not promise
-mixed page sizes or orientations in one PDF. Mixed geometry requires a separate
-evidence-backed decision because it may require per-page printing and PDF
-merging.
-
-Tagged output and outlines are useful defaults, not a claim of PDF/UA
-compliance. Formal accessibility, PDF/A, encryption, signing, attachments, and
-other publishing requirements remain separate future capabilities.
-
-## Implementation Evidence
-
-The implemented interface is proven by the following coexisting evidence:
-
-- the current operating review still renders and captures correctly;
-- a contrasting fixture uses different geometry, typography, spacing, and no
-  repeated chrome;
-- neither report imports required visual source from the runtime;
-- a clean consumer fixture installs the versioned tooling instead of copying
-  implementation files;
-- HTML capture works through the common artifact protocol; and
-- browser-produced PDF export and PDF-native inspection pass for the configured
-  proof reports.
-
-## Continuing Scope Boundaries
-
-Automatic pagination, automatic fit repair, a visual editor, animations,
-business calculations, a mandatory design system, and speculative renderer
-plugins remain outside the current product boundary.
-
-## Evidence Behind the Design
-
-The contrasting spike and operating review prove explicit page composition,
-typed data, standalone HTML, isolated Chromium capture, and the need for
-rendered inspection. They also showed that report-specific figures, tables,
-bilingual layouts, and visual systems are clearest as direct source.
-
-The initial reports shared A4 geometry and chrome because they repeated those
-choices. That was useful implementation evidence, but copying the visual
-foundation into other repositories would distribute policy and maintenance
-together. The current design retains the rendering mechanics while keeping all
-visual policy in report-owned source.
+Automatic pagination, fit repair, visual editing, presentation behavior,
+business calculations, mandatory design systems, and speculative adapters
+remain outside the product boundary. [D3](decisions/0003-headless-artifact-protocol.md)
+records the rationale, and [PLAN.md](../PLAN.md) owns the evidence gates.

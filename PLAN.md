@@ -1,81 +1,106 @@
 # Plan
 
-Completed implementation goal: **Goal 6 — public npm distribution.**
+Active implementation goal: **none. Goal 1 — harden PDF export readiness and
+its visual-fidelity contract — is complete in
+[PR #9](https://github.com/sjunepark/unslide/pull/9).**
 
-Current next action: **Use the public package and monitor the first subsequent
-Release Please pull request before accepting another product capability.**
+Current next action: **scope the independent-consumer evidence and first
+Release Please-generated release as separate work before beginning it.**
 
-This file is the live execution state. Update current decisions, evidence,
-blockers, and the next action in place; do not append session history. Durable
-product and technical contracts belong in `PRODUCT.md`, `docs/DESIGN.md`,
-`ARCHITECTURE.md`, `docs/SUPPORT.md`, and `docs/decisions/`.
+This file owns current execution state and unresolved evidence gates. Durable
+product, design, architecture, support, and release policy belong in their
+focused documents and decision records.
 
-## Active Work
+## Current State
 
-- Completed: Goal 6 publishes `unslide@0.1.0` from the matching `v0.1.0` source
-  tag. Release Please owns subsequent versions, changelog entries, tags, and
-  GitHub Releases; tagged source is revalidated before OIDC trusted publishing.
-  npm trusts only `sjunepark/unslide`'s `release.yml` for automated publishing,
-  disallows ordinary publishing tokens, and `main` requires pull requests plus
-  the project CI check. The Release Please credential is sourced from the
-  maintainer's credential vault rather than an unmanaged per-project token.
-- Evidence: `pnpm run check`, `npm pack --dry-run`, `pnpm run validate`, the
-  Release Please config schema check, workflow YAML parsing, and `actionlint`
-  pass. Validation covers the packed clean consumer and every configured
-  HTML/PDF proof pipeline. The required implementation and diet review applied
-  the safe immutable-tag retry check and found no remaining safe findings.
-- Completed: Goals 1–5. Parsing, invocation, typed public failures, bounded
-  diagnostics, contextual success help, existence-only home status, and compact
-  page-output paths now have one documented deterministic contract.
-- Evidence: `pnpm run check`, `pnpm test`, and `pnpm run validate` pass,
-  including the configured proof-report HTML/PDF pipelines. Direct executable
-  probes cover no-args output, every command help form, unknown input with help,
-  all documented operational codes, bounded/full diagnostics, spaced paths,
-  and PATH/absolute invocation. PR feedback coverage includes
-  package-manager-aware help, malformed configuration detail, combined
-  failures, operation-time browser diagnostics, and authored PDF validation
-  detail. The required implementation review and diet pass found no remaining
-  safe findings.
-- Blockers: none for the accepted public npm distribution scope.
+- The accepted implementation goals through public distribution are complete.
+  The public package is `unslide@0.1.0`, and `v0.1.0` identifies its
+  reviewed source.
+- The hardened CLI contract is canonical in [README.md](README.md); release
+  policy and operations belong to
+  [D6](docs/decisions/0006-public-npm-distribution.md) and
+  [docs/RELEASE.md](docs/RELEASE.md).
+- Release Please is configured, but the first subsequent automated release has
+  not yet been proven.
+- Blockers: none.
 
-## Current Gates
+## Goal 1 — Harden PDF Export Readiness and Fidelity Contract
 
-| Capability | State | Evidence required to reconsider |
-|---|---|---|
-| Managed recipe registry | Deferred | At least two independent consumers repeatedly need the same editable visual source, and one-time scaffolding or an installed package is insufficient |
-| Additional source adapters | Deferred | A second real generator implements the artifact protocol and reveals the behavior that actually varies |
-| Mixed PDF geometry | Deferred | A real mixed-size report and integration evidence from the canonical Chromium version |
-| Agent skill or session integration | Deferred | Reconsider a static skill only after two independent consumer repositories each require manual orientation in at least two sessions after using no-args output and command help. Consider session hooks only if live session-start state is then proven necessary; session-end capture also requires a privacy decision |
+Outcome: the supported exporter waits for resources activated by print media,
+publishes only structurally valid PDFs with tested target-native evidence, and
+states clearly which visual guarantees remain report-owned or require human or
+agent inspection.
 
-### Managed recipe registry
+Accepted scope:
 
-A positive decision must define source ownership and optionality plus
-provenance, hashes, dry-run diffs, modification detection, conflicts, and
-registry trust. No visual recipe may become a runtime dependency.
+1. Add focused regression evidence for a resource that becomes active only
+   after switching to print media. The test must demonstrate both bounded
+   readiness behavior and presence of the resource in PDF-native output.
+2. Add the smallest shared browser/export change that waits for print-active
+   fonts, HTML images, and tracked requests before `page.pdf()`, preserving the
+   existing readiness bound, actionable diagnostics, and atomic publication.
+3. Keep PDF validation structural. Align the public contract and workflow so
+   “validated PDF” cannot be mistaken for generic visual-fidelity validation,
+   and continue to require inspection of every PDF-native page image.
+4. Keep print color adjustment in report-owned CSS. Make the optional starter
+   and packed-consumer proof request exact print color adjustment while keeping
+   cross-environment reproduction and broad palette fidelity outside the
+   guarantee.
+5. State that protocol v1 supports static visual resources but not animations,
+   delayed client rendering, or an author-controlled asynchronous readiness
+   signal.
+6. Document the linked-consumer development path so local package changes are
+   rebuilt or packed before execution; do not add production runtime freshness
+   detection.
 
-### Additional source adapters
+Completion requires the focused regression to fail before the implementation
+and pass afterward; `pnpm run validate` to cover source, packaged-consumer, and
+configured proof-report behavior; inspection of every generated HTML and
+PDF-native page image; consistency across `PRODUCT.md`, `docs/DESIGN.md`,
+`ARCHITECTURE.md`, `docs/PROTOCOL.md`, `docs/SUPPORT.md`, `docs/WORKFLOW.md`,
+the accepted PDF decision, and public guidance; and a final code review with no
+unresolved actionable findings.
 
-Do not publish a renderer plugin interface around the React implementation
-before the second implementation exposes a proven seam.
+Current evidence:
 
-### Mixed PDF geometry
+- The print-only image regression failed before the export change and now
+  proves bounded failure plus the expected PDF-native pixel after success.
+- Export readiness is repeated after print activation and shares one bounded
+  tracked-resource deadline across the readiness pass.
+- The starter, packed-consumer proof, public guidance, protocol, support
+  boundary, workflow, architecture, and accepted PDF decision now express the
+  static-input, structural-validation, color-ownership, and linked-build
+  contracts consistently.
+- `pnpm run validate` passed after the implementation, including configured
+  proof-report generation, and every generated HTML and PDF-native page image
+  was inspected. The final reviewed diff passed the command again, and all
+  generated proof-report image hashes matched the inspected set.
+- The final implementation review has no unresolved safe-fix or
+  decision-required findings.
+- [PR #9](https://github.com/sjunepark/unslide/pull/9) passed required checks;
+  all Codex and CodeRabbit feedback was replied to and resolved. Issue
+  [#8](https://github.com/sjunepark/unslide/issues/8) records the decisions and
+  validation evidence.
 
-Supported PDF export permits arbitrary report-wide geometry but assumes one
-geometry per PDF.
+Non-goals: manual or system Print-to-PDF support, generic pixel-difference
+scoring, an exact-color guarantee for arbitrary color spaces or rendering
+environments, animation stabilization, a new asynchronous readiness protocol,
+a second PDF renderer, or production CLI handling for stale linked builds.
 
-## Guardrails
+After Goal 1, resume the prior next action: exercise the public package in
+independent consumers, record evidence against the gates below, and verify the
+first Release Please-generated release before widening product scope.
 
-Keep automatic pagination or repair, visual editing, presentation behavior,
-universal report schemas, business calculations, mandatory design systems, and
-visual project configuration outside the product unless a later decision
-explicitly changes scope.
+## Evidence Gates
 
-For accepted future work:
+| Capability | Reconsider when |
+|---|---|
+| Managed recipe registry | At least two independent consumers repeatedly need the same editable visual source and one-time scaffolding is insufficient. Any proposal must define source ownership, provenance, dry-run diffs, modification detection, conflicts, and registry trust. |
+| Additional source adapters | A second real generator implements the artifact protocol and reveals which behavior actually varies. Evaluation notes: [authoring without mandatory React](docs/research/authoring-without-react.md). |
+| Mixed PDF geometry | A real mixed-size report exists and the canonical Chromium version has integration evidence for a reliable path. |
+| Agent skill or session integration | Two independent consumer repositories each require manual orientation in multiple sessions after using no-args output and command help. Session hooks additionally require evidence that live state is necessary; session-end capture requires a privacy decision. |
+| Unslide-owned browser installer | Multiple supported environments or package-manager workflows show recurring failure with the pinned Playwright installation command. |
 
-- execute one numbered goal at a time;
-- add a focused detailed plan only when the goal needs one;
-- prove behavior through public seams and real fixtures;
-- document commands only after they run successfully;
-- finish implementation goals with the required code-review pass; and
-- update the relevant decision record and all conflicting current guidance
-  when an accepted constraint changes.
+No deferred capability is active work until its evidence gate is met and an
+explicit scope decision accepts it. When work is accepted, execute one numbered
+goal at a time and add a focused detailed plan only if the goal needs one.

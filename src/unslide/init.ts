@@ -53,6 +53,7 @@ const starterStyles = `/* Optional starter styling. Delete this file and its <st
 @page { size: 10in 5.625in; margin: 0; }
 
 * { box-sizing: border-box; }
+:root { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 body { margin: 0; background: #e8ece8; color: #163226; font-family: Arial, sans-serif; }
 [data-unslide-page] {
   width: 960px;

@@ -186,6 +186,7 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
     await writeFile(resolve(consumerRoot, "report.css"), `@font-face { font-family: FixtureIcon; src: url(FONT_DATA); }
 @page { size: 10in 5.625in; margin: 0; }
 * { box-sizing: border-box; }
+:root { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 body { margin: 0; }
 main { width: 960px; height: 540px; padding: 64px; color: #fffdf7; background: #173b2c; font-family: Arial, "Apple SD Gothic Neo", sans-serif; }
 h1 { max-width: 760px; margin: 0 0 24px; font-size: 48px; line-height: 1.05; }
@@ -248,6 +249,7 @@ export default (
     assert.match(html, /data:image\/png;base64,/);
     assert.match(html, /data:image\/svg\+xml;base64,/);
     assert.match(html, /data:font\/woff2;base64,/);
+    assert.match(html, /print-color-adjust:\s*exact/);
     assert.match(html, /<svg[^>]+aria-label="Inline SVG"/);
     assert.match(html, /href="https:\/\/example\.com\/delivery"/);
     assert.doesNotMatch(html, /<script|<link[^>]+stylesheet|(?:src=["']?|url\(["']?)https?:\/\//);

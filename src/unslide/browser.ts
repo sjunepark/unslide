@@ -16,9 +16,11 @@ import {
 interface ArtifactBrowserSession {
   page: Page;
   pages: ArtifactPage[];
+  waitForReadiness(): Promise<void>;
 }
 
 const NAVIGATION_TIMEOUT_MS = 5_000;
+const RESOURCE_TIMEOUT_MS = 5_000;
 
 export class BrowserFailure extends Data.TaggedError("BrowserFailure")<{
   readonly cause?: unknown;
@@ -34,6 +36,12 @@ export class ArtifactOperationFailure extends Data.TaggedError("ArtifactOperatio
   readonly pageId?: string;
   readonly resource?: string;
 }> {}
+
+class ArtifactReadinessFailure extends Error {
+  constructor(readonly issues: ArtifactDiagnostic[]) {
+    super("Artifact readiness failed.");
+  }
+}
 
 function displayResource(url: string): string {
   if (!url.startsWith("file:")) return url;
@@ -124,10 +132,21 @@ export function withLoadedArtifact<T>(
     yield* logDebug("browser.page.created", { path: inputPath });
     const browserIssues: ArtifactDiagnostic[] = [];
     const pendingResources = new Set<Request>();
+    const resourceChangeWaiters = new Set<() => void>();
+    let resourceGeneration = 0;
+    const notifyResourceChange = () => {
+      resourceGeneration += 1;
+      for (const notify of resourceChangeWaiters) notify();
+      resourceChangeWaiters.clear();
+    };
     page.on("request", (request) => {
       if (request.resourceType() !== "document") pendingResources.add(request);
+      notifyResourceChange();
     });
-    page.on("requestfinished", (request) => pendingResources.delete(request));
+    page.on("requestfinished", (request) => {
+      pendingResources.delete(request);
+      notifyResourceChange();
+    });
     page.on("console", (message) => {
       if (message.type() === "error") {
         browserIssues.push({
@@ -144,6 +163,7 @@ export function withLoadedArtifact<T>(
     }));
     page.on("requestfailed", (request) => {
       pendingResources.delete(request);
+      notifyResourceChange();
       browserIssues.push({
         code: "resource-failed",
         message: "Resource request failed.",
@@ -181,66 +201,112 @@ export function withLoadedArtifact<T>(
       { path: inputPath },
     );
 
-    // validateArtifact must remain closure-free for Playwright serialization.
-    const validation = yield* withLogPhase(
-      Effect.gen(function* () {
-        const result = yield* Effect.tryPromise({
-          try: () => page.evaluate(validateArtifact),
-          catch: (cause) => new BrowserFailure({
-            cause,
-            message: errorMessage(cause),
-            phase: "readiness",
-          }),
-        });
-        const issues = [
-          ...(result.ok ? [] : result.issues),
-          ...browserIssues,
-          ...[...pendingResources].map((request): ArtifactDiagnostic => ({
-            code: "resource-pending",
-            message: "Resource request is still pending.",
-            resource: displayResource(request.url()),
-            source: "browser",
-          })),
-        ];
-        if (issues.length > 0) {
-          return yield* new BrowserFailure({
-            cliCode: "artifact-invalid",
-            issues,
-            message: "Artifact readiness failed.",
-            phase: "readiness",
+    const resourceIssues = (requests: Iterable<Request>, message: string): ArtifactDiagnostic[] =>
+      [...requests].map((request): ArtifactDiagnostic => ({
+        code: "resource-pending",
+        message,
+        resource: displayResource(request.url()),
+        source: "browser",
+      }));
+    const waitForTrackedResources = async (deadline: number) => {
+      while (true) {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) return [...pendingResources];
+        if (pendingResources.size === 0) {
+          const quietGeneration = resourceGeneration;
+          await new Promise<void>((resolveQuiet) => {
+            setTimeout(resolveQuiet, Math.min(50, remainingMs));
           });
+          if (pendingResources.size === 0 && resourceGeneration === quietGeneration) return [];
+          continue;
         }
-        return result;
-      }),
+        await new Promise<void>((resolveWait) => {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            resourceChangeWaiters.delete(finish);
+            resolveWait();
+          };
+          const timeout = setTimeout(finish, remainingMs);
+          resourceChangeWaiters.add(finish);
+          if (pendingResources.size === 0) finish();
+        });
+      }
+    };
+    // validateArtifact must remain closure-free for Playwright serialization.
+    const checkReadiness = async () => {
+      const resourceDeadline = Date.now() + RESOURCE_TIMEOUT_MS;
+      await page.evaluate(() => new Promise<void>((resolveTurn) => {
+        window.setTimeout(resolveTurn, 0);
+      }));
+      const [validation, firstOverdueRequests] = await Promise.all([
+        page.evaluate(validateArtifact),
+        waitForTrackedResources(resourceDeadline),
+      ]);
+      const overdueRequests = new Set(firstOverdueRequests);
+      if (validation.ok && browserIssues.length === 0) {
+        for (const request of await waitForTrackedResources(resourceDeadline)) overdueRequests.add(request);
+      }
+      const pendingRequests = [...pendingResources].filter((request) => !overdueRequests.has(request));
+      return {
+        issues: [
+          ...(validation.ok ? [] : validation.issues),
+          ...browserIssues,
+          ...resourceIssues(overdueRequests, `Resource request did not finish within ${RESOURCE_TIMEOUT_MS}ms.`),
+          ...resourceIssues(pendingRequests, "Resource request is still pending after readiness checks."),
+        ],
+        validation,
+      };
+    };
+    const initialReadiness = yield* withLogPhase(
+      Effect.tryPromise({
+        try: checkReadiness,
+        catch: (cause) => new BrowserFailure({
+          cause,
+          message: errorMessage(cause),
+          phase: "readiness",
+        }),
+      }).pipe(Effect.flatMap(({ issues, validation }) => issues.length === 0 && validation
+        ? Effect.succeed(validation)
+        : new BrowserFailure({
+          cliCode: "artifact-invalid",
+          issues,
+          message: "Artifact readiness failed.",
+          phase: "readiness",
+        }))),
       "browser.readiness",
       { path: inputPath },
     );
     yield* logDebug("browser.artifact.ready", {
-      pageCount: validation.pages.length,
+      pageCount: initialReadiness.pages.length,
       path: inputPath,
     });
 
     const operationDiagnostics = (): ArtifactDiagnostic[] => [
       ...browserIssues,
-      ...[...pendingResources].map((request): ArtifactDiagnostic => ({
-        code: "resource-pending",
-        message: "Resource request is still pending.",
-        resource: displayResource(request.url()),
-        source: "browser",
-      })),
+      ...resourceIssues(pendingResources, "Resource request is still pending when the browser operation completed."),
     ];
     const result = yield* Effect.tryPromise({
-      try: () => operation({ page, pages: validation.pages }),
+      try: () => operation({
+        page,
+        pages: initialReadiness.pages,
+        waitForReadiness: async () => {
+          const readiness = await checkReadiness();
+          if (readiness.issues.length > 0) throw new ArtifactReadinessFailure(readiness.issues);
+        },
+      }),
       catch: (cause) => {
         const issues: ArtifactDiagnostic[] = [
-          ...(cause instanceof ArtifactOperationFailure ? [{
+          ...(cause instanceof ArtifactReadinessFailure ? cause.issues : cause instanceof ArtifactOperationFailure ? [{
             code: cause.code,
             message: cause.message,
             pageId: cause.pageId,
             resource: cause.resource,
             source: "browser" as const,
           }] : []),
-          ...operationDiagnostics(),
+          ...(cause instanceof ArtifactReadinessFailure ? [] : operationDiagnostics()),
         ];
         return new BrowserFailure({
           cause,
