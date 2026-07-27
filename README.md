@@ -108,7 +108,7 @@ written.
 
 | Option | Contract |
 |---|---|
-| `--log-level <off|info|debug>` | Overrides `UNSLIDE_LOG_LEVEL`; default `off` |
+| `--log-level <off\|info\|debug>` | Overrides `UNSLIDE_LOG_LEVEL`; default `off` |
 | `--full` | Available only to `inspect`, `capture`, and `export`; removes authored-diagnostic truncation |
 
 Default diagnostics show at most 10 issues and 1,000 Unicode characters per

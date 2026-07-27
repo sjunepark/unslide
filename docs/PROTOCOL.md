@@ -43,11 +43,12 @@ PDF export repeats readiness after applying print media and also waits for
 tracked requests, so resources activated only for print are covered before
 Chromium prints.
 
-Document, font, image-load, image-decode, and tracked-request waits are bounded
-to five seconds each. Protocol v1 supports static visual resources. It does not
-stabilize animations or delayed client rendering and has no author-controlled
-asynchronous readiness signal; those capabilities remain deferred until real
-inputs establish their contracts.
+Document, font, image-load, and image-decode waits are bounded to five seconds
+each. All tracked requests share one five-second window per readiness check.
+Protocol v1 supports static visual resources. It does not stabilize animations
+or delayed client rendering and has no author-controlled asynchronous readiness
+signal; those capabilities remain deferred until real inputs establish their
+contracts.
 
 Readiness validation does not inspect CSS, measure overflow, repair content, or
 apply visual defaults. It also does not enforce the first-party React writer's
