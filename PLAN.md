@@ -1,10 +1,11 @@
 # Plan
 
-Active implementation goal: **none**.
+Active implementation goal: **Goal 1 — harden PDF export readiness and its
+visual-fidelity contract.**
 
-Current next action: **exercise the public package in independent consumers,
-record evidence against the gates below, and verify the first
-Release Please-generated release before widening product scope.**
+Current next action: **reproduce the print-only resource race from
+[issue #8](https://github.com/sjunepark/unslide/issues/8) in a focused export
+test, then add bounded print-media readiness before PDF generation.**
 
 This file owns current execution state and unresolved evidence gates. Durable
 product, design, architecture, support, and release policy belong in their
@@ -22,6 +23,52 @@ focused documents and decision records.
 - Release Please is configured, but the first subsequent automated release has
   not yet been proven.
 - Blockers: none.
+
+## Goal 1 — Harden PDF Export Readiness and Fidelity Contract
+
+Outcome: the supported exporter waits for resources activated by print media,
+publishes only structurally valid PDFs with tested target-native evidence, and
+states clearly which visual guarantees remain report-owned or require human or
+agent inspection.
+
+Accepted scope:
+
+1. Add focused regression evidence for a resource that becomes active only
+   after switching to print media. The test must demonstrate both bounded
+   readiness behavior and presence of the resource in PDF-native output.
+2. Add the smallest shared browser/export change that waits for print-active
+   fonts, HTML images, and tracked requests before `page.pdf()`, preserving the
+   existing readiness bound, actionable diagnostics, and atomic publication.
+3. Keep PDF validation structural. Align the public contract and workflow so
+   “validated PDF” cannot be mistaken for generic visual-fidelity validation,
+   and continue to require inspection of every PDF-native page image.
+4. Keep print color adjustment in report-owned CSS. Make the optional starter
+   and packed-consumer proof request exact print color adjustment while keeping
+   cross-environment reproduction and broad palette fidelity outside the
+   guarantee.
+5. State that protocol v1 supports static visual resources but not animations,
+   delayed client rendering, or an author-controlled asynchronous readiness
+   signal.
+6. Document the linked-consumer development path so local package changes are
+   rebuilt or packed before execution; do not add production runtime freshness
+   detection.
+
+Completion requires the focused regression to fail before the implementation
+and pass afterward; `pnpm run validate` to cover source, packaged-consumer, and
+configured proof-report behavior; inspection of every generated HTML and
+PDF-native page image; consistency across `PRODUCT.md`, `docs/DESIGN.md`,
+`ARCHITECTURE.md`, `docs/PROTOCOL.md`, `docs/SUPPORT.md`, `docs/WORKFLOW.md`,
+the accepted PDF decision, and public guidance; and a final code review with no
+unresolved actionable findings.
+
+Non-goals: manual or system Print-to-PDF support, generic pixel-difference
+scoring, an exact-color guarantee for arbitrary color spaces or rendering
+environments, animation stabilization, a new asynchronous readiness protocol,
+a second PDF renderer, or production CLI handling for stale linked builds.
+
+After Goal 1, resume the prior next action: exercise the public package in
+independent consumers, record evidence against the gates below, and verify the
+first Release Please-generated release before widening product scope.
 
 ## Evidence Gates
 
