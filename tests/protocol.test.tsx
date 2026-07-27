@@ -383,6 +383,63 @@ test("capture tracks concurrent requests to the same URL independently", async (
   }
 });
 
+test("readiness retains requests that were pending when the shared deadline expired", { timeout: 10_000 }, async () => {
+  const font = await readFile(resolve("node_modules/pdfjs-dist/standard_fonts/LiberationSans-Regular.ttf"));
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==", "base64");
+  const server = createServer((request, response) => {
+    if (request.url === "/font.ttf") {
+      setTimeout(() => {
+        response.setHeader("Access-Control-Allow-Origin", "*");
+        response.setHeader("Content-Type", "font/ttf");
+        response.end(font);
+      }, 4_400);
+      return;
+    }
+    if (request.url === "/late.png") {
+      setTimeout(() => {
+        response.setHeader("Content-Type", "image/png");
+        response.end(png);
+      }, 5_200);
+      return;
+    }
+    response.statusCode = 404;
+    response.end();
+  });
+
+  try {
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const origin = `http://127.0.0.1:${address.port}`;
+
+    await assert.rejects(runUnslide(withLoadedArtifact(
+      resolve(fixtureDirectory, "protocol-valid.html"),
+      async ({ page, waitForReadiness }) => {
+        await page.evaluate((resourceOrigin) => {
+          const style = document.createElement("style");
+          style.textContent = `@font-face{font-family:OverdueFont;src:url(${resourceOrigin}/font.ttf)}body{font-family:OverdueFont}`;
+          document.head.append(style);
+          const image = document.createElement("img");
+          image.src = `${resourceOrigin}/late.png`;
+          document.querySelector("[data-unslide-page]")?.append(image);
+          void document.fonts.load("16px OverdueFont");
+        }, origin);
+        await waitForReadiness();
+      },
+    )), (error) => {
+      const diagnostics = rejectedDiagnostics(error);
+      assert.ok(!diagnostics.some((issue) => issue.code === "font-readiness" || issue.code === "resource-failed"));
+      return diagnostics.some((issue) =>
+        issue.code === "resource-pending"
+        && /\/late\.png/.test(String(issue.resource))
+        && /5000ms/.test(String(issue.message)));
+    });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
+  }
+});
+
 test("loaded artifacts release Chromium after success and operational failure", async () => {
   const inputPath = resolve(fixtureDirectory, "protocol-valid.html");
   let successfulBrowser: Browser | undefined;

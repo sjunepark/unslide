@@ -201,8 +201,8 @@ export function withLoadedArtifact<T>(
       { path: inputPath },
     );
 
-    const pendingResourceIssues = (message: string): ArtifactDiagnostic[] =>
-      [...pendingResources].map((request): ArtifactDiagnostic => ({
+    const resourceIssues = (requests: Iterable<Request>, message: string): ArtifactDiagnostic[] =>
+      [...requests].map((request): ArtifactDiagnostic => ({
         code: "resource-pending",
         message,
         resource: displayResource(request.url()),
@@ -211,13 +211,13 @@ export function withLoadedArtifact<T>(
     const waitForTrackedResources = async (deadline: number) => {
       while (true) {
         const remainingMs = deadline - Date.now();
-        if (remainingMs <= 0) return;
+        if (remainingMs <= 0) return [...pendingResources];
         if (pendingResources.size === 0) {
           const quietGeneration = resourceGeneration;
           await new Promise<void>((resolveQuiet) => {
             setTimeout(resolveQuiet, Math.min(50, remainingMs));
           });
-          if (pendingResources.size === 0 && resourceGeneration === quietGeneration) return;
+          if (pendingResources.size === 0 && resourceGeneration === quietGeneration) return [];
           continue;
         }
         await new Promise<void>((resolveWait) => {
@@ -241,18 +241,21 @@ export function withLoadedArtifact<T>(
       await page.evaluate(() => new Promise<void>((resolveTurn) => {
         window.setTimeout(resolveTurn, 0);
       }));
-      const [validation] = await Promise.all([
+      const [validation, firstOverdueRequests] = await Promise.all([
         page.evaluate(validateArtifact),
         waitForTrackedResources(resourceDeadline),
       ]);
-      if (validation.ok && browserIssues.length === 0) await waitForTrackedResources(resourceDeadline);
+      const overdueRequests = new Set(firstOverdueRequests);
+      if (validation.ok && browserIssues.length === 0) {
+        for (const request of await waitForTrackedResources(resourceDeadline)) overdueRequests.add(request);
+      }
+      const pendingRequests = [...pendingResources].filter((request) => !overdueRequests.has(request));
       return {
         issues: [
           ...(validation.ok ? [] : validation.issues),
           ...browserIssues,
-          ...pendingResourceIssues(Date.now() >= resourceDeadline
-            ? `Resource request did not finish within ${RESOURCE_TIMEOUT_MS}ms.`
-            : "Resource request is still pending after readiness checks."),
+          ...resourceIssues(overdueRequests, `Resource request did not finish within ${RESOURCE_TIMEOUT_MS}ms.`),
+          ...resourceIssues(pendingRequests, "Resource request is still pending after readiness checks."),
         ],
         validation,
       };
@@ -283,7 +286,7 @@ export function withLoadedArtifact<T>(
 
     const operationDiagnostics = (): ArtifactDiagnostic[] => [
       ...browserIssues,
-      ...pendingResourceIssues("Resource request is still pending when the browser operation completed."),
+      ...resourceIssues(pendingResources, "Resource request is still pending when the browser operation completed."),
     ];
     const result = yield* Effect.tryPromise({
       try: () => operation({
