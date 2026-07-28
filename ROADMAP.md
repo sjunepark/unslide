@@ -2,7 +2,7 @@
 
 ## Current
 
-- [Adopt Oxlint, Oxfmt, and tsc](plans/oxlint-oxfmt-tsc.md)
+_None._
 
 ## Plans
 
