@@ -246,9 +246,18 @@ type ProjectChangeResult =
   | (ProjectChangeBase<"created" | "unchanged"> & { status: "created" })
   | (ProjectChangeBase<"unchanged"> & { status: "unchanged" });
 
-type ProjectChangeFailure = ProjectChangeBase<"create" | "unchanged" | "conflict"> & {
+type ProjectChangeConflict = ProjectChangeBase<"create" | "unchanged" | "conflict"> & {
   status: "conflict";
 };
+
+type InitOperationalFailure = ProjectChangeBase<
+  "created" | "unchanged" | "failed" | "not-started"
+> & {
+  operation: "init";
+  status: "failed";
+};
+
+type ProjectChangeFailure = ProjectChangeConflict | InitOperationalFailure;
 
 type CommandResult =
   | { kind: "home"; projectRoot: string; reports: ReportState[] }
@@ -291,7 +300,7 @@ type CommandResult =
 
 interface ReviewSummaryBase {
   report: string;
-  scope: ScopeAll | HtmlScopePage;
+  requestedScope: RequestedReviewScope;
   pdf?: FileEvidence;
   pages: ReviewPage[];
   steps: PublishedStep[];
@@ -302,17 +311,34 @@ interface ReviewSummaryBase {
 type ReviewSummary =
   | (ReviewSummaryBase & {
       status: "ok";
+      scope: ScopeAll | HtmlScopePage;
       html: FileEvidence;
       manifest: { status: "published" } & FileEvidence;
     })
   | (ReviewSummaryBase & {
       status: "error";
+      scope?: ScopeAll | HtmlScopePage;
       html?: FileEvidence;
       manifest: { status: "unchanged"; state: PathState };
       error: ResultError;
     });
 
 type PartialCommandResult = ProjectChangeFailure | { kind: "review"; reports: ReviewSummary[] };
+```
+
+An operational `init` failure reports files already left on disk as `created`,
+the failed write as `failed`, and remaining planned writes as `not-started`.
+`add` does not use this variant because publication failure rolls back its
+staged files and leaves the project unchanged.
+
+A review error may occur before a focused selector can be resolved against
+validated HTML. Every summary therefore preserves the requested selector
+separately; `scope` is required on success and present on failure only after
+resolution completed:
+
+```ts
+type RequestedReviewScope =
+  ScopeAll | { kind: "page-id"; id: string } | { kind: "page-number"; number: number };
 ```
 
 Configured forms include `report`; artifact forms omit it. A focused HTML
@@ -332,11 +358,15 @@ such as project discovery; they do not duplicate or flatten report evidence.
 
 ## Review Manifest
 
-Each configured report has one derived manifest path: replace the configured
-HTML path's `.html` suffix with `.review.json`. The conventional location is
-`artifacts/<name>.review.json`. A manifest path is included in the same
-confinement, symlink, source/output, and cross-report overlap validation as
-other configured outputs. It has no independent configuration override.
+Each configured report has one derived manifest path. First replace the
+configured HTML path's `.html` suffix with `.review.json`. If that candidate
+overlaps a version-1 source or artifact path, append `-2`, then the next
+positive integer as needed, before `.json` and choose the first nonoverlapping
+candidate. The conventional location is `artifacts/<name>.review.json`. This
+collision escape preserves every previously valid explicit version-1 path
+without adding a configuration field. The selected manifest path is included
+in the same confinement, symlink, source/output, and cross-report overlap
+validation as other outputs.
 
 The manifest is compact UTF-8 JSON followed by one newline. Its semantic model
 is independent of the invocation's stdout format.

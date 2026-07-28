@@ -1,6 +1,6 @@
 # D7 — Consumer Authoring and Automation Contracts
 
-Date: 2026-07-29
+Date: 2026-07-29 (Asia/Seoul)
 
 Status: accepted
 
@@ -41,6 +41,9 @@ The main choices are:
   on failure instead of claiming an impractical multi-artifact transaction;
 - derive conventional artifact paths while preserving explicit version-1
   overrides and their dependent PDF defaults without rewriting configuration;
+- derive the review manifest beside HTML, using the first numbered
+  nonoverlapping fallback when the conventional path collides with an existing
+  version-1 path;
 - treat source absence as per-report state rather than project invalidity;
 - add dry-run-first, rollback-safe report addition without absorbing package or
   compiler configuration;

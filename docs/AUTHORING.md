@@ -5,6 +5,12 @@ consumer-authoring plan. It preserves report ownership: every DOM, geometry,
 style, print, numbering, and content-fit decision remains ordinary report
 source.
 
+This is a target contract, not the released configuration behavior. Goal 3
+must change the schema, loader, and tests together before the examples below
+are usable. Until then, the packaged schema still requires `html` and
+`captures`, and the loader rejects the whole project when any configured source
+is missing.
+
 ## Project Configuration
 
 `unslide.json` version 1 remains the persisted configuration contract. Each
@@ -31,8 +37,12 @@ For a newly minimal report `<name>`, omitted artifact fields resolve to:
 | `captures`    | `.tmp/captures/<name>`     |
 | `pdfCaptures` | `.tmp/pdf-captures/<name>` |
 
-The review manifest is derived from the resolved HTML path by replacing its
-`.html` suffix with `.review.json`; it is not configurable separately.
+The review manifest is normally derived from the resolved HTML path by
+replacing its `.html` suffix with `.review.json`; it is not configurable
+separately. If that candidate overlaps a version-1 source or artifact path,
+append `-2`, then the next positive integer as needed, before `.json` and use
+the first nonoverlapping candidate. For example, a collision at
+`artifacts/report.review.json` selects `artifacts/report.review-2.json`.
 Existing explicit fields remain authoritative. To preserve current version-1
 behavior, an omitted `pdf` next to an explicit `html` replaces that HTML path's
 `.html` suffix with `.pdf`, and an omitted `pdfCaptures` next to explicit
@@ -40,12 +50,13 @@ behavior, an omitted `pdf` next to an explicit `html` replaces that HTML path's
 also omitted, the name-based defaults in the table apply. Loading never
 rewrites or upgrades a configuration.
 
-Schema, lexical confinement, canonical symlink confinement, source/output
-separation, and cross-report output separation are validated after defaults
-are applied. Visual fields remain invalid. Source existence is observed only
-after structural and path validation: a missing source is reported by home and
-`report`, fails build or review of that report, and does not block read-only
-discovery or artifact operations for other reports.
+In the Goal 3 implementation, schema, lexical confinement, canonical symlink
+confinement, source/output separation, and cross-report output separation will
+be validated after defaults are applied. Visual fields remain invalid. Source
+existence will be observed only after structural and path validation: a missing
+source will be reported by home and `report`, fail build or review of that
+report, and not block read-only discovery or artifact operations for other
+reports.
 
 ## Source Export
 
