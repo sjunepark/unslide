@@ -165,6 +165,12 @@ See the
 for proof-report commands, generated artifacts, packed-consumer testing, and
 visual inspection requirements.
 
+The active consumer-authoring plan's accepted target contracts are documented
+in [CLI Commands](docs/COMMANDS.md), [Result and Manifest Model](docs/RESULTS.md),
+and [React Authoring](docs/AUTHORING.md). These describe roadmap work; the
+released command list and support contract above remain authoritative until the
+corresponding goals are implemented and validated.
+
 Repository-only documentation has one responsibility per file:
 
 - [Product](https://github.com/sjunepark/unslide/blob/main/PRODUCT.md) defines

@@ -30,9 +30,12 @@ Every capturable page carries `data-unslide-page="<id>"`:
 - Any capturable HTML element may carry the marker.
 - The marker adds no class, wrapper, styling, geometry, chrome, or numbering.
 
-Validation returns each page's ID, zero-based document index, and lowercase tag
-name. An artifact with no marked pages, an empty ID, or a duplicate ID is
-invalid.
+Validation preserves each page's ID, DOM order, and lowercase tag name. The
+released CLI currently exposes that order as a zero-based `index`; this is
+result presentation, not an HTML protocol field. Goal 2 replaces it with the
+one-based `number` in the versioned result contract described in
+[CLI Result and Review Manifest Contract](RESULTS.md). An artifact with no
+marked pages, an empty ID, or a duplicate ID is invalid.
 
 ## Static Readiness
 
@@ -53,6 +56,9 @@ contracts.
 Readiness validation does not inspect CSS, measure overflow, repair content, or
 apply visual defaults. It also does not enforce the first-party React writer's
 separate standalone-resource rules.
+
+Page selection never narrows validation. A focused capture validates the whole
+artifact and only limits which already-validated page is rasterized.
 
 ## Public Surface
 

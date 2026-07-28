@@ -82,3 +82,11 @@ guaranteed; inline local assets when delivery must not depend on the host.
 - formal accessibility certification.
 
 Each requires separate evidence and an explicit scope decision.
+
+## Accepted Work Not Yet Claimed
+
+The current consumer-authoring plan has accepted command, result, manifest,
+configuration, React, and asset contracts in
+[D7](decisions/0007-consumer-authoring-contracts.md). They do not enter this
+verified delivery boundary until their implementation and packed-consumer
+proof pass the plan's completion criteria.

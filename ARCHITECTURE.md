@@ -40,6 +40,13 @@ inspection evidence.
 | Proof reports           | `src/spike/`, `src/reports/operating-review/`                                                                                           | Unrelated report-owned visual systems exercising the same nonvisual lifecycle                                                  |
 | Verification            | `tests/*.test.tsx`, `tests/fixtures/`                                                                                                   | Public CLI, protocol, publication, PDF, workflow, and clean-consumer contracts                                                 |
 
+The active consumer-authoring plan introduces a typed command/result boundary
+before adding `report`, `add`, artifact capture/export, and review composition.
+Review remains orchestration over the same build, validation, capture, export,
+and inspection modules; it is not a second renderer. Result presentation and
+manifest serialization share one semantic model, while the manifest writer
+uses the existing same-directory staging and rename publication pattern.
+
 ## Dominant Runtime Flow
 
 1. The CLI discovers the nearest `unslide.json`, validates its version and
@@ -59,6 +66,12 @@ inspection evidence.
 
 Commands remain composable: capture and export do not rebuild HTML, and PDF
 inspection does not consult HTML or browser state.
+
+`review` is the explicit composition: it always rebuilds HTML, validates the
+whole artifact, limits only rasterization when focused, and optionally produces
+and inspects PDF. Each step publishes independently and a versioned manifest is
+published last, so hashes—not timestamps—bind successful evidence to canonical
+HTML.
 
 ## CLI and Runtime Boundary
 
@@ -120,6 +133,8 @@ when possible, and retains recovery staging when rollback cannot finish.
 - Effect services, failures, Layers, and scopes remain internal; public React
   helpers remain Promise-based.
 - A public adapter or plugin seam requires at least two proven implementations.
+- Public page numbers are one-based; stable HTML page IDs remain the identity
+  used to correlate focused HTML and parity-validated PDF evidence.
 
 ## Related Contracts and Decisions
 
@@ -132,3 +147,4 @@ when possible, and retains recovery staging when rollback cannot finish.
 - [D4 — HTML-first PDF export](docs/decisions/0004-html-first-pdf-export.md)
 - [D5 — Effect v4 internal runtime](docs/decisions/0005-effect-v4-internal-runtime.md)
 - [D6 — Public npm distribution](docs/decisions/0006-public-npm-distribution.md)
+- [D7 — Consumer authoring and automation contracts](docs/decisions/0007-consumer-authoring-contracts.md)

@@ -111,6 +111,13 @@ package remains 0.x until independent consumers justify a 1.0 compatibility
 promise. Optional visual recipes may be distributed only as editable,
 report-owned source.
 
+The current consumer-authoring roadmap adds one composed review workflow,
+versioned TOON/JSON results, conventional artifact paths, safe report addition,
+and a more conventional React source contract. The accepted interfaces are
+recorded in [D7](docs/decisions/0007-consumer-authoring-contracts.md). They
+compose the existing lifecycle and do not move visual design, page composition,
+numbering, fit, or reference acceptance into Unslide.
+
 ## Deferred Capability Gates
 
 | Capability                         | Reconsider when                                                                                                                                                                                                                                                    |
