@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -26,7 +35,11 @@ interface CliResult {
   value: Record<string, unknown>;
 }
 
-async function runCli(arguments_: string[], cwd = repositoryRoot, environment: NodeJS.ProcessEnv = {}): Promise<CliResult> {
+async function runCli(
+  arguments_: string[],
+  cwd = repositoryRoot,
+  environment: NodeJS.ProcessEnv = {},
+): Promise<CliResult> {
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
@@ -62,7 +75,8 @@ const stableHelpFlag = {
 
 const stableFullFlag = {
   flag: "--full",
-  description: "Show complete report-authored diagnostics (default: up to 10 issues and 1,000 characters per text field)",
+  description:
+    "Show complete report-authored diagnostics (default: up to 10 issues and 1,000 characters per text field)",
 };
 
 interface EffectLogEntry {
@@ -77,7 +91,10 @@ interface EffectLogEntry {
 function parseLogs(stderr: string): EffectLogEntry[] {
   return stderr.trim() === ""
     ? []
-    : stderr.trim().split("\n").map((line) => JSON.parse(line) as EffectLogEntry);
+    : stderr
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as EffectLogEntry);
 }
 
 function stableTopHelp() {
@@ -88,12 +105,24 @@ function stableTopHelp() {
     flags: [stableHelpFlag, stableLogLevelFlag],
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
-      { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
+      {
+        command: "inspect <name>",
+        description: "Validate a named report's existing HTML artifact",
+      },
       { command: "inspect --artifact <path>", description: "Validate any existing HTML artifact" },
       { command: "capture <name>", description: "Capture a named report's HTML pages" },
-      { command: "export <name>", description: "Export a named report's existing HTML artifact to PDF" },
-      { command: "inspect-pdf <name>", description: "Render a named report's existing PDF to page images" },
-      { command: "inspect-pdf --artifact <path> --output <directory>", description: "Render any existing PDF to page images" },
+      {
+        command: "export <name>",
+        description: "Export a named report's existing HTML artifact to PDF",
+      },
+      {
+        command: "inspect-pdf <name>",
+        description: "Render a named report's existing PDF to page images",
+      },
+      {
+        command: "inspect-pdf --artifact <path> --output <directory>",
+        description: "Render any existing PDF to page images",
+      },
       { command: "init", description: "Plan or create a minimal report project" },
     ],
     help: ["Run unslide <command> --help for command details"],
@@ -127,7 +156,9 @@ async function createProject(prefix = "unslide cli project ", pageCount = 1): Pr
     const id = pageCount === 1 ? "fixture" : `fixture-${index + 1}`;
     return `<main data-unslide-page="${id}">CLI fixture ${index + 1}</main>`;
   }).join("");
-  await writeFile(resolve(projectRoot, "source files", "report.tsx"), `
+  await writeFile(
+    resolve(projectRoot, "source files", "report.tsx"),
+    `
     import React from "react";
 
     export default (
@@ -138,17 +169,25 @@ async function createProject(prefix = "unslide cli project ", pageCount = 1): Pr
         <body>${pages}</body>
       </html>
     );
-  `);
-  await writeFile(resolve(projectRoot, "unslide.json"), JSON.stringify({
-    version: 1,
-    reports: {
-      fixture: {
-        source: "source files/report.tsx",
-        html: "generated output/report file.html",
-        captures: "captured pages",
+  `,
+  );
+  await writeFile(
+    resolve(projectRoot, "unslide.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/report.tsx",
+            html: "generated output/report file.html",
+            captures: "captured pages",
+          },
+        },
       },
-    },
-  }, null, 2));
+      null,
+      2,
+    ),
+  );
   return projectRoot;
 }
 
@@ -176,13 +215,19 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
     const result = await runCli([command, "--help"], repositoryRoot, stableCliEnvironment);
     assert.equal(result.exitCode, 0);
     assert.equal(result.stderr, "");
-    assert.deepEqual((result.value.flags as unknown[]).slice(-2), [stableHelpFlag, stableLogLevelFlag]);
+    assert.deepEqual((result.value.flags as unknown[]).slice(-2), [
+      stableHelpFlag,
+      stableLogLevelFlag,
+    ]);
   }
 
   for (const command of ["inspect", "capture", "export"]) {
     const result = await runCli([command, "--help"], repositoryRoot, stableCliEnvironment);
-    assert.ok((result.value.flags as unknown[]).some((flag) =>
-      (flag as Record<string, unknown>).flag === stableFullFlag.flag));
+    assert.ok(
+      (result.value.flags as unknown[]).some(
+        (flag) => (flag as Record<string, unknown>).flag === stableFullFlag.flag,
+      ),
+    );
   }
 
   for (const result of [
@@ -260,8 +305,14 @@ test("help commands preserve repository, PATH, and safely quoted direct invocati
       assert.equal((repositoryInvocation.value as { usage: string }).usage, expected);
     }
 
-    assert.equal(await realpath(pathExecutable), await realpath(resolve(repositoryRoot, "bin/unslide.mjs")));
-    assert.equal(await realpath(spacedExecutable), await realpath(resolve(repositoryRoot, "bin/unslide.mjs")));
+    assert.equal(
+      await realpath(pathExecutable),
+      await realpath(resolve(repositoryRoot, "bin/unslide.mjs")),
+    );
+    assert.equal(
+      await realpath(spacedExecutable),
+      await realpath(resolve(repositoryRoot, "bin/unslide.mjs")),
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -271,13 +322,20 @@ test("home output reports HTML existence and contextual next actions", async () 
   const projectRoot = await createProject("unslide home output ");
   const configPath = resolve(projectRoot, "unslide.json");
   const source = "source files/report.tsx";
-  await writeFile(configPath, JSON.stringify({
-    version: 1,
-    reports: {
-      alpha: { source, html: "generated output/alpha.html", captures: "captures/alpha" },
-      bravo: { source, html: "generated output/bravo.html", captures: "captures/bravo" },
-    },
-  }, null, 2));
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        reports: {
+          alpha: { source, html: "generated output/alpha.html", captures: "captures/alpha" },
+          bravo: { source, html: "generated output/bravo.html", captures: "captures/bravo" },
+        },
+      },
+      null,
+      2,
+    ),
+  );
 
   const base = {
     bin: "/opt/unslide/bin/unslide",
@@ -302,10 +360,7 @@ test("home output reports HTML existence and contextual next actions", async () 
     const mixed = await runCli([], projectRoot, stableCliEnvironment);
     assert.deepEqual(mixed.value, {
       ...base,
-      reports: [
-        { ...missingReports[0], htmlStatus: "present" },
-        missingReports[1],
-      ],
+      reports: [{ ...missingReports[0], htmlStatus: "present" }, missingReports[1]],
       help: [
         "Run unslide build <name>",
         "Run unslide inspect <name>",
@@ -326,12 +381,19 @@ test("home output reports HTML existence and contextual next actions", async () 
 });
 
 test("global Effect logging is opt-in, structured, and configurable by flag or environment", async () => {
-  const info = await runCli(["--log-level", "info", "--help"], repositoryRoot, stableCliEnvironment);
+  const info = await runCli(
+    ["--log-level", "info", "--help"],
+    repositoryRoot,
+    stableCliEnvironment,
+  );
   assert.equal(info.exitCode, 0);
   assert.equal(info.stdout, encode(stableTopHelp()));
   assert.equal(info.value.usage, "unslide <command>");
   const infoLogs = parseLogs(info.stderr);
-  assert.deepEqual(infoLogs.map((entry) => entry.message), ["invocation.started", "invocation.completed"]);
+  assert.deepEqual(
+    infoLogs.map((entry) => entry.message),
+    ["invocation.started", "invocation.completed"],
+  );
   assert.ok(infoLogs.every((entry) => entry.level === "INFO"));
   assert.ok(infoLogs.every((entry) => entry.annotations.command === "help"));
   assert.equal(new Set(infoLogs.map((entry) => entry.annotations.invocationId)).size, 1);
@@ -343,10 +405,17 @@ test("global Effect logging is opt-in, structured, and configurable by flag or e
   });
   assert.equal(parseLogs(environment.stderr).length, 2);
 
-  const rejected = await runCli(["build", "--log-level", "info"], repositoryRoot, stableCliEnvironment);
+  const rejected = await runCli(
+    ["build", "--log-level", "info"],
+    repositoryRoot,
+    stableCliEnvironment,
+  );
   assert.equal(rejected.exitCode, 2);
-  assert.ok(parseLogs(rejected.stderr).some((entry) =>
-    entry.message === "invocation.rejected" && entry.annotations.exitCode === 2));
+  assert.ok(
+    parseLogs(rejected.stderr).some(
+      (entry) => entry.message === "invocation.rejected" && entry.annotations.exitCode === 2,
+    ),
+  );
 
   const disabled = await runCli(["--help", "--log-level", "off"], repositoryRoot, {
     ...stableCliEnvironment,
@@ -380,8 +449,15 @@ test("global Effect logging is opt-in, structured, and configurable by flag or e
   for (const result of [
     await runCli(["--log-level", "trace", "--help"], repositoryRoot, stableCliEnvironment),
     await runCli(["--log-level=debug", "--help"], repositoryRoot, stableCliEnvironment),
-    await runCli(["--log-level", "info", "--help", "--log-level", "debug"], repositoryRoot, stableCliEnvironment),
-    await runCli(["--help"], repositoryRoot, { ...stableCliEnvironment, UNSLIDE_LOG_LEVEL: "TRACE" }),
+    await runCli(
+      ["--log-level", "info", "--help", "--log-level", "debug"],
+      repositoryRoot,
+      stableCliEnvironment,
+    ),
+    await runCli(["--help"], repositoryRoot, {
+      ...stableCliEnvironment,
+      UNSLIDE_LOG_LEVEL: "TRACE",
+    }),
   ]) {
     assert.equal(result.exitCode, 2);
     assert.equal(result.stderr, "");
@@ -392,7 +468,11 @@ test("global Effect logging is opt-in, structured, and configurable by flag or e
 test("logging keeps stable failures on info and adds full Effect causes on debug", async () => {
   const projectRoot = await createProject("unslide logging failures ");
   try {
-    const info = await runCli(["build", "missing", "--log-level", "info"], projectRoot, stableCliEnvironment);
+    const info = await runCli(
+      ["build", "missing", "--log-level", "info"],
+      projectRoot,
+      stableCliEnvironment,
+    );
     assert.equal(info.exitCode, 1);
     assert.equal((info.value.error as Record<string, unknown>).code, "report-not-found");
     const infoLogs = parseLogs(info.stderr);
@@ -400,9 +480,16 @@ test("logging keeps stable failures on info and adds full Effect causes on debug
     assert.equal(infoFailure?.level, "ERROR");
     assert.equal(infoFailure?.annotations.errorTag, "ReportNotFound");
     assert.equal(infoFailure?.annotations.errorMessage, "Report lookup failed.");
-    assert.equal(infoLogs.some((entry) => entry.message === "failure.cause"), false);
+    assert.equal(
+      infoLogs.some((entry) => entry.message === "failure.cause"),
+      false,
+    );
 
-    const debug = await runCli(["--log-level", "debug", "build", "missing"], projectRoot, stableCliEnvironment);
+    const debug = await runCli(
+      ["--log-level", "debug", "build", "missing"],
+      projectRoot,
+      stableCliEnvironment,
+    );
     assert.equal(debug.exitCode, 1);
     assert.equal(debug.stdout, info.stdout);
     const debugLogs = parseLogs(debug.stderr);
@@ -446,7 +533,11 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
     const missingProject = await runCli([], externalRoot, stableCliEnvironment);
     const missingMessage = `No unslide.json project configuration was found from ${canonicalExternalRoot}.`;
     assert.deepEqual(
-      { exitCode: missingProject.exitCode, stderr: missingProject.stderr, stdout: missingProject.stdout },
+      {
+        exitCode: missingProject.exitCode,
+        stderr: missingProject.stderr,
+        stdout: missingProject.stdout,
+      },
       {
         exitCode: 1,
         stderr: "",
@@ -457,9 +548,17 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
       },
     );
 
-    const namedMissingProject = await runCli(["build", "fixture"], externalRoot, stableCliEnvironment);
+    const namedMissingProject = await runCli(
+      ["build", "fixture"],
+      externalRoot,
+      stableCliEnvironment,
+    );
     assert.deepEqual(
-      { exitCode: namedMissingProject.exitCode, stderr: namedMissingProject.stderr, stdout: namedMissingProject.stdout },
+      {
+        exitCode: namedMissingProject.exitCode,
+        stderr: namedMissingProject.stderr,
+        stdout: namedMissingProject.stdout,
+      },
       {
         exitCode: 1,
         stderr: "",
@@ -499,12 +598,19 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
         path: canonicalExternalConfigPath,
       },
     );
-    assert.match(String((malformedConfig.value.error as Record<string, unknown>).detail), /JSON|position|end of data/i);
+    assert.match(
+      String((malformedConfig.value.error as Record<string, unknown>).detail),
+      /JSON|position|end of data/i,
+    );
 
     await writeFile(externalConfigPath, JSON.stringify({ version: 2, reports: {} }));
     const invalidConfig = await runCli([], externalRoot, stableCliEnvironment);
     assert.deepEqual(
-      { exitCode: invalidConfig.exitCode, stderr: invalidConfig.stderr, stdout: invalidConfig.stdout },
+      {
+        exitCode: invalidConfig.exitCode,
+        stderr: invalidConfig.stderr,
+        stdout: invalidConfig.stdout,
+      },
       {
         exitCode: 1,
         stderr: "",
@@ -513,7 +619,8 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
             code: "project-config-invalid",
             message: "Project configuration is invalid.",
             path: canonicalExternalConfigPath,
-            detail: "Unsupported unslide.json version 2. This release supports version 1; update the configuration manually because automatic migration is not available.",
+            detail:
+              "Unsupported unslide.json version 2. This release supports version 1; update the configuration manually because automatic migration is not available.",
           },
         }),
       },
@@ -521,7 +628,11 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
 
     const missingReport = await runCli(["build", "missing"], projectRoot, stableCliEnvironment);
     assert.deepEqual(
-      { exitCode: missingReport.exitCode, stderr: missingReport.stderr, stdout: missingReport.stdout },
+      {
+        exitCode: missingReport.exitCode,
+        stderr: missingReport.stderr,
+        stdout: missingReport.stdout,
+      },
       {
         exitCode: 1,
         stderr: "",
@@ -536,7 +647,11 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
       },
     );
 
-    const missingReportWithFull = await runCli(["capture", "missing", "--full"], projectRoot, stableCliEnvironment);
+    const missingReportWithFull = await runCli(
+      ["capture", "missing", "--full"],
+      projectRoot,
+      stableCliEnvironment,
+    );
     assert.deepEqual(missingReportWithFull.value.help, ["Run unslide capture <name> --full"]);
 
     const invalidArtifact = await runCli(
@@ -545,7 +660,11 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
       stableCliEnvironment,
     );
     assert.deepEqual(
-      { exitCode: invalidArtifact.exitCode, stderr: invalidArtifact.stderr, stdout: invalidArtifact.stdout },
+      {
+        exitCode: invalidArtifact.exitCode,
+        stderr: invalidArtifact.stderr,
+        stdout: invalidArtifact.stdout,
+      },
       {
         exitCode: 1,
         stderr: "",
@@ -559,11 +678,14 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
             shown: 1,
             total: 1,
             truncated: false,
-            issues: [{
-              source: "protocol",
-              code: "missing-pages",
-              message: 'No report pages found. Expected at least one element with data-unslide-page="<id>".',
-            }],
+            issues: [
+              {
+                source: "protocol",
+                code: "missing-pages",
+                message:
+                  'No report pages found. Expected at least one element with data-unslide-page="<id>".',
+              },
+            ],
           },
         }),
       },
@@ -578,7 +700,9 @@ test("operational failures use stable codes, corrective commands, and diagnostic
   const projectRoot = await createProject("unslide operational failures ");
   const htmlPath = resolve(projectRoot, "generated output", "report file.html");
   const pdfPath = resolve(projectRoot, "generated output", "report file.pdf");
-  const missingBrowsers = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide missing browsers "));
+  const missingBrowsers = await mkdtemp(
+    resolve(repositoryRoot, ".tmp", "unslide missing browsers "),
+  );
   const brokenBrowsers = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide broken browsers "));
 
   try {
@@ -611,7 +735,10 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     });
 
     await mkdir(dirname(htmlPath), { recursive: true });
-    await writeFile(htmlPath, await readFile(resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html")));
+    await writeFile(
+      htmlPath,
+      await readFile(resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html")),
+    );
     const invalidHtml = await runCli(["inspect", "fixture"], projectRoot, stableCliEnvironment);
     assert.equal(invalidHtml.exitCode, 1);
     assert.equal(invalidHtml.stderr, "");
@@ -626,36 +753,59 @@ test("operational failures use stable codes, corrective commands, and diagnostic
         shown: 1,
         total: 1,
         truncated: false,
-        issues: [{
-          source: "protocol",
-          code: "missing-pages",
-          message: 'No report pages found. Expected at least one element with data-unslide-page="<id>".',
-        }],
+        issues: [
+          {
+            source: "protocol",
+            code: "missing-pages",
+            message:
+              'No report pages found. Expected at least one element with data-unslide-page="<id>".',
+          },
+        ],
       },
       help: ["Run unslide build fixture"],
     });
 
-    await writeFile(htmlPath, '<!doctype html><html><body><main data-unslide-page="hidden" style="display:none">Hidden</main></body></html>');
-    const invalidCaptureGeometry = await runCli(["capture", "fixture"], projectRoot, stableCliEnvironment);
+    await writeFile(
+      htmlPath,
+      '<!doctype html><html><body><main data-unslide-page="hidden" style="display:none">Hidden</main></body></html>',
+    );
+    const invalidCaptureGeometry = await runCli(
+      ["capture", "fixture"],
+      projectRoot,
+      stableCliEnvironment,
+    );
     assert.equal(invalidCaptureGeometry.exitCode, 1);
     assert.equal(invalidCaptureGeometry.stderr, "");
-    assert.equal((invalidCaptureGeometry.value.error as Record<string, unknown>).code, "artifact-invalid");
+    assert.equal(
+      (invalidCaptureGeometry.value.error as Record<string, unknown>).code,
+      "artifact-invalid",
+    );
     assert.deepEqual(invalidCaptureGeometry.value.help, ["Run unslide build fixture"]);
 
-    await writeFile(htmlPath, '<!doctype html><html><body><main data-unslide-page="page">No print geometry</main></body></html>');
+    await writeFile(
+      htmlPath,
+      '<!doctype html><html><body><main data-unslide-page="page">No print geometry</main></body></html>',
+    );
     const invalidPrintCss = await runCli(["export", "fixture"], projectRoot, stableCliEnvironment);
     assert.equal(invalidPrintCss.exitCode, 1);
     assert.equal(invalidPrintCss.stderr, "");
     assert.equal((invalidPrintCss.value.error as Record<string, unknown>).code, "artifact-invalid");
     assert.deepEqual(invalidPrintCss.value.help, ["Run unslide build fixture"]);
 
-    await writeFile(htmlPath, `<!doctype html><html><head><style>
+    await writeFile(
+      htmlPath,
+      `<!doctype html><html><head><style>
       @page { size: 4in 3in; margin: 0 }
       body { margin: 0 }
       main, aside { width: 4in; height: 3in }
       main { break-after: page }
-    </style></head><body><main data-unslide-page="one">Marked page</main><aside>Extra page</aside></body></html>`);
-    const invalidGeneratedPdf = await runCli(["export", "fixture"], projectRoot, stableCliEnvironment);
+    </style></head><body><main data-unslide-page="one">Marked page</main><aside>Extra page</aside></body></html>`,
+    );
+    const invalidGeneratedPdf = await runCli(
+      ["export", "fixture"],
+      projectRoot,
+      stableCliEnvironment,
+    );
     assert.equal(invalidGeneratedPdf.exitCode, 1);
     assert.equal(invalidGeneratedPdf.stderr, "");
     assert.deepEqual(invalidGeneratedPdf.value.error, {
@@ -666,13 +816,24 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     assert.deepEqual(invalidGeneratedPdf.value.help, ["Run unslide export fixture"]);
     const pdfDiagnostics = invalidGeneratedPdf.value.diagnostics as Record<string, unknown>;
     assert.deepEqual(
-      { shown: pdfDiagnostics.shown, total: pdfDiagnostics.total, truncated: pdfDiagnostics.truncated },
+      {
+        shown: pdfDiagnostics.shown,
+        total: pdfDiagnostics.total,
+        truncated: pdfDiagnostics.truncated,
+      },
       { shown: 1, total: 1, truncated: false },
     );
-    assert.deepEqual((pdfDiagnostics.issues as Array<Record<string, unknown>>).map(({ source, code }) => ({ source, code })), [
-      { source: "pdf", code: "pdf-validation" },
-    ]);
-    assert.match(JSON.stringify(pdfDiagnostics), /PDF page count 2 does not match the 1 marked HTML pages/);
+    assert.deepEqual(
+      (pdfDiagnostics.issues as Array<Record<string, unknown>>).map(({ source, code }) => ({
+        source,
+        code,
+      })),
+      [{ source: "pdf", code: "pdf-validation" }],
+    );
+    assert.match(
+      JSON.stringify(pdfDiagnostics),
+      /PDF page count 2 does not match the 1 marked HTML pages/,
+    );
 
     await writeFile(pdfPath, "not a PDF");
     const invalidPdf = await runCli(["inspect-pdf", "fixture"], projectRoot, stableCliEnvironment);
@@ -688,7 +849,10 @@ test("operational failures use stable codes, corrective commands, and diagnostic
       help: ["Run unslide export fixture"],
     });
 
-    await writeFile(htmlPath, await readFile(resolve(repositoryRoot, "tests/fixtures/protocol-valid.html")));
+    await writeFile(
+      htmlPath,
+      await readFile(resolve(repositoryRoot, "tests/fixtures/protocol-valid.html")),
+    );
     const browserMissing = await runCli(["capture", "fixture"], projectRoot, {
       ...stableCliEnvironment,
       PLAYWRIGHT_BROWSERS_PATH: missingBrowsers,
@@ -696,13 +860,20 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     assert.equal(browserMissing.exitCode, 1);
     assert.equal(browserMissing.stderr, "");
     assert.deepEqual(browserMissing.value, {
-      error: { code: "browser-not-installed", message: "The canonical Chromium browser is not installed." },
+      error: {
+        code: "browser-not-installed",
+        message: "The canonical Chromium browser is not installed.",
+      },
       help: ["Run pnpm dlx playwright@1.61.1 install chromium"],
     });
 
     const executableProbe = await execFileAsync(
       process.execPath,
-      ["--input-type=module", "--eval", 'import { chromium } from "playwright"; process.stdout.write(chromium.executablePath())'],
+      [
+        "--input-type=module",
+        "--eval",
+        'import { chromium } from "playwright"; process.stdout.write(chromium.executablePath())',
+      ],
       {
         cwd: repositoryRoot,
         env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers },
@@ -728,12 +899,19 @@ test("operational failures use stable codes, corrective commands, and diagnostic
       },
     });
 
-    const debugLaunchFailure = await runCli(["capture", "fixture", "--log-level", "debug"], projectRoot, {
-      ...stableCliEnvironment,
-      PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers,
-    });
+    const debugLaunchFailure = await runCli(
+      ["capture", "fixture", "--log-level", "debug"],
+      projectRoot,
+      {
+        ...stableCliEnvironment,
+        PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers,
+      },
+    );
     assert.equal(debugLaunchFailure.stdout, launchFailure.stdout);
-    assert.match(debugLaunchFailure.stderr, /Cannot launch the canonical Chromium browser|BrowserFailure/);
+    assert.match(
+      debugLaunchFailure.stderr,
+      /Cannot launch the canonical Chromium browser|BrowserFailure/,
+    );
 
     const fullLaunchFailure = await runCli(["capture", "fixture", "--full"], projectRoot, {
       ...stableCliEnvironment,
@@ -791,7 +969,10 @@ test("combined CLI failures retain primary context and every diagnostic", () => 
       report: "first",
     },
   );
-  assert.deepEqual(combined.issues?.map(({ code }) => code), ["first", "second"]);
+  assert.deepEqual(
+    combined.issues?.map(({ code }) => code),
+    ["first", "second"],
+  );
 });
 
 test("authored diagnostics are structured and bounded unless --full is requested", async () => {
@@ -799,42 +980,68 @@ test("authored diagnostics are structured and bounded unless --full is requested
   const artifactPath = resolve(directory, "authored diagnostics.html");
   const longMessage = "M".repeat(1_205);
   const longResource = `data:image/png;base64,${"A".repeat(1_400)}`;
-  const consoleErrors = [longMessage, ...Array.from({ length: 10 }, (_, index) => `console issue ${index + 2}`)];
-  await writeFile(artifactPath, `<!doctype html>
+  const consoleErrors = [
+    longMessage,
+    ...Array.from({ length: 10 }, (_, index) => `console issue ${index + 2}`),
+  ];
+  await writeFile(
+    artifactPath,
+    `<!doctype html>
     <html><head><meta name="unslide-protocol" content="2"></head>
     <body><main data-unslide-page="diagnostics">
       <img src="${longResource}">
       <script>${consoleErrors.map((message) => `console.error(${JSON.stringify(message)});`).join("")}</script>
-    </main></body></html>`);
+    </main></body></html>`,
+  );
 
   try {
-    const bounded = await runCli(["inspect", "--artifact", artifactPath], directory, stableCliEnvironment);
+    const bounded = await runCli(
+      ["inspect", "--artifact", artifactPath],
+      directory,
+      stableCliEnvironment,
+    );
     assert.equal(bounded.exitCode, 1);
     assert.equal(bounded.stderr, "");
     const boundedDiagnostics = bounded.value.diagnostics as Record<string, unknown>;
     assert.deepEqual(
-      { shown: boundedDiagnostics.shown, total: boundedDiagnostics.total, truncated: boundedDiagnostics.truncated },
+      {
+        shown: boundedDiagnostics.shown,
+        total: boundedDiagnostics.total,
+        truncated: boundedDiagnostics.truncated,
+      },
       { shown: 10, total: 13, truncated: true },
     );
     const boundedIssues = boundedDiagnostics.issues as Array<Record<string, unknown>>;
     assert.ok(boundedIssues.some((issue) => issue.source === "protocol"));
     assert.ok(boundedIssues.some((issue) => issue.source === "browser"));
-    const messageIssue = boundedIssues.find((issue) => issue.code === "console-error" && issue.messageTotalChars);
-    assert.equal([...(messageIssue?.message as string)].length, 1_000);
-    assert.equal(messageIssue?.messageTotalChars, 1_205);
+    const messageIssue = boundedIssues.find(
+      (issue) => issue.code === "console-error" && issue.messageTotalChars,
+    );
+    assert.ok(messageIssue);
+    assert.equal([...(messageIssue.message as string)].length, 1_000);
+    assert.equal(messageIssue.messageTotalChars, 1_205);
     const resourceIssue = boundedIssues.find((issue) => issue.resourceTotalChars);
-    assert.equal([...(resourceIssue?.resource as string)].length, 1_000);
-    assert.equal(resourceIssue?.resourceTotalChars, [...longResource].length);
+    assert.ok(resourceIssue);
+    assert.equal([...(resourceIssue.resource as string)].length, 1_000);
+    assert.equal(resourceIssue.resourceTotalChars, [...longResource].length);
     assert.deepEqual(bounded.value.help, [
       `Run unslide inspect --artifact ${shellQuote(artifactPath)} --full`,
     ]);
 
-    const full = await runCli(["inspect", "--artifact", artifactPath, "--full"], directory, stableCliEnvironment);
+    const full = await runCli(
+      ["inspect", "--artifact", artifactPath, "--full"],
+      directory,
+      stableCliEnvironment,
+    );
     assert.equal(full.exitCode, 1);
     assert.equal(full.stderr, "");
     const fullDiagnostics = full.value.diagnostics as Record<string, unknown>;
     assert.deepEqual(
-      { shown: fullDiagnostics.shown, total: fullDiagnostics.total, truncated: fullDiagnostics.truncated },
+      {
+        shown: fullDiagnostics.shown,
+        total: fullDiagnostics.total,
+        truncated: fullDiagnostics.truncated,
+      },
       { shown: 13, total: 13, truncated: false },
     );
     const fullIssues = fullDiagnostics.issues as Array<Record<string, unknown>>;
@@ -860,7 +1067,10 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
     assert.equal(creation.exitCode, 0);
     assert.equal(creation.stderr, "");
     assert.equal((creation.value.init as Record<string, unknown>).status, "created");
-    assert.match(await readFile(resolve(projectRoot, "quarterly-review.tsx"), "utf8"), /data-unslide-page="welcome"/);
+    assert.match(
+      await readFile(resolve(projectRoot, "quarterly-review.tsx"), "utf8"),
+      /data-unslide-page="welcome"/,
+    );
     const starterCss = await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8");
     assert.match(starterCss, /Optional starter styling/);
     assert.match(starterCss, /print-color-adjust:\s*exact/);
@@ -877,7 +1087,10 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
     assert.deepEqual(conflict.value.help, [
       `Run ${shellQuote(cliPath)} init --name quarterly-review --yes after reconciling the conflicting files`,
     ]);
-    assert.equal(await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8"), "user-owned change\n");
+    assert.equal(
+      await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8"),
+      "user-owned change\n",
+    );
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -914,7 +1127,10 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
       `Run ${shellQuote(cliPath)} inspect fixture`,
       `Run ${shellQuote(cliPath)} capture fixture`,
     ]);
-    assert.match(await readFile(resolve(projectRoot, "generated output", "report file.html"), "utf8"), /data-unslide-page="fixture-1"/);
+    assert.match(
+      await readFile(resolve(projectRoot, "generated output", "report file.html"), "utf8"),
+      /data-unslide-page="fixture-1"/,
+    );
 
     const inspection = await runCli(["inspect", "fixture"], projectRoot);
     assert.equal(inspection.exitCode, 0);
@@ -931,8 +1147,14 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     const capturePages = capture.value.pages as Array<Record<string, unknown>>;
     assert.equal(captureReport.output, "captured pages");
     assert.equal(capturePages.length, 2);
-    assert.deepEqual(capturePages.map((page) => page.id), ["fixture-1", "fixture-2"]);
-    assert.deepEqual(capturePages.map((page) => page.file), ["page-01.png", "page-02.png"]);
+    assert.deepEqual(
+      capturePages.map((page) => page.id),
+      ["fixture-1", "fixture-2"],
+    );
+    assert.deepEqual(
+      capturePages.map((page) => page.file),
+      ["page-01.png", "page-02.png"],
+    );
     assert.equal(capture.stdout.split("captured pages").length - 1, 1);
     for (const page of capturePages) {
       await readFile(resolve(projectRoot, String(captureReport.output), String(page.file)));
@@ -945,7 +1167,12 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     assert.equal((exported.value.report as Record<string, unknown>).pageCount, 2);
     assert.equal((exported.value.report as Record<string, unknown>).widthPoints, 240);
     assert.deepEqual(exported.value.help, [`Run ${shellQuote(cliPath)} inspect-pdf fixture`]);
-    assert.equal((await readFile(resolve(projectRoot, "generated output", "report file.pdf"))).subarray(0, 5).toString(), "%PDF-");
+    assert.equal(
+      (await readFile(resolve(projectRoot, "generated output", "report file.pdf")))
+        .subarray(0, 5)
+        .toString(),
+      "%PDF-",
+    );
 
     const pdfInspection = await runCli(["inspect-pdf", "fixture"], projectRoot);
     assert.equal(pdfInspection.exitCode, 0, pdfInspection.stdout);
@@ -954,7 +1181,10 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     assert.equal(pdfReport.pageCount, 2);
     assert.equal(pdfReport.status, "pdf-inspected");
     assert.equal(pdfReport.output, "captured pages-pdf");
-    assert.deepEqual(pdfPages.map((page) => page.file), ["page-01.png", "page-02.png"]);
+    assert.deepEqual(
+      pdfPages.map((page) => page.file),
+      ["page-01.png", "page-02.png"],
+    );
     assert.equal(pdfInspection.stdout.split("captured pages-pdf").length - 1, 1);
     for (const page of pdfPages) {
       await readFile(resolve(projectRoot, String(pdfReport.output), String(page.file)));
@@ -963,24 +1193,33 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     assert.deepEqual([pdfPng.readUInt32BE(16), pdfPng.readUInt32BE(20)], [320, 181]);
 
     const explicitOutput = resolve(projectRoot, "standalone pdf pages");
-    const explicitInspection = await runCli([
-      "inspect-pdf",
-      "--artifact",
-      resolve(projectRoot, "generated output", "report file.pdf"),
-      "--output",
-      explicitOutput,
-    ], nestedDirectory);
+    const explicitInspection = await runCli(
+      [
+        "inspect-pdf",
+        "--artifact",
+        resolve(projectRoot, "generated output", "report file.pdf"),
+        "--output",
+        explicitOutput,
+      ],
+      nestedDirectory,
+    );
     assert.equal(explicitInspection.exitCode, 0, explicitInspection.stdout);
     const explicitPdf = explicitInspection.value.pdf as Record<string, unknown>;
     const explicitPages = explicitInspection.value.pages as Array<Record<string, unknown>>;
     assert.equal(explicitPdf.pageCount, 2);
     assert.equal(explicitPdf.output, explicitOutput);
-    assert.deepEqual(explicitPages.map((page) => page.file), ["page-01.png", "page-02.png"]);
+    assert.deepEqual(
+      explicitPages.map((page) => page.file),
+      ["page-01.png", "page-02.png"],
+    );
     assert.equal(explicitInspection.stdout.split(explicitOutput).length - 1, 1);
     for (const page of explicitPages) {
       await readFile(resolve(String(explicitPdf.output), String(page.file)));
     }
-    assert.equal((await readFile(resolve(explicitOutput, "page-01.png"))).subarray(1, 4).toString(), "PNG");
+    assert.equal(
+      (await readFile(resolve(explicitOutput, "page-01.png"))).subarray(1, 4).toString(),
+      "PNG",
+    );
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -989,7 +1228,10 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
 test("CLI inspection accepts a standalone artifact without project configuration", async () => {
   const directory = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide artifact "));
   const artifactPath = resolve(directory, "existing report.html");
-  await writeFile(artifactPath, '<!doctype html><html><body><article data-unslide-page="only">Only</article></body></html>');
+  await writeFile(
+    artifactPath,
+    '<!doctype html><html><body><article data-unslide-page="only">Only</article></body></html>',
+  );
 
   try {
     const result = await runCli(["inspect", "--artifact", artifactPath], directory);
@@ -1023,106 +1265,139 @@ test("CLI rejects missing reports, visual fields, and unsafe output paths", asyn
     await writeFile(configPath, JSON.stringify({ version: 2, reports: {} }));
     const unsupportedVersion = await runCli([], projectRoot);
     assert.equal(unsupportedVersion.exitCode, 1);
-    assert.match(JSON.stringify(unsupportedVersion.value), /project-config-invalid.*Unsupported unslide\.json version 2.*automatic migration is not available/);
+    assert.match(
+      JSON.stringify(unsupportedVersion.value),
+      /project-config-invalid.*Unsupported unslide\.json version 2.*automatic migration is not available/,
+    );
 
-    await writeFile(configPath, JSON.stringify({
-      version: 1,
-      reports: {
-        fixture: {
-          source: "source files/report.tsx",
-          html: "generated/report.html",
-          captures: "captures",
-          pageSize: "A4",
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/report.tsx",
+            html: "generated/report.html",
+            captures: "captures",
+            pageSize: "A4",
+          },
         },
-      },
-    }));
+      }),
+    );
     const visualField = await runCli([], projectRoot);
     assert.equal(visualField.exitCode, 1);
     assert.match(JSON.stringify(visualField.value), /unknown field.*pageSize/);
 
-    await writeFile(configPath, JSON.stringify({
-      version: 1,
-      reports: {
-        fixture: {
-          source: "source files/report.tsx",
-          html: "../outside/report.html",
-          captures: "captures",
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/report.tsx",
+            html: "../outside/report.html",
+            captures: "captures",
+          },
         },
-      },
-    }));
+      }),
+    );
     const escapedOutput = await runCli([], projectRoot);
     assert.equal(escapedOutput.exitCode, 1);
     assert.match(JSON.stringify(escapedOutput.value), /must resolve inside the project root/);
 
-    await writeFile(configPath, JSON.stringify({
-      version: 1,
-      reports: {
-        fixture: {
-          source: "source files/report.tsx",
-          html: "generated/report.html",
-          pdf: "../outside/report.pdf",
-          captures: "captures",
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/report.tsx",
+            html: "generated/report.html",
+            pdf: "../outside/report.pdf",
+            captures: "captures",
+          },
         },
-      },
-    }));
+      }),
+    );
     const escapedPdf = await runCli([], projectRoot);
     assert.equal(escapedPdf.exitCode, 1);
-    assert.match(JSON.stringify(escapedPdf.value), /field.*pdf.*must resolve inside the project root/);
+    assert.match(
+      JSON.stringify(escapedPdf.value),
+      /field.*pdf.*must resolve inside the project root/,
+    );
 
-    await writeFile(configPath, JSON.stringify({
-      version: 1,
-      reports: {
-        fixture: {
-          source: "source files/report.tsx",
-          html: "generated/report.html",
-          captures: "captures",
-          pdfCaptures: "../outside/pdf-pages",
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/report.tsx",
+            html: "generated/report.html",
+            captures: "captures",
+            pdfCaptures: "../outside/pdf-pages",
+          },
         },
-      },
-    }));
+      }),
+    );
     const escapedPdfCaptures = await runCli([], projectRoot);
     assert.equal(escapedPdfCaptures.exitCode, 1);
-    assert.match(JSON.stringify(escapedPdfCaptures.value), /field.*pdfCaptures.*must resolve inside the project root/);
+    assert.match(
+      JSON.stringify(escapedPdfCaptures.value),
+      /field.*pdfCaptures.*must resolve inside the project root/,
+    );
 
     await symlink(outsideDirectory, resolve(projectRoot, "linked output"));
-    await writeFile(configPath, JSON.stringify({
-      version: 1,
-      reports: {
-        fixture: {
-          source: "source files/report.tsx",
-          html: "linked output/report.html",
-          captures: "captures",
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/report.tsx",
+            html: "linked output/report.html",
+            captures: "captures",
+          },
         },
-      },
-    }));
+      }),
+    );
     const linkedOutput = await runCli([], projectRoot);
     assert.equal(linkedOutput.exitCode, 1);
     assert.match(JSON.stringify(linkedOutput.value), /symbolic link points outside/);
 
-    await writeFile(configPath, JSON.stringify({
-      version: 1,
-      reports: {
-        fixture: {
-          source: "source files/report.tsx",
-          html: "generated/report.html",
-          captures: "generated",
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/report.tsx",
+            html: "generated/report.html",
+            captures: "generated",
+          },
         },
-      },
-    }));
+      }),
+    );
     const overlappingOutputs = await runCli([], projectRoot);
     assert.equal(overlappingOutputs.exitCode, 1);
-    assert.match(JSON.stringify(overlappingOutputs.value), /field.*html.*overlaps.*field.*captures/);
+    assert.match(
+      JSON.stringify(overlappingOutputs.value),
+      /field.*html.*overlaps.*field.*captures/,
+    );
 
-    await writeFile(configPath, JSON.stringify({
-      version: 1,
-      reports: {
-        fixture: {
-          source: "source files/missing.tsx",
-          html: "generated/report.html",
-          captures: "captures",
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/missing.tsx",
+            html: "generated/report.html",
+            captures: "captures",
+          },
         },
-      },
-    }));
+      }),
+    );
     const missingSource = await runCli([], projectRoot);
     assert.equal(missingSource.exitCode, 1);
     assert.match(JSON.stringify(missingSource.value), /source does not exist/);

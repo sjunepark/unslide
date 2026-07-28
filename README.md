@@ -87,11 +87,11 @@ exists; it does not claim freshness.
 
 Every invocation writes one TOON document to stdout:
 
-| Exit | Meaning |
-|---|---|
-| `0` | Success or an idempotent no-op |
-| `1` | Operational failure |
-| `2` | Invalid command usage |
+| Exit | Meaning                        |
+| ---- | ------------------------------ |
+| `0`  | Success or an idempotent no-op |
+| `1`  | Operational failure            |
+| `2`  | Invalid command usage          |
 
 Default stderr is empty. Operational failures use an `error` record with a
 stable `code`, a concise `message`, and relevant structured context. The
@@ -106,10 +106,10 @@ values still fail when combined with help; help bypasses only missing required
 values. Commands returned in `help` are complete and should be run as
 written.
 
-| Option | Contract |
-|---|---|
-| `--log-level <off\|info\|debug>` | Overrides `UNSLIDE_LOG_LEVEL`; default `off` |
-| `--full` | Available only to `inspect`, `capture`, and `export`; removes authored-diagnostic truncation |
+| Option                           | Contract                                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `--log-level <off\|info\|debug>` | Overrides `UNSLIDE_LOG_LEVEL`; default `off`                                                 |
+| `--full`                         | Available only to `inspect`, `capture`, and `export`; removes authored-diagnostic truncation |
 
 Default diagnostics show at most 10 issues and 1,000 Unicode characters per
 authored message or resource, with exact totals. `--full` never exposes raw
@@ -145,8 +145,15 @@ and migration note.
 ```sh
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
+pnpm run format
+pnpm run check
 pnpm run validate
 ```
+
+Oxlint owns linting, Oxfmt owns formatting, and `tsc` owns type checking.
+`pnpm run check` composes their non-writing checks and is the source-validation
+entry point used by CI through `pnpm run validate`. Use `pnpm run lint`,
+`pnpm run format:check`, or `pnpm run typecheck` when iterating on one concern.
 
 Linked consumers execute compiled `dist`. After changing this repository's
 package source, run `pnpm run build:package` before using a link, or run
@@ -166,8 +173,8 @@ Repository-only documentation has one responsibility per file:
   defines authoring vocabulary and ownership.
 - [Architecture](https://github.com/sjunepark/unslide/blob/main/ARCHITECTURE.md)
   maps runtime components and invariants.
-- [Plan](https://github.com/sjunepark/unslide/blob/main/PLAN.md) records current
-  execution state and evidence gates.
+- [Roadmap](https://github.com/sjunepark/unslide/blob/main/ROADMAP.md) records
+  current and ordered work; linked plan files own execution detail.
 - [Release](https://github.com/sjunepark/unslide/blob/main/docs/RELEASE.md) is
   the publishing runbook.
 - [Decision records](https://github.com/sjunepark/unslide/tree/main/docs/decisions)

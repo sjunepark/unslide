@@ -74,23 +74,30 @@ p { max-width: 620px; margin: 0; font-size: 20px; line-height: 1.5; }
 }
 `;
 
-function scaffoldFiles(projectRoot: string, reportName: string): Array<{ relativePath: string; contents: string }> {
+function scaffoldFiles(
+  projectRoot: string,
+  reportName: string,
+): Array<{ relativePath: string; contents: string }> {
   return [
     {
       relativePath: "unslide.json",
-      contents: `${JSON.stringify({
-        $schema: "./node_modules/unslide/schema/unslide.schema.json",
-        version: 1,
-        reports: {
-          [reportName]: {
-            source: `${reportName}.tsx`,
-            html: `artifacts/${reportName}.html`,
-            pdf: `artifacts/${reportName}.pdf`,
-            captures: `.tmp/captures/${reportName}`,
-            pdfCaptures: `.tmp/pdf-captures/${reportName}`,
+      contents: `${JSON.stringify(
+        {
+          $schema: "./node_modules/unslide/schema/unslide.schema.json",
+          version: 1,
+          reports: {
+            [reportName]: {
+              source: `${reportName}.tsx`,
+              html: `artifacts/${reportName}.html`,
+              pdf: `artifacts/${reportName}.pdf`,
+              captures: `.tmp/captures/${reportName}`,
+              pdfCaptures: `.tmp/pdf-captures/${reportName}`,
+            },
           },
         },
-      }, null, 2)}\n`,
+        null,
+        2,
+      )}\n`,
     },
     { relativePath: `${reportName}.tsx`, contents: reportSource(reportName) },
     { relativePath: `${reportName}.css`, contents: starterStyles },
@@ -108,20 +115,24 @@ const planFiles = Effect.fn("init.planFiles")(function* (
   for (const { relativePath, contents } of scaffoldFiles(projectRoot, reportName)) {
     const path = pathService.resolve(projectRoot, relativePath);
     let state: InitFileState = "create";
-    const metadata = yield* Effect.promise(() => lstat(path).then(
-      (value) => ({ _tag: "Found" as const, value }),
-      (cause) => ({ _tag: "Failed" as const, cause }),
-    ));
+    const metadata = yield* Effect.promise(() =>
+      lstat(path).then(
+        (value) => ({ _tag: "Found" as const, value }),
+        (cause) => ({ _tag: "Failed" as const, cause }),
+      ),
+    );
     if (metadata._tag === "Found") {
-      state = metadata.value.isFile()
-        && !metadata.value.isSymbolicLink()
-        && (yield* fs.readFileString(path)) === contents
-        ? "unchanged"
-        : "conflict";
+      state =
+        metadata.value.isFile() &&
+        !metadata.value.isSymbolicLink() &&
+        (yield* fs.readFileString(path)) === contents
+          ? "unchanged"
+          : "conflict";
     } else {
-      const code = metadata.cause instanceof Error && "code" in metadata.cause
-        ? metadata.cause.code
-        : undefined;
+      const code =
+        metadata.cause instanceof Error && "code" in metadata.cause
+          ? metadata.cause.code
+          : undefined;
       if (code !== "ENOENT") return yield* commandFailure(metadata.cause, context);
     }
     planned.push({ path, relativePath, contents, state });
@@ -155,23 +166,23 @@ export const initializeProject = Effect.fn("init.initializeProject")(function* (
 
   const created: PlannedFile[] = [];
   for (const file of creates) {
-    const writeExit = yield* Effect.exit(fs.writeFileString(file.path, file.contents, { flag: "wx" }));
+    const writeExit = yield* Effect.exit(
+      fs.writeFileString(file.path, file.contents, { flag: "wx" }),
+    );
     if (Exit.isFailure(writeExit)) {
       const cause = Cause.squash(writeExit.cause);
       const message = `Cannot finish initialization${created.length === 0 ? "" : `; these safely created files remain: ${created.map((createdFile) => createdFile.relativePath).join(", ")}`}: ${errorMessage(cause)}`;
       if (writeExit.cause.reasons.some((reason) => reason._tag !== "Fail")) {
-        return yield* Effect.failCause(created.length === 0
-          ? writeExit.cause
-          : Cause.combine(
-            writeExit.cause,
-            Cause.fail(commandFailure(writeExit.cause, context, message)),
-          ));
+        return yield* Effect.failCause(
+          created.length === 0
+            ? writeExit.cause
+            : Cause.combine(
+                writeExit.cause,
+                Cause.fail(commandFailure(writeExit.cause, context, message)),
+              ),
+        );
       }
-      return yield* commandFailure(
-        writeExit.cause,
-        context,
-        message,
-      );
+      return yield* commandFailure(writeExit.cause, context, message);
     }
     file.state = "created";
     created.push(file);

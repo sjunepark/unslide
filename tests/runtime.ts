@@ -10,8 +10,10 @@ export function runUnslide<A, E>(
   effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path>,
   options: RunOptions = {},
 ): Promise<A> {
-  return Effect.runPromiseExit(effect.pipe(Effect.provide(applicationLayer)), options).then((exit) => {
-    if (Exit.isSuccess(exit)) return exit.value;
-    throw new Error(causeMessage(exit.cause), { cause: exit.cause });
-  });
+  return Effect.runPromiseExit(effect.pipe(Effect.provide(applicationLayer)), options).then(
+    (exit) => {
+      if (Exit.isSuccess(exit)) return exit.value;
+      throw new Error(causeMessage(exit.cause), { cause: exit.cause });
+    },
+  );
 }

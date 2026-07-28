@@ -34,21 +34,15 @@ export function withLogPhase<A, E, R>(
   return Effect.gen(function* () {
     if (!(yield* LoggingEnabled)) return yield* effect;
     yield* Effect.logInfo("phase.started");
-    return yield* effect.pipe(Effect.onExit((exit) =>
-      Exit.isSuccess(exit)
-        ? Effect.logInfo("phase.completed")
-        : Effect.logError("phase.failed"),
-    ));
-  }).pipe(
-    Effect.annotateLogs({ phase, ...annotations }),
-    Effect.withLogSpan(phase),
-  );
+    return yield* effect.pipe(
+      Effect.onExit((exit) =>
+        Exit.isSuccess(exit) ? Effect.logInfo("phase.completed") : Effect.logError("phase.failed"),
+      ),
+    );
+  }).pipe(Effect.annotateLogs({ phase, ...annotations }), Effect.withLogSpan(phase));
 }
 
-export function logDebug(
-  event: string,
-  annotations: LogAnnotations = {},
-): Effect.Effect<void> {
+export function logDebug(event: string, annotations: LogAnnotations = {}): Effect.Effect<void> {
   return Effect.gen(function* () {
     if (!(yield* LoggingEnabled)) return;
     yield* Effect.logDebug(event).pipe(Effect.annotateLogs(annotations));

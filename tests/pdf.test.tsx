@@ -33,23 +33,27 @@ async function temporaryDirectory(prefix: string): Promise<string> {
 }
 
 function artifactIssues(error: unknown): Array<{ code: string; resource?: string }> {
-  const cause = error instanceof Error
-    ? (error as Error & { cause?: { reasons?: unknown[] } }).cause
-    : undefined;
-  return cause?.reasons?.flatMap((reason) => {
-    if (
-      typeof reason !== "object"
-      || reason === null
-      || !("_tag" in reason)
-      || reason._tag !== "Fail"
-      || !("error" in reason)
-      || typeof reason.error !== "object"
-      || reason.error === null
-      || !("issues" in reason.error)
-      || !Array.isArray(reason.error.issues)
-    ) return [];
-    return reason.error.issues as Array<{ code: string; resource?: string }>;
-  }) ?? [];
+  const cause =
+    error instanceof Error
+      ? (error as Error & { cause?: { reasons?: unknown[] } }).cause
+      : undefined;
+  return (
+    cause?.reasons?.flatMap((reason) => {
+      if (
+        typeof reason !== "object" ||
+        reason === null ||
+        !("_tag" in reason) ||
+        reason._tag !== "Fail" ||
+        !("error" in reason) ||
+        typeof reason.error !== "object" ||
+        reason.error === null ||
+        !("issues" in reason.error) ||
+        !Array.isArray(reason.error.issues)
+      )
+        return [];
+      return reason.error.issues as Array<{ code: string; resource?: string }>;
+    }) ?? []
+  );
 }
 
 async function pdfRuntimePrototypes(bytes: Uint8Array) {
@@ -93,10 +97,13 @@ test("exports a readable text PDF with authored common geometry", async () => {
   const inputPath = resolve(directory, "report.html");
   const outputPath = resolve(directory, "report.pdf");
   try {
-    await writeFile(inputPath, artifact(
-      "@page{size:4in 3in;margin:0}*{box-sizing:border-box}body,h1,p{margin:0}main{width:4in;height:3in;background:#173b2c;color:white;break-after:page}main:last-child{break-after:auto}",
-      '<main data-unslide-page="one"><h1>Quarterly field note</h1><p>Searchable delivery text.</p></main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}*{box-sizing:border-box}body,h1,p{margin:0}main{width:4in;height:3in;background:#173b2c;color:white;break-after:page}main:last-child{break-after:auto}",
+        '<main data-unslide-page="one"><h1>Quarterly field note</h1><p>Searchable delivery text.</p></main>',
+      ),
+    );
 
     const result = await exportHtmlPdf(inputPath, outputPath);
     assert.equal(result.pages.length, 1);
@@ -106,23 +113,29 @@ test("exports a readable text PDF with authored common geometry", async () => {
     assert.equal((await readFile(outputPath)).subarray(0, 5).toString(), "%PDF-");
 
     for (const [size, expectedWidth, expectedHeight] of [
-      ["100mm 200mm", 100 * 72 / 25.4, 200 * 72 / 25.4],
-      ["A3", 297 * 72 / 25.4, 420 * 72 / 25.4],
+      ["100mm 200mm", (100 * 72) / 25.4, (200 * 72) / 25.4],
+      ["A3", (297 * 72) / 25.4, (420 * 72) / 25.4],
       ["ledger", 11 * 72, 17 * 72],
     ] as const) {
-      await writeFile(inputPath, artifact(
-        `@page{size:${size};margin:0}body{margin:0}`,
-        '<main data-unslide-page="one">Pinned Chromium geometry</main>',
-      ));
+      await writeFile(
+        inputPath,
+        artifact(
+          `@page{size:${size};margin:0}body{margin:0}`,
+          '<main data-unslide-page="one">Pinned Chromium geometry</main>',
+        ),
+      );
       const geometryResult = await exportHtmlPdf(inputPath, outputPath);
       assert.ok(Math.abs((geometryResult.pages[0]?.widthPoints ?? 0) - expectedWidth) <= 1);
       assert.ok(Math.abs((geometryResult.pages[0]?.heightPoints ?? 0) - expectedHeight) <= 1);
     }
 
-    await writeFile(inputPath, artifact(
-      "@layer print{@page{size:4in 3in;margin:0}}body{margin:0}",
-      '<main data-unslide-page="one">Layered page geometry</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@layer print{@page{size:4in 3in;margin:0}}body{margin:0}",
+        '<main data-unslide-page="one">Layered page geometry</main>',
+      ),
+    );
     const layeredResult = await exportHtmlPdf(inputPath, outputPath);
     assert.equal(layeredResult.pages[0]?.widthPoints, 288);
     assert.equal(layeredResult.pages[0]?.heightPoints, 216);
@@ -137,59 +150,94 @@ test("rejects implicit or ambiguous authored page geometry without replacing pri
   const outputPath = resolve(directory, "report.pdf");
   try {
     await writeFile(outputPath, "prior delivery");
-    await writeFile(inputPath, artifact("body{margin:0}", '<main data-unslide-page="one">Missing geometry</main>'));
-    await assert.rejects(exportHtmlPdf(inputPath, outputPath), /active, unqualified @page rule.*Letter fallback/);
+    await writeFile(
+      inputPath,
+      artifact("body{margin:0}", '<main data-unslide-page="one">Missing geometry</main>'),
+    );
+    await assert.rejects(
+      exportHtmlPdf(inputPath, outputPath),
+      /active, unqualified @page rule.*Letter fallback/,
+    );
     assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
 
-    const implicitSizes = ["auto", "inherit", "initial", "unset", "revert", "portrait", "landscape"];
+    const implicitSizes = [
+      "auto",
+      "inherit",
+      "initial",
+      "unset",
+      "revert",
+      "portrait",
+      "landscape",
+    ];
     for (const size of implicitSizes) {
-      await writeFile(inputPath, artifact(
-        `@page{size:${size}}body{margin:0}`,
-        '<main data-unslide-page="one">Implicit geometry</main>',
-      ));
+      await writeFile(
+        inputPath,
+        artifact(
+          `@page{size:${size}}body{margin:0}`,
+          '<main data-unslide-page="one">Implicit geometry</main>',
+        ),
+      );
       await assert.rejects(exportHtmlPdf(inputPath, outputPath), /non-concrete @page size/);
       assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
     }
 
-    await writeFile(inputPath, artifact(
-      "@supports (display: definitely-not-a-display-value){@page{size:4in 3in}}body{margin:0}",
-      '<main data-unslide-page="one">Inactive geometry</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@supports (display: definitely-not-a-display-value){@page{size:4in 3in}}body{margin:0}",
+        '<main data-unslide-page="one">Inactive geometry</main>',
+      ),
+    );
     await assert.rejects(exportHtmlPdf(inputPath, outputPath), /active, unqualified @page rule/);
 
-    await writeFile(inputPath, artifact(
-      "body{margin:0}",
-      '<style media="screen">@page{size:letter}</style><main data-unslide-page="one">Screen-only geometry</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "body{margin:0}",
+        '<style media="screen">@page{size:letter}</style><main data-unslide-page="one">Screen-only geometry</main>',
+      ),
+    );
     await assert.rejects(exportHtmlPdf(inputPath, outputPath), /active, unqualified @page rule/);
 
-    await writeFile(inputPath, artifact(
-      "@page{size:4in 3in;margin:0}body{margin:0}",
-      '<style media="screen">@page{size:letter}</style><main data-unslide-page="one">Print geometry wins</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}",
+        '<style media="screen">@page{size:letter}</style><main data-unslide-page="one">Print geometry wins</main>',
+      ),
+    );
     const activePrintGeometry = await exportHtmlPdf(inputPath, outputPath);
     assert.equal(activePrintGeometry.pages[0]?.widthPoints, 288);
     assert.equal(activePrintGeometry.pages[0]?.heightPoints, 216);
 
-    await writeFile(inputPath, artifact(
-      "@page{size:4in 3in;margin:0}body{margin:0}",
-      '<style>@page{size:letter}</style><script>document.currentScript.previousElementSibling.sheet.disabled = true</script><main data-unslide-page="one">Disabled geometry ignored</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}",
+        '<style>@page{size:letter}</style><script>document.currentScript.previousElementSibling.sheet.disabled = true</script><main data-unslide-page="one">Disabled geometry ignored</main>',
+      ),
+    );
     const disabledGeometry = await exportHtmlPdf(inputPath, outputPath);
     assert.equal(disabledGeometry.pages[0]?.widthPoints, 288);
     assert.equal(disabledGeometry.pages[0]?.heightPoints, 216);
     await writeFile(outputPath, "prior delivery");
 
-    await writeFile(inputPath, artifact(
-      "@page:first{size:4in 3in}body{margin:0}",
-      '<main data-unslide-page="one">Qualified geometry</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page:first{size:4in 3in}body{margin:0}",
+        '<main data-unslide-page="one">Qualified geometry</main>',
+      ),
+    );
     await assert.rejects(exportHtmlPdf(inputPath, outputPath), /active, unqualified @page rule/);
 
-    await writeFile(inputPath, artifact(
-      "@page{size:4in 3in}@page:first{size:5in 3in}body{margin:0}",
-      '<main data-unslide-page="one">Ambiguous geometry</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in}@page:first{size:5in 3in}body{margin:0}",
+        '<main data-unslide-page="one">Ambiguous geometry</main>',
+      ),
+    );
     await assert.rejects(exportHtmlPdf(inputPath, outputPath), /ambiguous @page sizes/);
     assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
   } finally {
@@ -203,12 +251,18 @@ test("rejects extra printed sheets before publishing a misleading PDF", async ()
   const outputPath = resolve(directory, "report.pdf");
   try {
     await writeFile(outputPath, "prior delivery");
-    await writeFile(inputPath, artifact(
-      "@page{size:4in 3in;margin:0}body{margin:0}main,aside{width:4in;height:3in}main{break-after:page}",
-      '<main data-unslide-page="one">Marked report page</main><aside>Unmarked extra sheet</aside>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}main,aside{width:4in;height:3in}main{break-after:page}",
+        '<main data-unslide-page="one">Marked report page</main><aside>Unmarked extra sheet</aside>',
+      ),
+    );
 
-    await assert.rejects(exportHtmlPdf(inputPath, outputPath), /PDF page count 2 does not match the 1 marked HTML pages/);
+    await assert.rejects(
+      exportHtmlPdf(inputPath, outputPath),
+      /PDF page count 2 does not match the 1 marked HTML pages/,
+    );
     assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -219,7 +273,10 @@ test("shares artifact readiness failures for missing images and fonts", async ()
   const directory = await temporaryDirectory("unslide pdf resources ");
   try {
     await assert.rejects(
-      exportHtmlPdf(resolve("tests/fixtures/protocol-broken-image.html"), resolve(directory, "image.pdf")),
+      exportHtmlPdf(
+        resolve("tests/fixtures/protocol-broken-image.html"),
+        resolve(directory, "image.pdf"),
+      ),
       (error: unknown) => {
         const imageIssue = artifactIssues(error).find((issue) => issue.code === "image-readiness");
         assert.match(imageIssue?.resource ?? "", /missing-image\.png$/);
@@ -227,7 +284,10 @@ test("shares artifact readiness failures for missing images and fonts", async ()
       },
     );
     await assert.rejects(
-      exportHtmlPdf(resolve("tests/fixtures/protocol-broken-font.html"), resolve(directory, "font.pdf")),
+      exportHtmlPdf(
+        resolve("tests/fixtures/protocol-broken-font.html"),
+        resolve(directory, "font.pdf"),
+      ),
       (error: unknown) => {
         const fontIssue = artifactIssues(error).find((issue) => issue.code === "font-readiness");
         assert.match(fontIssue?.resource ?? "", /Broken Fixture Font/);
@@ -239,66 +299,92 @@ test("shares artifact readiness failures for missing images and fonts", async ()
   }
 });
 
-test("waits boundedly for a print-only image and preserves it in PDF-native output", { timeout: 20_000 }, async () => {
-  const directory = await temporaryDirectory("unslide pdf print readiness ");
-  const inputPath = resolve(directory, "report.html");
-  const outputPath = resolve(directory, "report.pdf");
-  const image = '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="#ed1c24"/></svg>';
-  let responseDelayMs = 350;
-  const server = createServer((_request, response) => {
-    setTimeout(() => {
-      response.writeHead(200, { "Content-Type": "image/svg+xml" });
-      response.end(image);
-    }, responseDelayMs);
-  });
-  await new Promise<void>((resolveListen, rejectListen) => {
-    server.once("error", rejectListen);
-    server.listen(0, "127.0.0.1", resolveListen);
-  });
-  const { port } = server.address() as AddressInfo;
-
-  try {
-    const printArtifact = artifact(
-      "@page{size:4in 3in;margin:0}body{margin:0}img{display:block;width:1in;height:1in}",
-      `<main data-unslide-page="one"><picture><source media="print" srcset="http://127.0.0.1:${port}/print.svg"><img alt="Print-only red square" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'/%3E"></picture><p>Print resource readiness</p></main>`,
-    );
-    await writeFile(inputPath, printArtifact);
-
-    const startedAt = Date.now();
-    await exportHtmlPdf(inputPath, outputPath);
-    assert.ok(Date.now() - startedAt >= responseDelayMs - 50, "export returned before the print-only resource response");
-    assert.deepEqual(await firstPdfPagePixel(await readFile(outputPath), 48, 48), [237, 28, 36, 255]);
-
-    await writeFile(outputPath, "prior delivery");
-    responseDelayMs = 5_500;
-    await writeFile(inputPath, printArtifact.replace("/print.svg", "/print.svg?timeout"));
-    const timeoutStartedAt = Date.now();
-    await assert.rejects(exportHtmlPdf(inputPath, outputPath), (error: unknown) => {
-      assert.ok(artifactIssues(error).some((issue) => issue.code === "image-readiness" || issue.code === "resource-pending"));
-      return true;
+test(
+  "waits boundedly for a print-only image and preserves it in PDF-native output",
+  { timeout: 20_000 },
+  async () => {
+    const directory = await temporaryDirectory("unslide pdf print readiness ");
+    const inputPath = resolve(directory, "report.html");
+    const outputPath = resolve(directory, "report.pdf");
+    const image =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="#ed1c24"/></svg>';
+    let responseDelayMs = 350;
+    const server = createServer((_request, response) => {
+      setTimeout(() => {
+        response.writeHead(200, { "Content-Type": "image/svg+xml" });
+        response.end(image);
+      }, responseDelayMs);
     });
-    const timeoutElapsedMs = Date.now() - timeoutStartedAt;
-    assert.ok(timeoutElapsedMs >= 4_500 && timeoutElapsedMs < 7_500, `unexpected readiness bound: ${timeoutElapsedMs}ms`);
-    assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
-  } finally {
-    await new Promise<void>((resolveClose, rejectClose) => server.close((error) => error ? rejectClose(error) : resolveClose()));
-    await rm(directory, { recursive: true, force: true });
-  }
-});
+    await new Promise<void>((resolveListen, rejectListen) => {
+      server.once("error", rejectListen);
+      server.listen(0, "127.0.0.1", resolveListen);
+    });
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const printArtifact = artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}img{display:block;width:1in;height:1in}",
+        `<main data-unslide-page="one"><picture><source media="print" srcset="http://127.0.0.1:${port}/print.svg"><img alt="Print-only red square" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'/%3E"></picture><p>Print resource readiness</p></main>`,
+      );
+      await writeFile(inputPath, printArtifact);
+
+      const startedAt = Date.now();
+      await exportHtmlPdf(inputPath, outputPath);
+      assert.ok(
+        Date.now() - startedAt >= responseDelayMs - 50,
+        "export returned before the print-only resource response",
+      );
+      assert.deepEqual(
+        await firstPdfPagePixel(await readFile(outputPath), 48, 48),
+        [237, 28, 36, 255],
+      );
+
+      await writeFile(outputPath, "prior delivery");
+      responseDelayMs = 5_500;
+      await writeFile(inputPath, printArtifact.replace("/print.svg", "/print.svg?timeout"));
+      const timeoutStartedAt = Date.now();
+      await assert.rejects(exportHtmlPdf(inputPath, outputPath), (error: unknown) => {
+        assert.ok(
+          artifactIssues(error).some(
+            (issue) => issue.code === "image-readiness" || issue.code === "resource-pending",
+          ),
+        );
+        return true;
+      });
+      const timeoutElapsedMs = Date.now() - timeoutStartedAt;
+      assert.ok(
+        timeoutElapsedMs >= 4_500 && timeoutElapsedMs < 7_500,
+        `unexpected readiness bound: ${timeoutElapsedMs}ms`,
+      );
+      assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close((error) => (error ? rejectClose(error) : resolveClose())),
+      );
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
 
 test("reports an invalid PDF output target and removes staging files", async () => {
   const directory = await temporaryDirectory("unslide pdf output ");
   const inputPath = resolve(directory, "report.html");
   const invalidOutput = resolve(directory, "report.pdf");
   try {
-    await writeFile(inputPath, artifact(
-      "@page{size:4in 3in;margin:0}body{margin:0}",
-      '<main data-unslide-page="one">Invalid output target</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}",
+        '<main data-unslide-page="one">Invalid output target</main>',
+      ),
+    );
     await mkdir(invalidOutput);
     await assert.rejects(exportHtmlPdf(inputPath, invalidOutput), /EISDIR|ENOTEMPTY|directory/i);
     await access(invalidOutput);
-    assert.equal((await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")), false);
+    assert.equal(
+      (await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")),
+      false,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -309,13 +395,18 @@ test("PDF validation releases loading tasks and pages while retaining cleanup fa
   const inputPath = resolve(directory, "report.html");
   const outputPath = resolve(directory, "report.pdf");
   try {
-    await writeFile(inputPath, artifact(
-      "@page{size:4in 3in;margin:0}body{margin:0}",
-      '<main data-unslide-page="one">Scoped PDF validation</main>',
-    ));
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}",
+        '<main data-unslide-page="one">Scoped PDF validation</main>',
+      ),
+    );
     await exportHtmlPdf(inputPath, outputPath);
     const prototypes = await pdfRuntimePrototypes(await readFile(outputPath));
-    const documentPrototype = prototypes.document as { getPage: (index: number) => Promise<unknown> };
+    const documentPrototype = prototypes.document as {
+      getPage: (index: number) => Promise<unknown>;
+    };
     const loadingTaskPrototype = prototypes.loadingTask as { destroy: () => Promise<void> };
     const pagePrototype = prototypes.page as { cleanup: () => boolean };
     const originalGetPage = documentPrototype.getPage;
@@ -324,11 +415,11 @@ test("PDF validation releases loading tasks and pages while retaining cleanup fa
     let destroyCalls = 0;
     let cleanupCalls = 0;
     try {
-      loadingTaskPrototype.destroy = async function() {
+      loadingTaskPrototype.destroy = async function () {
         destroyCalls += 1;
         await originalDestroy.call(this);
       };
-      pagePrototype.cleanup = function() {
+      pagePrototype.cleanup = function () {
         cleanupCalls += 1;
         return originalCleanup.call(this);
       };
@@ -339,7 +430,7 @@ test("PDF validation releases loading tasks and pages while retaining cleanup fa
       const pageLoadStarted = new Promise<void>((resolveStarted) => {
         startPageLoad = resolveStarted;
       });
-      documentPrototype.getPage = async function() {
+      documentPrototype.getPage = async function () {
         startPageLoad?.();
         return new Promise<never>(() => {});
       };
@@ -353,11 +444,14 @@ test("PDF validation releases loading tasks and pages while retaining cleanup fa
       assert.equal((await readFile(outputPath)).subarray(0, 5).toString(), "%PDF-");
       documentPrototype.getPage = originalGetPage;
 
-      await writeFile(inputPath, artifact(
-        "@page{size:4in 3in;margin:0}body{margin:0}main,aside{width:4in;height:3in}main{break-after:page}",
-        '<main data-unslide-page="one">Primary PDF validation failure</main><aside>Extra sheet</aside>',
-      ));
-      loadingTaskPrototype.destroy = async function() {
+      await writeFile(
+        inputPath,
+        artifact(
+          "@page{size:4in 3in;margin:0}body{margin:0}main,aside{width:4in;height:3in}main{break-after:page}",
+          '<main data-unslide-page="one">Primary PDF validation failure</main><aside>Extra sheet</aside>',
+        ),
+      );
+      loadingTaskPrototype.destroy = async function () {
         await originalDestroy.call(this);
         throw new Error("fixture PDF loading-task cleanup failed");
       };

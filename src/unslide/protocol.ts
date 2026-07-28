@@ -58,11 +58,14 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
 
   // This selector and the supported version are browser copies of
   // PROTOCOL_META_NAME and UNSLIDE_PROTOCOL_VERSION; update both locations.
-  const protocolMetadata = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="unslide-protocol"]'));
+  const protocolMetadata = Array.from(
+    document.querySelectorAll<HTMLMetaElement>('meta[name="unslide-protocol"]'),
+  );
   if (protocolMetadata.length > 1) {
     issues.push({
       code: "protocol-version",
-      message: "Artifact declares the Unslide protocol version more than once; keep exactly one version metadata element.",
+      message:
+        "Artifact declares the Unslide protocol version more than once; keep exactly one version metadata element.",
       source: "protocol",
     });
   } else if (protocolMetadata.length === 1) {
@@ -78,8 +81,12 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
 
   if (document.readyState !== "complete") {
     const documentReadiness = await Promise.race([
-      new Promise<"loaded">((resolve) => window.addEventListener("load", () => resolve("loaded"), { once: true })),
-      new Promise<"timeout">((resolve) => window.setTimeout(() => resolve("timeout"), resourceTimeoutMs)),
+      new Promise<"loaded">((resolve) =>
+        window.addEventListener("load", () => resolve("loaded"), { once: true }),
+      ),
+      new Promise<"timeout">((resolve) =>
+        window.setTimeout(() => resolve("timeout"), resourceTimeoutMs),
+      ),
     ]);
     if (documentReadiness === "timeout") {
       issues.push({
@@ -97,7 +104,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
   if (pageElements.length === 0) {
     issues.push({
       code: "missing-pages",
-      message: `No report pages found. Expected at least one element with ${markerAttribute}=\"<id>\".`,
+      message: `No report pages found. Expected at least one element with ${markerAttribute}="<id>".`,
       source: "protocol",
     });
   }
@@ -124,7 +131,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
     if (positions.length > 1) {
       issues.push({
         code: "duplicate-page-id",
-        message: `Page ID \"${id}\" is duplicated at positions ${positions.join(", ")}.`,
+        message: `Page ID "${id}" is duplicated at positions ${positions.join(", ")}.`,
         pageId: id,
         source: "protocol",
       });
@@ -135,10 +142,11 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
     const fontReadiness = await fontReadinessPromise;
 
     if (fontReadiness === "timeout") {
-      const resource = Array.from(document.fonts)
-        .filter((font) => font.status === "loading")
-        .map((font) => `${font.family} (${font.style} ${font.weight})`)
-        .join(", ") || undefined;
+      const resource =
+        Array.from(document.fonts)
+          .filter((font) => font.status === "loading")
+          .map((font) => `${font.family} (${font.style} ${font.weight})`)
+          .join(", ") || undefined;
       issues.push({
         code: "font-readiness",
         message: `Fonts did not finish loading within ${resourceTimeoutMs}ms.`,
@@ -186,9 +194,10 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
         if (loadState !== "loaded") {
           return {
             code: "image-readiness",
-            message: loadState === "timeout"
-              ? `Image did not finish loading within ${resourceTimeoutMs}ms${pageId ? ` on page \"${pageId}\"` : ""}.`
-              : `Image failed to load${pageId ? ` on page \"${pageId}\"` : ""}.`,
+            message:
+              loadState === "timeout"
+                ? `Image did not finish loading within ${resourceTimeoutMs}ms${pageId ? ` on page "${pageId}"` : ""}.`
+                : `Image failed to load${pageId ? ` on page "${pageId}"` : ""}.`,
             pageId,
             resource,
             source: "protocol",
@@ -199,7 +208,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
       if (image.naturalWidth === 0) {
         return {
           code: "image-readiness",
-          message: `Image has no decodable content${pageId ? ` on page \"${pageId}\"` : ""}.`,
+          message: `Image has no decodable content${pageId ? ` on page "${pageId}"` : ""}.`,
           pageId,
           resource,
           source: "protocol",
@@ -217,7 +226,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
         if (decodeState === "timeout") {
           return {
             code: "image-readiness",
-            message: `Image did not decode within ${resourceTimeoutMs}ms${pageId ? ` on page \"${pageId}\"` : ""}.`,
+            message: `Image did not decode within ${resourceTimeoutMs}ms${pageId ? ` on page "${pageId}"` : ""}.`,
             pageId,
             resource,
             source: "protocol",
@@ -226,7 +235,7 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
       } catch {
         return {
           code: "image-readiness",
-          message: `Image failed to decode${pageId ? ` on page \"${pageId}\"` : ""}.`,
+          message: `Image failed to decode${pageId ? ` on page "${pageId}"` : ""}.`,
           pageId,
           resource,
           source: "protocol",
@@ -237,7 +246,9 @@ export async function validateArtifact(): Promise<ArtifactValidationResult> {
     }),
   );
 
-  issues.push(...imageIssues.filter((issue): issue is ArtifactValidationIssue => issue !== undefined));
+  issues.push(
+    ...imageIssues.filter((issue): issue is ArtifactValidationIssue => issue !== undefined),
+  );
 
   return issues.length === 0 ? { ok: true, pages } : { ok: false, pages, issues };
 }

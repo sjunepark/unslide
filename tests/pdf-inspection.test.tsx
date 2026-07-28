@@ -77,10 +77,13 @@ test("rasterizes only the existing PDF into deterministic ordered PNG pages", as
 
     const first = await inspectPdfPages(inputPdf, outputDirectory);
     assert.equal(first.pages.length, 2);
-    assert.deepEqual(first.pages.map(({ index, width, height }) => ({ index, width, height })), [
-      { index: 1, width: 384, height: 288 },
-      { index: 2, width: 384, height: 288 },
-    ]);
+    assert.deepEqual(
+      first.pages.map(({ index, width, height }) => ({ index, width, height })),
+      [
+        { index: 1, width: 384, height: 288 },
+        { index: 2, width: 384, height: 288 },
+      ],
+    );
     const firstBytes = await Promise.all(first.pages.map((page) => readFile(page.outputPath)));
     for (const bytes of firstBytes) {
       assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
@@ -93,7 +96,11 @@ test("rasterizes only the existing PDF into deterministic ordered PNG pages", as
     const second = await inspectPdfPages(inputPdf, outputDirectory);
     const secondBytes = await Promise.all(second.pages.map((page) => readFile(page.outputPath)));
     assert.deepEqual(secondBytes.map(sha256), firstBytes.map(sha256));
-    assert.deepEqual((await readdir(outputDirectory)).sort(), ["page-01.png", "page-02.png", "review-notes.txt"]);
+    assert.deepEqual((await readdir(outputDirectory)).sort(), [
+      "page-01.png",
+      "page-02.png",
+      "review-notes.txt",
+    ]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -108,9 +115,18 @@ test("reports corrupt PDFs without replacing prior inspection images", async () 
     await mkdir(outputDirectory);
     await writeFile(resolve(outputDirectory, "page-01.png"), "prior inspection");
 
-    await assert.rejects(inspectPdfPages(inputPdf, outputDirectory), /Cannot rasterize PDF.*Invalid PDF structure/);
-    assert.equal(await readFile(resolve(outputDirectory, "page-01.png"), "utf8"), "prior inspection");
-    assert.equal((await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")), false);
+    await assert.rejects(
+      inspectPdfPages(inputPdf, outputDirectory),
+      /Cannot rasterize PDF.*Invalid PDF structure/,
+    );
+    assert.equal(
+      await readFile(resolve(outputDirectory, "page-01.png"), "utf8"),
+      "prior inspection",
+    );
+    assert.equal(
+      (await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")),
+      false,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -128,7 +144,10 @@ test("interrupting PDF rendering cancels and releases every owned resource", asy
 
   const prototypes = await pdfRuntimePrototypes(await readFile(inputPdf));
   const loadingTaskPrototype = prototypes.loadingTask as { destroy: () => Promise<void> };
-  const pagePrototype = prototypes.page as { cleanup: () => boolean; render: (...args: unknown[]) => unknown };
+  const pagePrototype = prototypes.page as {
+    cleanup: () => boolean;
+    render: (...args: unknown[]) => unknown;
+  };
   const originalDestroy = loadingTaskPrototype.destroy;
   const originalCleanup = pagePrototype.cleanup;
   const originalRender = pagePrototype.render;
@@ -147,15 +166,15 @@ test("interrupting PDF rendering cancels and releases every owned resource", asy
   });
   const controller = new AbortController();
   try {
-    loadingTaskPrototype.destroy = async function() {
+    loadingTaskPrototype.destroy = async function () {
       destroyCalls += 1;
       await originalDestroy.call(this);
     };
-    pagePrototype.cleanup = function() {
+    pagePrototype.cleanup = function () {
       cleanupCalls += 1;
       return originalCleanup.call(this);
     };
-    pagePrototype.render = function() {
+    pagePrototype.render = function () {
       startRender?.();
       return {
         cancel() {
@@ -183,15 +202,24 @@ test("interrupting PDF rendering cancels and releases every owned resource", asy
     await renderStarted;
     controller.abort();
     await assert.rejects(pending, /Operation interrupted/);
-    assert.deepEqual({ cancelCalls, cleanupCalls, destroyCalls, zeroHeight, zeroWidth }, {
-      cancelCalls: 1,
-      cleanupCalls: 1,
-      destroyCalls: 1,
-      zeroHeight: 1,
-      zeroWidth: 1,
-    });
-    assert.equal(await readFile(resolve(outputDirectory, "page-01.png"), "utf8"), "prior inspection");
-    assert.equal((await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")), false);
+    assert.deepEqual(
+      { cancelCalls, cleanupCalls, destroyCalls, zeroHeight, zeroWidth },
+      {
+        cancelCalls: 1,
+        cleanupCalls: 1,
+        destroyCalls: 1,
+        zeroHeight: 1,
+        zeroWidth: 1,
+      },
+    );
+    assert.equal(
+      await readFile(resolve(outputDirectory, "page-01.png"), "utf8"),
+      "prior inspection",
+    );
+    assert.equal(
+      (await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")),
+      false,
+    );
   } finally {
     loadingTaskPrototype.destroy = originalDestroy;
     pagePrototype.cleanup = originalCleanup;
@@ -224,11 +252,11 @@ test("interrupting PDF page acquisition destroys its loading task exactly once",
   });
   const controller = new AbortController();
   try {
-    documentPrototype.getPage = async function() {
+    documentPrototype.getPage = async function () {
       startPageLoad?.();
       return new Promise<never>(() => {});
     };
-    loadingTaskPrototype.destroy = async function() {
+    loadingTaskPrototype.destroy = async function () {
       destroyCalls += 1;
       await originalDestroy.call(this);
     };
@@ -238,8 +266,14 @@ test("interrupting PDF page acquisition destroys its loading task exactly once",
     controller.abort();
     await assert.rejects(pending, /Operation interrupted/);
     assert.equal(destroyCalls, 1);
-    assert.equal(await readFile(resolve(outputDirectory, "page-01.png"), "utf8"), "prior inspection");
-    assert.equal((await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")), false);
+    assert.equal(
+      await readFile(resolve(outputDirectory, "page-01.png"), "utf8"),
+      "prior inspection",
+    );
+    assert.equal(
+      (await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")),
+      false,
+    );
   } finally {
     documentPrototype.getPage = originalGetPage;
     loadingTaskPrototype.destroy = originalDestroy;
@@ -258,15 +292,18 @@ test("PDF inspection retains render and cleanup failures without replacing prior
   await writeFile(resolve(outputDirectory, "page-01.png"), "prior inspection");
 
   const prototypes = await pdfRuntimePrototypes(await readFile(inputPdf));
-  const pagePrototype = prototypes.page as { cleanup: () => boolean; render: (...args: unknown[]) => unknown };
+  const pagePrototype = prototypes.page as {
+    cleanup: () => boolean;
+    render: (...args: unknown[]) => unknown;
+  };
   const originalCleanup = pagePrototype.cleanup;
   const originalRender = pagePrototype.render;
   try {
-    pagePrototype.cleanup = function() {
+    pagePrototype.cleanup = function () {
       originalCleanup.call(this);
       throw new Error("fixture PDF page cleanup failed");
     };
-    pagePrototype.render = function() {
+    pagePrototype.render = function () {
       return {
         cancel() {},
         promise: Promise.reject(new Error("fixture PDF render failed")),
@@ -277,8 +314,14 @@ test("PDF inspection retains render and cleanup failures without replacing prior
       inspectPdfPages(inputPdf, outputDirectory),
       /fixture PDF render failed[\s\S]*Cleanup failed: fixture PDF page cleanup failed/,
     );
-    assert.equal(await readFile(resolve(outputDirectory, "page-01.png"), "utf8"), "prior inspection");
-    assert.equal((await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")), false);
+    assert.equal(
+      await readFile(resolve(outputDirectory, "page-01.png"), "utf8"),
+      "prior inspection",
+    );
+    assert.equal(
+      (await readdir(outputDirectory)).some((name) => name.startsWith(".unslide-page-images-")),
+      false,
+    );
   } finally {
     pagePrototype.cleanup = originalCleanup;
     pagePrototype.render = originalRender;

@@ -4,7 +4,8 @@ Status: deferred research. React remains the supported authoring module.
 
 This note preserves the alternatives and evaluation criteria for a future
 decision. It does not change current scope, the public interface, or the
-evidence gate in [PLAN.md](../../PLAN.md).
+evidence gate in the
+[product scope](../../PRODUCT.md#deferred-capability-gates).
 
 ## Question
 
@@ -39,17 +40,17 @@ React. This separation is accepted in
 Any replacement should be compared with the tasks authors perform, not only
 with dependency count or renderer implementation size.
 
-| Experience | Current React/TSX | Plain HTML string |
-|---|---|---|
-| Initial syntax | JSX in a `.tsx` module | Template literals in a `.ts` module |
-| Reusable structure | Typed function components | Functions returning strings |
-| Lists and conditions | Native expressions and arrays | Interpolation, branching, and explicit joining |
-| Dynamic-value safety | Escaped by default | Requires disciplined escaping |
-| Refactoring | Typed props and child values | Mostly string-level checking |
-| Invalid markup feedback | Type and renderer diagnostics | Often deferred to parsing or browser validation |
-| Framework knowledge | Basic React and JSX conventions | HTML and string-template conventions |
-| Delivered HTML/PDF | Standalone and static | Can be identical |
-| CLI workflow | Existing commands | Can remain identical after build |
+| Experience              | Current React/TSX               | Plain HTML string                               |
+| ----------------------- | ------------------------------- | ----------------------------------------------- |
+| Initial syntax          | JSX in a `.tsx` module          | Template literals in a `.ts` module             |
+| Reusable structure      | Typed function components       | Functions returning strings                     |
+| Lists and conditions    | Native expressions and arrays   | Interpolation, branching, and explicit joining  |
+| Dynamic-value safety    | Escaped by default              | Requires disciplined escaping                   |
+| Refactoring             | Typed props and child values    | Mostly string-level checking                    |
+| Invalid markup feedback | Type and renderer diagnostics   | Often deferred to parsing or browser validation |
+| Framework knowledge     | Basic React and JSX conventions | HTML and string-template conventions            |
+| Delivered HTML/PDF      | Standalone and static           | Can be identical                                |
+| CLI workflow            | Existing commands               | Can remain identical after build                |
 
 Plain strings lower the onboarding requirement for a simple report but become
 less ergonomic and less safe as reports add repeated pages, conditional
@@ -171,8 +172,10 @@ Revisit only when at least one of these produces concrete evidence:
 - A dependency-free prototype preserves the authoring quality of a substantial
   report.
 
-The current [PLAN.md](../../PLAN.md) gate for additional source adapters still
-applies. A future implementation requires an explicit scope decision.
+The current
+[product-scope gate](../../PRODUCT.md#deferred-capability-gates) for additional
+source adapters still applies. A future implementation requires an explicit
+scope decision.
 
 ## Prototype Evaluation
 
@@ -193,4 +196,5 @@ writer and candidate while performing the same work:
 
 If the evidence supports a change, record the accepted interface and migration
 policy in a new decision record, then update `PRODUCT.md`, `docs/DESIGN.md`,
-`ARCHITECTURE.md`, `PLAN.md`, and the support contract as applicable.
+`ARCHITECTURE.md`, `ROADMAP.md`, the affected plan, and the support contract as
+applicable.

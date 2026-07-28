@@ -8,9 +8,7 @@ import { chromium } from "playwright";
 import { captureHtmlPages as captureHtmlPagesEffect } from "../src/unslide/capture.js";
 import { validateArtifact } from "../src/unslide/protocol.js";
 import { inlineAsset, readTextAsset } from "../src/unslide/assets.js";
-import {
-  writeReportHtml as writeReportHtmlEffect,
-} from "../src/unslide/render.js";
+import { writeReportHtml as writeReportHtmlEffect } from "../src/unslide/render.js";
 import { runUnslide } from "./runtime.js";
 
 const captureHtmlPages = (input: string, output: string) =>
@@ -30,8 +28,12 @@ function TestDocument({ styles = "" }: { styles?: string }) {
       </head>
       <body data-owner="fixture">
         <main className="anything">
-          <article data-unslide-page="alpha"><p>First page</p></article>
-          <figure data-unslide-page="beta"><figcaption>Second page</figcaption></figure>
+          <article data-unslide-page="alpha">
+            <p>First page</p>
+          </article>
+          <figure data-unslide-page="beta">
+            <figcaption>Second page</figcaption>
+          </figure>
         </main>
       </body>
     </html>
@@ -41,11 +43,15 @@ function TestDocument({ styles = "" }: { styles?: string }) {
 async function createTestReport(directory: string) {
   const outputPath = resolve(directory, "report.html");
   await writeReportHtml({
-    document: <TestDocument styles={`
+    document: (
+      <TestDocument
+        styles={`
       body { margin: 0; }
       .anything { display: grid; gap: 20px; }
       [data-unslide-page] { width: 480px; height: 300px; background: white; }
-    `} />,
+    `}
+      />
+    ),
     outputPath,
   });
   return outputPath;
@@ -75,7 +81,10 @@ test("requires a complete HTML document", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "unslide-document-"));
   try {
     await assert.rejects(
-      writeReportHtml({ document: <main>Fragment</main>, outputPath: resolve(directory, "report.html") }),
+      writeReportHtml({
+        document: <main>Fragment</main>,
+        outputPath: resolve(directory, "report.html"),
+      }),
       /complete <html>/,
     );
   } finally {
@@ -91,9 +100,20 @@ test("inlines report-owned raster, SVG, and font assets and reads CSS", async ()
     const svgPath = resolve(directory, "mark.svg");
     const fontPath = resolve(directory, "report.woff2");
     await writeFile(cssPath, ".mark { width: 20px; }");
-    await writeFile(pngPath, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==", "base64"));
-    await writeFile(svgPath, '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4" cx="4" cy="4"/></svg>');
-    const fontFixture = await readTextAsset(resolve("tests/fixtures/assets/codicon-subset.woff2.b64"));
+    await writeFile(
+      pngPath,
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+        "base64",
+      ),
+    );
+    await writeFile(
+      svgPath,
+      '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4" cx="4" cy="4"/></svg>',
+    );
+    const fontFixture = await readTextAsset(
+      resolve("tests/fixtures/assets/codicon-subset.woff2.b64"),
+    );
     await writeFile(fontPath, Buffer.from(fontFixture.trim(), "base64"));
 
     const [css, png, svg, font] = await Promise.all([
@@ -106,8 +126,19 @@ test("inlines report-owned raster, SVG, and font assets and reads CSS", async ()
     await writeReportHtml({
       document: (
         <html lang="en">
-          <head><style>{`@font-face { font-family: Fixture; src: url(${font}); } ${css}`}</style></head>
-          <body><img src={png} alt="" /><img className="mark" src={svg} alt="" /><svg aria-label="inline vector"><rect width="5" height="5" /></svg><main data-unslide-page="one" style={{ fontFamily: "Fixture" }}>{"\uEA60"}</main></body>
+          <head>
+            <style>{`@font-face { font-family: Fixture; src: url(${font}); } ${css}`}</style>
+          </head>
+          <body>
+            <img src={png} alt="" />
+            <img className="mark" src={svg} alt="" />
+            <svg aria-label="inline vector">
+              <rect width="5" height="5" />
+            </svg>
+            <main data-unslide-page="one" style={{ fontFamily: "Fixture" }}>
+              {"\uEA60"}
+            </main>
+          </body>
         </html>
       ),
       outputPath,
@@ -121,7 +152,14 @@ test("inlines report-owned raster, SVG, and font assets and reads CSS", async ()
     assert.match(html, /\.mark \{ width: 20px; \}/);
 
     await writeReportHtml({
-      document: <html><body><img src={png} srcSet={`${png} 1x, ${png} 2x`} alt="" /><main data-unslide-page="one" /></body></html>,
+      document: (
+        <html>
+          <body>
+            <img src={png} srcSet={`${png} 1x, ${png} 2x`} alt="" />
+            <main data-unslide-page="one" />
+          </body>
+        </html>
+      ),
       outputPath: resolve(directory, "srcset.html"),
     });
 
@@ -146,14 +184,34 @@ test("rejects unresolved local and network resource dependencies", async () => {
   try {
     await assert.rejects(
       writeReportHtml({
-        document: <html><head><link rel="stylesheet" href="styles.css" /></head><body><img src="https://example.invalid/image.png" /><svg><image href="local.svg" /></svg><track src="captions.vtt" /><main data-unslide-page="one" /></body></html>,
+        document: (
+          <html>
+            <head>
+              <link rel="stylesheet" href="styles.css" />
+            </head>
+            <body>
+              <img src="https://example.invalid/image.png" />
+              <svg>
+                <image href="local.svg" />
+              </svg>
+              <track src="captions.vtt" />
+              <main data-unslide-page="one" />
+            </body>
+          </html>
+        ),
         outputPath: resolve(directory, "report.html"),
       }),
       /https:\/\/example\.invalid\/image\.png[\s\S]*captions\.vtt[\s\S]*local\.svg[\s\S]*styles\.css/,
     );
     await assert.rejects(inlineAsset(resolve(directory, "missing.png")), /Cannot read local asset/);
-    await assert.rejects(readTextAsset(resolve(directory, "missing.css")), /Cannot read local text asset/);
-    await assert.rejects(inlineAsset(resolve(directory, "asset.txt")), /unsupported local asset type/);
+    await assert.rejects(
+      readTextAsset(resolve(directory, "missing.css")),
+      /Cannot read local text asset/,
+    );
+    await assert.rejects(
+      inlineAsset(resolve(directory, "asset.txt")),
+      /unsupported local asset type/,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -176,15 +234,57 @@ test("checks dependencies only in resource-bearing HTML and CSS contexts", async
     });
 
     await writeReportHtml({
-      document: <html><head><style>{'.hero { background: image-set("data:image/png;base64,AA==" type("image/png") 1x); }'}</style></head><body><main data-unslide-page="one" /></body></html>,
+      document: (
+        <html>
+          <head>
+            <style>
+              {
+                '.hero { background: image-set("data:image/png;base64,AA==" type("image/png") 1x); }'
+              }
+            </style>
+          </head>
+          <body>
+            <main data-unslide-page="one" />
+          </body>
+        </html>
+      ),
       outputPath: resolve(directory, "inline-image-set.html"),
     });
 
     for (const document of [
-      <html><head><style>{'.hero { background: url("hero.png"); }'}</style></head><body><main data-unslide-page="one" /></body></html>,
-      <html><body><main data-unslide-page="one" style={{ backgroundImage: 'url("hero.png")' }} /></body></html>,
-      <html><head><style>{'.hero { background: image-set("hero.png" 1x, "hero@2x.png" 2x); }'}</style></head><body><main data-unslide-page="one" /></body></html>,
-      <html><head><style>{'.hero { background: image-set("data:image/png;base64,AA==" 1x, "hero@2x.png" type("image/png") 2x); }'}</style></head><body><main data-unslide-page="one" /></body></html>,
+      <html key="url">
+        <head>
+          <style>{'.hero { background: url("hero.png"); }'}</style>
+        </head>
+        <body>
+          <main data-unslide-page="one" />
+        </body>
+      </html>,
+      <html key="style">
+        <body>
+          <main data-unslide-page="one" style={{ backgroundImage: 'url("hero.png")' }} />
+        </body>
+      </html>,
+      <html key="image-set">
+        <head>
+          <style>{'.hero { background: image-set("hero.png" 1x, "hero@2x.png" 2x); }'}</style>
+        </head>
+        <body>
+          <main data-unslide-page="one" />
+        </body>
+      </html>,
+      <html key="image-set-data">
+        <head>
+          <style>
+            {
+              '.hero { background: image-set("data:image/png;base64,AA==" 1x, "hero@2x.png" type("image/png") 2x); }'
+            }
+          </style>
+        </head>
+        <body>
+          <main data-unslide-page="one" />
+        </body>
+      </html>,
     ]) {
       await assert.rejects(
         writeReportHtml({ document, outputPath: resolve(directory, "invalid.html") }),
@@ -207,10 +307,11 @@ test("captures one PNG per page without deleting unrelated output", async () => 
     await writeFile(resolve(outputDirectory, "page-99.png"), "stale capture");
     await captureHtmlPages(inputPath, outputDirectory);
 
-    assert.deepEqual(
-      (await readdir(outputDirectory)).sort(),
-      ["keep.txt", "page-01.png", "page-02.png"],
-    );
+    assert.deepEqual((await readdir(outputDirectory)).sort(), [
+      "keep.txt",
+      "page-01.png",
+      "page-02.png",
+    ]);
 
     for (const fileName of ["page-01.png", "page-02.png"]) {
       const png = await readFile(resolve(outputDirectory, fileName));

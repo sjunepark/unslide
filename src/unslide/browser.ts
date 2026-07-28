@@ -7,11 +7,7 @@ import { Cause, Data, Effect } from "effect";
 import { errorMessage } from "./failures.js";
 import { scoped, type ResourceCleanupFailure } from "./lifecycle.js";
 import { logDebug, withLogPhase } from "./logging.js";
-import {
-  validateArtifact,
-  type ArtifactDiagnostic,
-  type ArtifactPage,
-} from "./protocol.js";
+import { validateArtifact, type ArtifactDiagnostic, type ArtifactPage } from "./protocol.js";
 
 interface ArtifactBrowserSession {
   page: Page;
@@ -24,10 +20,21 @@ const RESOURCE_TIMEOUT_MS = 5_000;
 
 export class BrowserFailure extends Data.TaggedError("BrowserFailure")<{
   readonly cause?: unknown;
-  readonly cliCode?: "artifact-invalid" | "artifact-not-found" | "browser-not-installed" | "command-failed";
+  readonly cliCode?:
+    | "artifact-invalid"
+    | "artifact-not-found"
+    | "browser-not-installed"
+    | "command-failed";
   readonly issues?: readonly ArtifactDiagnostic[];
   readonly message: string;
-  readonly phase: "access" | "launch" | "context" | "page" | "navigation" | "readiness" | "operation";
+  readonly phase:
+    | "access"
+    | "launch"
+    | "context"
+    | "page"
+    | "navigation"
+    | "readiness"
+    | "operation";
 }> {}
 
 export class ArtifactOperationFailure extends Data.TaggedError("ArtifactOperationFailure")<{
@@ -63,65 +70,75 @@ export function withLoadedArtifact<T>(
   const inputPath = resolve(input);
   const checkAccess = Effect.tryPromise({
     try: () => access(inputPath),
-    catch: (cause) => new BrowserFailure({
-      cause,
-      cliCode: cause instanceof Error && "code" in cause && cause.code === "ENOENT"
-        ? "artifact-not-found"
-        : "command-failed",
-      message: `Cannot read HTML artifact ${inputPath}: ${errorMessage(cause)}`,
-      phase: "access",
-    }),
+    catch: (cause) =>
+      new BrowserFailure({
+        cause,
+        cliCode:
+          cause instanceof Error && "code" in cause && cause.code === "ENOENT"
+            ? "artifact-not-found"
+            : "command-failed",
+        message: `Cannot read HTML artifact ${inputPath}: ${errorMessage(cause)}`,
+        phase: "access",
+      }),
   });
 
   const checkBrowserExecutable = Effect.tryPromise({
     try: () => access(chromium.executablePath()),
-    catch: (cause) => new BrowserFailure({
-      cause,
-      cliCode: cause instanceof Error && "code" in cause && cause.code === "ENOENT"
-        ? "browser-not-installed"
-        : "command-failed",
-      message: "Cannot access the canonical Chromium executable.",
-      phase: "launch",
-    }),
+    catch: (cause) =>
+      new BrowserFailure({
+        cause,
+        cliCode:
+          cause instanceof Error && "code" in cause && cause.code === "ENOENT"
+            ? "browser-not-installed"
+            : "command-failed",
+        message: "Cannot access the canonical Chromium executable.",
+        phase: "launch",
+      }),
   });
 
   const acquireBrowser = Effect.acquireRelease(
     Effect.tryPromise({
       try: () => chromium.launch(),
-      catch: (cause) => new BrowserFailure({
-        cause,
-        cliCode: "command-failed",
-        message: "Cannot launch the canonical Chromium browser.",
-        phase: "launch",
-      }),
+      catch: (cause) =>
+        new BrowserFailure({
+          cause,
+          cliCode: "command-failed",
+          message: "Cannot launch the canonical Chromium browser.",
+          phase: "launch",
+        }),
     }),
     (browser: Browser) => Effect.promise(() => browser.close()),
   );
-  const acquireContext = (browser: Browser) => Effect.acquireRelease(
-    Effect.tryPromise({
-      try: () => browser.newContext({
-        viewport: { width: 1440, height: 1000 },
-        deviceScaleFactor: 1,
+  const acquireContext = (browser: Browser) =>
+    Effect.acquireRelease(
+      Effect.tryPromise({
+        try: () =>
+          browser.newContext({
+            viewport: { width: 1440, height: 1000 },
+            deviceScaleFactor: 1,
+          }),
+        catch: (cause) =>
+          new BrowserFailure({
+            cause,
+            message: `Cannot create the canonical browser context: ${cause instanceof Error ? cause.message : String(cause)}`,
+            phase: "context",
+          }),
       }),
-      catch: (cause) => new BrowserFailure({
-        cause,
-        message: `Cannot create the canonical browser context: ${cause instanceof Error ? cause.message : String(cause)}`,
-        phase: "context",
+      (context: BrowserContext) => Effect.promise(() => context.close()),
+    );
+  const acquirePage = (context: BrowserContext) =>
+    Effect.acquireRelease(
+      Effect.tryPromise({
+        try: () => context.newPage(),
+        catch: (cause) =>
+          new BrowserFailure({
+            cause,
+            message: `Cannot create the canonical browser page: ${cause instanceof Error ? cause.message : String(cause)}`,
+            phase: "page",
+          }),
       }),
-    }),
-    (context: BrowserContext) => Effect.promise(() => context.close()),
-  );
-  const acquirePage = (context: BrowserContext) => Effect.acquireRelease(
-    Effect.tryPromise({
-      try: () => context.newPage(),
-      catch: (cause) => new BrowserFailure({
-        cause,
-        message: `Cannot create the canonical browser page: ${cause instanceof Error ? cause.message : String(cause)}`,
-        phase: "page",
-      }),
-    }),
-    (page: Page) => Effect.promise(() => page.close()),
-  );
+      (page: Page) => Effect.promise(() => page.close()),
+    );
 
   const loadedArtifact = Effect.gen(function* () {
     yield* checkAccess;
@@ -156,11 +173,13 @@ export function withLoadedArtifact<T>(
         });
       }
     });
-    page.on("pageerror", (error) => browserIssues.push({
-      code: "page-error",
-      message: error.message,
-      source: "browser",
-    }));
+    page.on("pageerror", (error) =>
+      browserIssues.push({
+        code: "page-error",
+        message: error.message,
+        source: "browser",
+      }),
+    );
     page.on("requestfailed", (request) => {
       pendingResources.delete(request);
       notifyResourceChange();
@@ -174,15 +193,17 @@ export function withLoadedArtifact<T>(
 
     yield* withLogPhase(
       Effect.tryPromise({
-        try: () => page.goto(pathToFileURL(inputPath).href, {
-          waitUntil: "domcontentloaded",
-          timeout: 0,
-        }),
-        catch: (cause) => new BrowserFailure({
-          cause,
-          message: errorMessage(cause),
-          phase: "navigation",
-        }),
+        try: () =>
+          page.goto(pathToFileURL(inputPath).href, {
+            waitUntil: "domcontentloaded",
+            timeout: 0,
+          }),
+        catch: (cause) =>
+          new BrowserFailure({
+            cause,
+            message: errorMessage(cause),
+            phase: "navigation",
+          }),
       }).pipe(
         Effect.timeout(NAVIGATION_TIMEOUT_MS),
         Effect.mapError((error) => {
@@ -202,12 +223,14 @@ export function withLoadedArtifact<T>(
     );
 
     const resourceIssues = (requests: Iterable<Request>, message: string): ArtifactDiagnostic[] =>
-      [...requests].map((request): ArtifactDiagnostic => ({
-        code: "resource-pending",
-        message,
-        resource: displayResource(request.url()),
-        source: "browser",
-      }));
+      [...requests].map(
+        (request): ArtifactDiagnostic => ({
+          code: "resource-pending",
+          message,
+          resource: displayResource(request.url()),
+          source: "browser",
+        }),
+      );
     const waitForTrackedResources = async (deadline: number) => {
       while (true) {
         const remainingMs = deadline - Date.now();
@@ -238,24 +261,36 @@ export function withLoadedArtifact<T>(
     // validateArtifact must remain closure-free for Playwright serialization.
     const checkReadiness = async () => {
       const resourceDeadline = Date.now() + RESOURCE_TIMEOUT_MS;
-      await page.evaluate(() => new Promise<void>((resolveTurn) => {
-        window.setTimeout(resolveTurn, 0);
-      }));
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolveTurn) => {
+            window.setTimeout(resolveTurn, 0);
+          }),
+      );
       const [validation, firstOverdueRequests] = await Promise.all([
         page.evaluate(validateArtifact),
         waitForTrackedResources(resourceDeadline),
       ]);
       const overdueRequests = new Set(firstOverdueRequests);
       if (validation.ok && browserIssues.length === 0) {
-        for (const request of await waitForTrackedResources(resourceDeadline)) overdueRequests.add(request);
+        for (const request of await waitForTrackedResources(resourceDeadline))
+          overdueRequests.add(request);
       }
-      const pendingRequests = [...pendingResources].filter((request) => !overdueRequests.has(request));
+      const pendingRequests = [...pendingResources].filter(
+        (request) => !overdueRequests.has(request),
+      );
       return {
         issues: [
           ...(validation.ok ? [] : validation.issues),
           ...browserIssues,
-          ...resourceIssues(overdueRequests, `Resource request did not finish within ${RESOURCE_TIMEOUT_MS}ms.`),
-          ...resourceIssues(pendingRequests, "Resource request is still pending after readiness checks."),
+          ...resourceIssues(
+            overdueRequests,
+            `Resource request did not finish within ${RESOURCE_TIMEOUT_MS}ms.`,
+          ),
+          ...resourceIssues(
+            pendingRequests,
+            "Resource request is still pending after readiness checks.",
+          ),
         ],
         validation,
       };
@@ -263,19 +298,24 @@ export function withLoadedArtifact<T>(
     const initialReadiness = yield* withLogPhase(
       Effect.tryPromise({
         try: checkReadiness,
-        catch: (cause) => new BrowserFailure({
-          cause,
-          message: errorMessage(cause),
-          phase: "readiness",
-        }),
-      }).pipe(Effect.flatMap(({ issues, validation }) => issues.length === 0 && validation
-        ? Effect.succeed(validation)
-        : new BrowserFailure({
-          cliCode: "artifact-invalid",
-          issues,
-          message: "Artifact readiness failed.",
-          phase: "readiness",
-        }))),
+        catch: (cause) =>
+          new BrowserFailure({
+            cause,
+            message: errorMessage(cause),
+            phase: "readiness",
+          }),
+      }).pipe(
+        Effect.flatMap(({ issues, validation }) =>
+          issues.length === 0 && validation
+            ? Effect.succeed(validation)
+            : new BrowserFailure({
+                cliCode: "artifact-invalid",
+                issues,
+                message: "Artifact readiness failed.",
+                phase: "readiness",
+              }),
+        ),
+      ),
       "browser.readiness",
       { path: inputPath },
     );
@@ -286,26 +326,36 @@ export function withLoadedArtifact<T>(
 
     const operationDiagnostics = (): ArtifactDiagnostic[] => [
       ...browserIssues,
-      ...resourceIssues(pendingResources, "Resource request is still pending when the browser operation completed."),
+      ...resourceIssues(
+        pendingResources,
+        "Resource request is still pending when the browser operation completed.",
+      ),
     ];
     const result = yield* Effect.tryPromise({
-      try: () => operation({
-        page,
-        pages: initialReadiness.pages,
-        waitForReadiness: async () => {
-          const readiness = await checkReadiness();
-          if (readiness.issues.length > 0) throw new ArtifactReadinessFailure(readiness.issues);
-        },
-      }),
+      try: () =>
+        operation({
+          page,
+          pages: initialReadiness.pages,
+          waitForReadiness: async () => {
+            const readiness = await checkReadiness();
+            if (readiness.issues.length > 0) throw new ArtifactReadinessFailure(readiness.issues);
+          },
+        }),
       catch: (cause) => {
         const issues: ArtifactDiagnostic[] = [
-          ...(cause instanceof ArtifactReadinessFailure ? cause.issues : cause instanceof ArtifactOperationFailure ? [{
-            code: cause.code,
-            message: cause.message,
-            pageId: cause.pageId,
-            resource: cause.resource,
-            source: "browser" as const,
-          }] : []),
+          ...(cause instanceof ArtifactReadinessFailure
+            ? cause.issues
+            : cause instanceof ArtifactOperationFailure
+              ? [
+                  {
+                    code: cause.code,
+                    message: cause.message,
+                    pageId: cause.pageId,
+                    resource: cause.resource,
+                    source: "browser" as const,
+                  },
+                ]
+              : []),
           ...(cause instanceof ArtifactReadinessFailure ? [] : operationDiagnostics()),
         ];
         return new BrowserFailure({
