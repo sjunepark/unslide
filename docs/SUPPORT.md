@@ -6,15 +6,15 @@ the lockfile remain authoritative for dependency pins.
 
 ## Reference Environment
 
-| Component | Verified release environment |
-|---|---|
-| Host | macOS 26 on arm64 |
-| Node.js | 24.15.0 |
-| pnpm | 11.12.0 |
-| Playwright | 1.61.1 |
-| Managed Chromium | Chrome for Testing 149.0.7827.55 |
-| PDF parser/rasterizer | PDF.js 6.1.200 |
-| Node canvas | `@napi-rs/canvas` 1.0.2 |
+| Component             | Verified release environment     |
+| --------------------- | -------------------------------- |
+| Host                  | macOS 26 on arm64                |
+| Node.js               | 24.15.0                          |
+| pnpm                  | 11.12.0                          |
+| Playwright            | 1.61.1                           |
+| Managed Chromium      | Chrome for Testing 149.0.7827.55 |
+| PDF parser/rasterizer | PDF.js 6.1.200                   |
+| Node canvas           | `@napi-rs/canvas` 1.0.2          |
 
 The package accepts Node.js 24.15 or newer within the Node 24 release line.
 Other operating systems, architectures, Node major versions, package managers,
@@ -28,17 +28,17 @@ pnpm dlx playwright@1.61.1 install chromium
 
 ## Supported Behavior
 
-| Area | Contract |
-|---|---|
-| Authoring | Complete report-owned React/TSX documents producing standalone HTML |
-| Artifact | Protocol v1 ordered unique page markers and static resource readiness |
-| HTML capture | One screen-media Chromium PNG per marked page |
-| PDF export | Chromium print media, bounded readiness for print-active static resources, authored common geometry, backgrounds, and no browser header/footer |
-| PDF validation | Structural checks for a readable nonempty file, marker/page-count parity, authored/common geometry, and extractable text |
-| PDF inspection | One ordered 96-DPI PNG per actual PDF page, using no HTML or browser state |
-| Content exercised | Local WOFF2, raster and SVG images, inline SVG, links, Korean and English text, and authored exact print-color adjustment |
-| Semantics exercised | Document title and language, heading outline, marked structure tree, and link annotation |
-| Publication | Atomic HTML/PDF replacement and recoverable managed page-image replacement |
+| Area                | Contract                                                                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authoring           | Complete report-owned React/TSX documents producing standalone HTML                                                                            |
+| Artifact            | Protocol v1 ordered unique page markers and static resource readiness                                                                          |
+| HTML capture        | One screen-media Chromium PNG per marked page                                                                                                  |
+| PDF export          | Chromium print media, bounded readiness for print-active static resources, authored common geometry, backgrounds, and no browser header/footer |
+| PDF validation      | Structural checks for a readable nonempty file, marker/page-count parity, authored/common geometry, and extractable text                       |
+| PDF inspection      | One ordered 96-DPI PNG per actual PDF page, using no HTML or browser state                                                                     |
+| Content exercised   | Local WOFF2, raster and SVG images, inline SVG, links, Korean and English text, and authored exact print-color adjustment                      |
+| Semantics exercised | Document title and language, heading outline, marked structure tree, and link annotation                                                       |
+| Publication         | Atomic HTML/PDF replacement and recoverable managed page-image replacement                                                                     |
 
 HTML remains canonical. One marked HTML page produces one PDF page, and all
 pages in a supported PDF share one geometry. Project configuration selects

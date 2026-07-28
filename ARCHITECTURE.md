@@ -29,16 +29,16 @@ inspection evidence.
 
 ## Component and Code Map
 
-| Area | Start here | Responsibility |
-|---|---|---|
-| CLI and project model | `src/cli.ts`, `src/unslide/config.ts`, `src/unslide/init.ts` | Command grammar, project discovery, safe configuration, scaffolding, and public result shaping |
-| React authoring | `src/unslide/react.ts`, `src/unslide/assets.ts`, `src/unslide/build.ts`, `src/unslide/render.tsx` | Minimal public authoring entry, explicit asset inlining, TSX evaluation, standalone serialization, and atomic HTML publication |
-| Artifact validation | `src/unslide/protocol.ts`, `src/unslide/inspect.ts` | Versioned page markers and bounded static readiness, independent of React |
-| Browser capture | `src/unslide/browser.ts`, `src/unslide/capture.ts` | Isolated Chromium lifecycle, browser diagnostics, and marked-element screenshots |
-| PDF delivery | `src/unslide/pdf.ts`, `src/unslide/pdf-inspection.ts` | Chromium printing, PDF validation, and PDF.js/Node-canvas rasterization of the actual PDF |
-| Runtime and publication | `src/unslide/runtime.ts`, `src/unslide/failures.ts`, `src/unslide/lifecycle.ts`, `src/unslide/logging.ts`, `src/unslide/page-images.ts` | Internal Effect services, typed failures, scoped cleanup, opt-in diagnostics, and transactional page-image replacement |
-| Proof reports | `src/spike/`, `src/reports/operating-review/` | Unrelated report-owned visual systems exercising the same nonvisual lifecycle |
-| Verification | `tests/*.test.tsx`, `tests/fixtures/` | Public CLI, protocol, publication, PDF, workflow, and clean-consumer contracts |
+| Area                    | Start here                                                                                                                              | Responsibility                                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| CLI and project model   | `src/cli.ts`, `src/unslide/config.ts`, `src/unslide/init.ts`                                                                            | Command grammar, project discovery, safe configuration, scaffolding, and public result shaping                                 |
+| React authoring         | `src/unslide/react.ts`, `src/unslide/assets.ts`, `src/unslide/build.ts`, `src/unslide/render.tsx`                                       | Minimal public authoring entry, explicit asset inlining, TSX evaluation, standalone serialization, and atomic HTML publication |
+| Artifact validation     | `src/unslide/protocol.ts`, `src/unslide/inspect.ts`                                                                                     | Versioned page markers and bounded static readiness, independent of React                                                      |
+| Browser capture         | `src/unslide/browser.ts`, `src/unslide/capture.ts`                                                                                      | Isolated Chromium lifecycle, browser diagnostics, and marked-element screenshots                                               |
+| PDF delivery            | `src/unslide/pdf.ts`, `src/unslide/pdf-inspection.ts`                                                                                   | Chromium printing, PDF validation, and PDF.js/Node-canvas rasterization of the actual PDF                                      |
+| Runtime and publication | `src/unslide/runtime.ts`, `src/unslide/failures.ts`, `src/unslide/lifecycle.ts`, `src/unslide/logging.ts`, `src/unslide/page-images.ts` | Internal Effect services, typed failures, scoped cleanup, opt-in diagnostics, and transactional page-image replacement         |
+| Proof reports           | `src/spike/`, `src/reports/operating-review/`                                                                                           | Unrelated report-owned visual systems exercising the same nonvisual lifecycle                                                  |
+| Verification            | `tests/*.test.tsx`, `tests/fixtures/`                                                                                                   | Public CLI, protocol, publication, PDF, workflow, and clean-consumer contracts                                                 |
 
 ## Dominant Runtime Flow
 

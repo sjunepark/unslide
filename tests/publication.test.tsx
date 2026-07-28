@@ -71,16 +71,26 @@ test("HTML publication keeps the prior artifact when atomic rename fails", async
     const live = await liveFileSystem();
     const injected: FileSystem.FileSystem = {
       ...live,
-      rename: (from, to) => to === outputPath
-        ? Effect.fail(systemFailure("rename", from, "fixture HTML rename failed"))
-        : live.rename(from, to),
+      rename: (from, to) =>
+        to === outputPath
+          ? Effect.fail(systemFailure("rename", from, "fixture HTML rename failed"))
+          : live.rename(from, to),
     };
 
     await assert.rejects(
-      runWithLayer(writeReportHtml({
-        document: <html><body><main data-unslide-page="one">New report</main></body></html>,
-        outputPath,
-      }), layerWithFileSystem(injected)),
+      runWithLayer(
+        writeReportHtml({
+          document: (
+            <html>
+              <body>
+                <main data-unslide-page="one">New report</main>
+              </body>
+            </html>
+          ),
+          outputPath,
+        }),
+        layerWithFileSystem(injected),
+      ),
       /fixture HTML rename failed/,
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior HTML delivery");
@@ -96,9 +106,10 @@ test("initialization reports partial creation without deleting safe user-visible
     const live = await liveFileSystem();
     const injected: FileSystem.FileSystem = {
       ...live,
-      writeFileString: (path, data, options) => path.endsWith("report.tsx")
-        ? Effect.fail(systemFailure("writeFileString", path, "fixture scaffold write failed"))
-        : live.writeFileString(path, data, options),
+      writeFileString: (path, data, options) =>
+        path.endsWith("report.tsx")
+          ? Effect.fail(systemFailure("writeFileString", path, "fixture scaffold write failed"))
+          : live.writeFileString(path, data, options),
     };
 
     await assert.rejects(
@@ -118,9 +129,10 @@ test("initialization preserves a defect while retaining partial-creation evidenc
     const live = await liveFileSystem();
     const injected: FileSystem.FileSystem = {
       ...live,
-      writeFileString: (path, data, options) => path.endsWith("report.tsx")
-        ? Effect.die(new Error("fixture init defect"))
-        : live.writeFileString(path, data, options),
+      writeFileString: (path, data, options) =>
+        path.endsWith("report.tsx")
+          ? Effect.die(new Error("fixture init defect"))
+          : live.writeFileString(path, data, options),
     };
 
     const exit = await runExitWithLayer(
@@ -150,7 +162,10 @@ test("incomplete page-image rollback retains exact recovery staging", async () =
     const injected: FileSystem.FileSystem = {
       ...live,
       rename: (from, to) => {
-        if (basename(dirname(from)).startsWith(".unslide-page-images-") && basename(from) === "page-02.png") {
+        if (
+          basename(dirname(from)).startsWith(".unslide-page-images-") &&
+          basename(from) === "page-02.png"
+        ) {
           return Effect.fail(systemFailure("rename", from, "fixture publish rename failed"));
         }
         if (basename(dirname(from)) === "previous" && basename(from) === "page-01.png") {
@@ -162,17 +177,25 @@ test("incomplete page-image rollback retains exact recovery staging", async () =
 
     await assert.rejects(
       runWithLayer(
-        replacePageImages(outputDirectory, "captures", (stagingDirectory) => Effect.gen(function* () {
-          const fs = yield* FileSystem.FileSystem;
-          yield* fs.writeFileString(resolve(stagingDirectory, "page-01.png"), "new page one", { flag: "wx" });
-          yield* fs.writeFileString(resolve(stagingDirectory, "page-02.png"), "new page two", { flag: "wx" });
-          return [
-            { outputPath: resolve(outputDirectory, "page-01.png") },
-            { outputPath: resolve(outputDirectory, "page-02.png") },
-          ];
-        }).pipe(
-          Effect.mapError((cause) => commandFailure(cause, { command: "capture", path: outputDirectory })),
-        )),
+        replacePageImages(outputDirectory, "captures", (stagingDirectory) =>
+          Effect.gen(function* () {
+            const fs = yield* FileSystem.FileSystem;
+            yield* fs.writeFileString(resolve(stagingDirectory, "page-01.png"), "new page one", {
+              flag: "wx",
+            });
+            yield* fs.writeFileString(resolve(stagingDirectory, "page-02.png"), "new page two", {
+              flag: "wx",
+            });
+            return [
+              { outputPath: resolve(outputDirectory, "page-01.png") },
+              { outputPath: resolve(outputDirectory, "page-02.png") },
+            ];
+          }).pipe(
+            Effect.mapError((cause) =>
+              commandFailure(cause, { command: "capture", path: outputDirectory }),
+            ),
+          ),
+        ),
         layerWithFileSystem(injected),
       ),
       /rollback was incomplete[\s\S]*fixture rollback restore failed[\s\S]*fixture publish rename failed/,
@@ -182,7 +205,10 @@ test("incomplete page-image rollback retains exact recovery staging", async () =
     const stagingName = entries.find((name) => name.startsWith(".unslide-page-images-"));
     assert.ok(stagingName, "recovery staging should remain after incomplete rollback");
     const stagingDirectory = resolve(outputDirectory, stagingName);
-    assert.equal(await readFile(resolve(stagingDirectory, "previous", "page-01.png"), "utf8"), "prior page one");
+    assert.equal(
+      await readFile(resolve(stagingDirectory, "previous", "page-01.png"), "utf8"),
+      "prior page one",
+    );
     assert.equal(await readFile(resolve(stagingDirectory, "page-02.png"), "utf8"), "new page two");
     assert.equal(await readFile(resolve(outputDirectory, "page-02.png"), "utf8"), "prior page two");
     assert.equal(await readFile(resolve(outputDirectory, "keep.txt"), "utf8"), "unrelated");
@@ -197,17 +223,22 @@ test("page-image cleanup failure remains diagnosable with the primary failure", 
     const live = await liveFileSystem();
     const injected: FileSystem.FileSystem = {
       ...live,
-      remove: (path, options) => basename(path).startsWith(".unslide-page-images-")
-        ? Effect.fail(systemFailure("remove", path, "fixture staging cleanup failed"))
-        : live.remove(path, options),
+      remove: (path, options) =>
+        basename(path).startsWith(".unslide-page-images-")
+          ? Effect.fail(systemFailure("remove", path, "fixture staging cleanup failed"))
+          : live.remove(path, options),
     };
 
     await assert.rejects(
       runWithLayer(
-        replacePageImages(directory, "captures", () => Effect.fail(commandFailure(
-          new Error("fixture generation failed"),
-          { command: "capture", path: directory },
-        ))),
+        replacePageImages(directory, "captures", () =>
+          Effect.fail(
+            commandFailure(new Error("fixture generation failed"), {
+              command: "capture",
+              path: directory,
+            }),
+          ),
+        ),
         layerWithFileSystem(injected),
       ),
       /fixture generation failed[\s\S]*Cleanup failed: fixture staging cleanup failed/,
@@ -225,26 +256,36 @@ test("page-image publication restores prior files without reclassifying interrup
     const live = await liveFileSystem();
     const injected: FileSystem.FileSystem = {
       ...live,
-      rename: (from, to) => basename(dirname(from)).startsWith(".unslide-page-images-")
-        && basename(from) === "page-01.png"
-        ? Effect.interrupt
-        : live.rename(from, to),
+      rename: (from, to) =>
+        basename(dirname(from)).startsWith(".unslide-page-images-") &&
+        basename(from) === "page-01.png"
+          ? Effect.interrupt
+          : live.rename(from, to),
     };
 
     const exit = await runExitWithLayer(
-      replacePageImages(directory, "captures", (stagingDirectory) => Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        yield* fs.writeFileString(resolve(stagingDirectory, "page-01.png"), "new page one", { flag: "wx" });
-        return [{ outputPath: resolve(directory, "page-01.png") }];
-      }).pipe(
-        Effect.mapError((cause) => commandFailure(cause, { command: "capture", path: directory })),
-      )),
+      replacePageImages(directory, "captures", (stagingDirectory) =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          yield* fs.writeFileString(resolve(stagingDirectory, "page-01.png"), "new page one", {
+            flag: "wx",
+          });
+          return [{ outputPath: resolve(directory, "page-01.png") }];
+        }).pipe(
+          Effect.mapError((cause) =>
+            commandFailure(cause, { command: "capture", path: directory }),
+          ),
+        ),
+      ),
       layerWithFileSystem(injected),
     );
     assert.ok(Exit.isFailure(exit));
     assert.ok(exit.cause.reasons.some((reason) => reason._tag === "Interrupt"));
     assert.equal(await readFile(resolve(directory, "page-01.png"), "utf8"), "prior page one");
-    assert.equal((await readdir(directory)).some((name) => name.startsWith(".unslide-page-images-")), false);
+    assert.equal(
+      (await readdir(directory)).some((name) => name.startsWith(".unslide-page-images-")),
+      false,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -260,9 +301,10 @@ test("PDF publication keeps the prior artifact when atomic rename fails", async 
     const live = await liveFileSystem();
     const injected: FileSystem.FileSystem = {
       ...live,
-      rename: (from, to) => to === outputPath
-        ? Effect.fail(systemFailure("rename", from, "fixture PDF rename failed"))
-        : live.rename(from, to),
+      rename: (from, to) =>
+        to === outputPath
+          ? Effect.fail(systemFailure("rename", from, "fixture PDF rename failed"))
+          : live.rename(from, to),
     };
 
     await assert.rejects(
@@ -270,7 +312,10 @@ test("PDF publication keeps the prior artifact when atomic rename fails", async 
       /fixture PDF rename failed/,
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior PDF delivery");
-    assert.equal((await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")), false);
+    assert.equal(
+      (await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")),
+      false,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -286,12 +331,14 @@ test("PDF publication retains cleanup failure evidence with the primary failure"
     const live = await liveFileSystem();
     const injected: FileSystem.FileSystem = {
       ...live,
-      rename: (from, to) => to === outputPath
-        ? Effect.fail(systemFailure("rename", from, "fixture PDF rename failed"))
-        : live.rename(from, to),
-      remove: (path, options) => basename(path).startsWith(".unslide-pdf-")
-        ? Effect.fail(systemFailure("remove", path, "fixture PDF cleanup failed"))
-        : live.remove(path, options),
+      rename: (from, to) =>
+        to === outputPath
+          ? Effect.fail(systemFailure("rename", from, "fixture PDF rename failed"))
+          : live.rename(from, to),
+      remove: (path, options) =>
+        basename(path).startsWith(".unslide-pdf-")
+          ? Effect.fail(systemFailure("remove", path, "fixture PDF cleanup failed"))
+          : live.remove(path, options),
     };
 
     await assert.rejects(
@@ -299,7 +346,10 @@ test("PDF publication retains cleanup failure evidence with the primary failure"
       /fixture PDF rename failed[\s\S]*Cleanup failed: fixture PDF cleanup failed/,
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior PDF delivery");
-    assert.equal((await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")), true);
+    assert.equal(
+      (await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")),
+      true,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

@@ -40,17 +40,17 @@ React. This separation is accepted in
 Any replacement should be compared with the tasks authors perform, not only
 with dependency count or renderer implementation size.
 
-| Experience | Current React/TSX | Plain HTML string |
-|---|---|---|
-| Initial syntax | JSX in a `.tsx` module | Template literals in a `.ts` module |
-| Reusable structure | Typed function components | Functions returning strings |
-| Lists and conditions | Native expressions and arrays | Interpolation, branching, and explicit joining |
-| Dynamic-value safety | Escaped by default | Requires disciplined escaping |
-| Refactoring | Typed props and child values | Mostly string-level checking |
-| Invalid markup feedback | Type and renderer diagnostics | Often deferred to parsing or browser validation |
-| Framework knowledge | Basic React and JSX conventions | HTML and string-template conventions |
-| Delivered HTML/PDF | Standalone and static | Can be identical |
-| CLI workflow | Existing commands | Can remain identical after build |
+| Experience              | Current React/TSX               | Plain HTML string                               |
+| ----------------------- | ------------------------------- | ----------------------------------------------- |
+| Initial syntax          | JSX in a `.tsx` module          | Template literals in a `.ts` module             |
+| Reusable structure      | Typed function components       | Functions returning strings                     |
+| Lists and conditions    | Native expressions and arrays   | Interpolation, branching, and explicit joining  |
+| Dynamic-value safety    | Escaped by default              | Requires disciplined escaping                   |
+| Refactoring             | Typed props and child values    | Mostly string-level checking                    |
+| Invalid markup feedback | Type and renderer diagnostics   | Often deferred to parsing or browser validation |
+| Framework knowledge     | Basic React and JSX conventions | HTML and string-template conventions            |
+| Delivered HTML/PDF      | Standalone and static           | Can be identical                                |
+| CLI workflow            | Existing commands               | Can remain identical after build                |
 
 Plain strings lower the onboarding requirement for a simple report but become
 less ergonomic and less safe as reports add repeated pages, conditional

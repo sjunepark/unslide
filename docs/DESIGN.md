@@ -22,16 +22,16 @@ predictable.
 
 ## Vocabulary
 
-| Term | Meaning |
-|---|---|
-| Report | User-owned source and data that produce a complete ordered document |
-| Page | An explicitly composed capturable region and, for supported PDF export, one printed sheet |
-| Page marker | A nonvisual protocol attribute that gives a page a stable unique identity and observable order |
-| Repeated material | Any report-owned structure reused across pages, such as a label, logo, or number |
-| HTML artifact | The canonical standalone delivery output |
-| PDF artifact | A delivery output printed from canonical HTML, not a second renderer |
-| Inspection artifact | A disposable image rendered from the HTML or PDF target being judged |
-| Recipe | Optional editable visual source; never a runtime requirement |
+| Term                | Meaning                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| Report              | User-owned source and data that produce a complete ordered document                            |
+| Page                | An explicitly composed capturable region and, for supported PDF export, one printed sheet      |
+| Page marker         | A nonvisual protocol attribute that gives a page a stable unique identity and observable order |
+| Repeated material   | Any report-owned structure reused across pages, such as a label, logo, or number               |
+| HTML artifact       | The canonical standalone delivery output                                                       |
+| PDF artifact        | A delivery output printed from canonical HTML, not a second renderer                           |
+| Inspection artifact | A disposable image rendered from the HTML or PDF target being judged                           |
+| Recipe              | Optional editable visual source; never a runtime requirement                                   |
 
 These terms describe behavior, not required React components, classes, or DOM
 structure.

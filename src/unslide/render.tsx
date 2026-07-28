@@ -59,7 +59,9 @@ function assertCompleteStandaloneDocument(html: string): void {
     collectDependency(match[1] ?? match[2] ?? "");
   }
 
-  for (const match of html.matchAll(/<(?:image|use|feImage)\b[^>]*\bhref=(?:"([^"]*)"|'([^']*)')/gi)) {
+  for (const match of html.matchAll(
+    /<(?:image|use|feImage)\b[^>]*\bhref=(?:"([^"]*)"|'([^']*)')/gi,
+  )) {
     collectDependency(match[1] ?? match[2] ?? "");
   }
 
@@ -72,8 +74,14 @@ function assertCompleteStandaloneDocument(html: string): void {
   }
 
   const cssContexts = [
-    ...Array.from(html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi), (match) => match[1] ?? ""),
-    ...Array.from(html.matchAll(/\sstyle=(?:"([^"]*)"|'([^']*)')/gi), (match) => match[1] ?? match[2] ?? ""),
+    ...Array.from(
+      html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi),
+      (match) => match[1] ?? "",
+    ),
+    ...Array.from(
+      html.matchAll(/\sstyle=(?:"([^"]*)"|'([^']*)')/gi),
+      (match) => match[1] ?? match[2] ?? "",
+    ),
   ];
 
   for (const css of cssContexts) {
@@ -100,9 +108,10 @@ function assertCompleteStandaloneDocument(html: string): void {
   }
 }
 
-export const writeReportHtml = Effect.fn("render.writeReportHtml")(function* (
-  { document, outputPath }: WriteReportOptions,
-) {
+export const writeReportHtml = Effect.fn("render.writeReportHtml")(function* ({
+  document,
+  outputPath,
+}: WriteReportOptions) {
   const context = { command: "build", path: outputPath } as const;
   const html = yield* withLogPhase(
     Effect.try({
@@ -122,22 +131,31 @@ export const writeReportHtml = Effect.fn("render.writeReportHtml")(function* (
   const temporaryPath = `${resolvedOutputPath}.tmp-${process.pid}-${randomUUID()}`;
 
   const published = yield* withLogPhase(
-    mapCommandFailure(scoped(Effect.gen(function* () {
-      yield* fs.makeDirectory(path.dirname(resolvedOutputPath), { recursive: true });
-      const temporary = yield* Effect.acquireRelease(
-        Effect.succeed({ cleanup: true, path: temporaryPath }),
-        (state) => state.cleanup
-          ? fs.remove(state.path, { force: true }).pipe(Effect.orDie)
-          : Effect.void,
-      );
-      yield* fs.writeFileString(temporary.path, html, { flag: "wx" });
-      yield* fs.rename(temporary.path, resolvedOutputPath);
-      temporary.cleanup = false;
-      return resolvedOutputPath;
-    })), context),
+    mapCommandFailure(
+      scoped(
+        Effect.gen(function* () {
+          yield* fs.makeDirectory(path.dirname(resolvedOutputPath), { recursive: true });
+          const temporary = yield* Effect.acquireRelease(
+            Effect.succeed({ cleanup: true, path: temporaryPath }),
+            (state) =>
+              state.cleanup
+                ? fs.remove(state.path, { force: true }).pipe(Effect.orDie)
+                : Effect.void,
+          );
+          yield* fs.writeFileString(temporary.path, html, { flag: "wx" });
+          yield* fs.rename(temporary.path, resolvedOutputPath);
+          temporary.cleanup = false;
+          return resolvedOutputPath;
+        }),
+      ),
+      context,
+    ),
     "html.publish",
     { path: resolvedOutputPath },
   );
-  yield* logDebug("artifact.published", { bytes: Buffer.byteLength(html), path: resolvedOutputPath });
+  yield* logDebug("artifact.published", {
+    bytes: Buffer.byteLength(html),
+    path: resolvedOutputPath,
+  });
   return published;
 });

@@ -59,17 +59,21 @@ function nodeFailure(
   return new ProjectConfigFailure({ cause, code, detail, message, path, phase });
 }
 
-export const findProjectConfig = Effect.fn("config.findProjectConfig")(function* (startDirectory: string = process.cwd()) {
+export const findProjectConfig = Effect.fn("config.findProjectConfig")(function* (
+  startDirectory: string = process.cwd(),
+) {
   let directory = resolve(startDirectory);
   while (true) {
     const candidate = resolve(directory, CONFIG_FILE_NAME);
-    const exists = yield* Effect.promise(() => access(candidate).then(
-      () => true,
-      (cause) => {
-        if (!isNodeError(cause)) throw cause;
-        return false;
-      },
-    ));
+    const exists = yield* Effect.promise(() =>
+      access(candidate).then(
+        () => true,
+        (cause) => {
+          if (!isNodeError(cause)) throw cause;
+          return false;
+        },
+      ),
+    );
     if (exists) return candidate;
 
     const parent = dirname(directory);
@@ -85,13 +89,15 @@ export const findProjectConfig = Effect.fn("config.findProjectConfig")(function*
 });
 
 function formatSchemaErrors(errors: ErrorObject[]): string {
-  return errors.map((error) => {
-    const location = error.instancePath || "configuration";
-    if (error.keyword === "additionalProperties") {
-      return `${location} contains unknown field "${String(error.params.additionalProperty)}"`;
-    }
-    return `${location} ${error.message ?? "is invalid"}`;
-  }).join("; ");
+  return errors
+    .map((error) => {
+      const location = error.instancePath || "configuration";
+      if (error.keyword === "additionalProperties") {
+        return `${location} contains unknown field "${String(error.params.additionalProperty)}"`;
+      }
+      return `${location} ${error.message ?? "is invalid"}`;
+    })
+    .join("; ");
 }
 
 function resolveProjectPath(
@@ -102,20 +108,24 @@ function resolveProjectPath(
   reportName: string,
 ) {
   if (isAbsolute(value)) {
-    return Effect.fail(new ProjectConfigFailure({
-      message: `Report "${reportName}" field "${field}" must be relative to the project root.`,
-      path: configPath,
-      phase: "resolve",
-    }));
+    return Effect.fail(
+      new ProjectConfigFailure({
+        message: `Report "${reportName}" field "${field}" must be relative to the project root.`,
+        path: configPath,
+        phase: "resolve",
+      }),
+    );
   }
   const resolvedPath = resolve(projectRoot, value);
   const relativePath = relative(projectRoot, resolvedPath);
   if (relativePath === "" || relativePath === ".." || relativePath.startsWith(`..${sep}`)) {
-    return Effect.fail(new ProjectConfigFailure({
-      message: `Report "${reportName}" field "${field}" must resolve inside the project root.`,
-      path: configPath,
-      phase: "resolve",
-    }));
+    return Effect.fail(
+      new ProjectConfigFailure({
+        message: `Report "${reportName}" field "${field}" must resolve inside the project root.`,
+        path: configPath,
+        phase: "resolve",
+      }),
+    );
   }
   return Effect.succeed(resolvedPath);
 }
@@ -123,7 +133,11 @@ function resolveProjectPath(
 function pathsOverlap(first: string, second: string): boolean {
   const firstToSecond = relative(first, second);
   const secondToFirst = relative(second, first);
-  return firstToSecond === "" || (!firstToSecond.startsWith(`..${sep}`) && firstToSecond !== "..") || (!secondToFirst.startsWith(`..${sep}`) && secondToFirst !== "..");
+  return (
+    firstToSecond === "" ||
+    (!firstToSecond.startsWith(`..${sep}`) && firstToSecond !== "..") ||
+    (!secondToFirst.startsWith(`..${sep}`) && secondToFirst !== "..")
+  );
 }
 
 const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* (
@@ -137,13 +151,15 @@ const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* 
   let canonicalPath: string;
 
   while (true) {
-    const result = yield* Effect.promise(() => realpath(existingAncestor).then(
-      (path) => ({ _tag: "Found" as const, path }),
-      (cause) => {
-        if (!isNodeError(cause)) throw cause;
-        return { _tag: "Failed" as const, cause };
-      },
-    ));
+    const result = yield* Effect.promise(() =>
+      realpath(existingAncestor).then(
+        (path) => ({ _tag: "Found" as const, path }),
+        (cause) => {
+          if (!isNodeError(cause)) throw cause;
+          return { _tag: "Failed" as const, cause };
+        },
+      ),
+    );
     if (result._tag === "Found") {
       canonicalPath = resolve(result.path, relative(existingAncestor, inputPath));
       break;
@@ -183,19 +199,22 @@ const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* 
   return canonicalPath;
 });
 
-export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function* (startDirectory: string = process.cwd()) {
+export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function* (
+  startDirectory: string = process.cwd(),
+) {
   const configPath = yield* findProjectConfig(startDirectory);
   const projectRoot = dirname(configPath);
 
   const configText = yield* Effect.tryPromise({
     try: () => readFile(configPath, "utf8"),
-    catch: (cause) => nodeFailure(
-      cause,
-      configPath,
-      "read",
-      `Cannot read ${configPath}: ${errorMessage(cause)}`,
-      "project-config-unreadable",
-    ),
+    catch: (cause) =>
+      nodeFailure(
+        cause,
+        configPath,
+        "read",
+        `Cannot read ${configPath}: ${errorMessage(cause)}`,
+        "project-config-unreadable",
+      ),
   });
   const configJson: unknown = yield* Effect.try({
     try: () => JSON.parse(configText),
@@ -211,7 +230,11 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
     },
   });
 
-  if (typeof configJson === "object" && configJson !== null && Object.hasOwn(configJson, "version")) {
+  if (
+    typeof configJson === "object" &&
+    configJson !== null &&
+    Object.hasOwn(configJson, "version")
+  ) {
     const version = (configJson as { version?: unknown }).version;
     if (version !== 1) {
       return yield* new ProjectConfigFailure({
@@ -240,11 +263,35 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
   const reports: Record<string, ReportConfig> = {};
   const canonicalReports: Record<string, ReportConfig> = {};
   for (const [name, report] of Object.entries(configJson.reports)) {
-    const sourcePath = yield* resolveProjectPath(configPath, projectRoot, report.source, "source", name);
+    const sourcePath = yield* resolveProjectPath(
+      configPath,
+      projectRoot,
+      report.source,
+      "source",
+      name,
+    );
     const htmlPath = yield* resolveProjectPath(configPath, projectRoot, report.html, "html", name);
-    const pdfPath = yield* resolveProjectPath(configPath, projectRoot, report.pdf ?? report.html.replace(/\.html$/, ".pdf"), "pdf", name);
-    const captureDirectory = yield* resolveProjectPath(configPath, projectRoot, report.captures, "captures", name);
-    const pdfCaptureDirectory = yield* resolveProjectPath(configPath, projectRoot, report.pdfCaptures ?? `${report.captures}-pdf`, "pdfCaptures", name);
+    const pdfPath = yield* resolveProjectPath(
+      configPath,
+      projectRoot,
+      report.pdf ?? report.html.replace(/\.html$/, ".pdf"),
+      "pdf",
+      name,
+    );
+    const captureDirectory = yield* resolveProjectPath(
+      configPath,
+      projectRoot,
+      report.captures,
+      "captures",
+      name,
+    );
+    const pdfCaptureDirectory = yield* resolveProjectPath(
+      configPath,
+      projectRoot,
+      report.pdfCaptures ?? `${report.captures}-pdf`,
+      "pdfCaptures",
+      name,
+    );
 
     yield* Effect.tryPromise({
       try: () => access(sourcePath),
@@ -259,8 +306,20 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
       sourcePath: yield* canonicalProjectPath(configPath, projectRoot, sourcePath, "source", name),
       htmlPath: yield* canonicalProjectPath(configPath, projectRoot, htmlPath, "html", name),
       pdfPath: yield* canonicalProjectPath(configPath, projectRoot, pdfPath, "pdf", name),
-      captureDirectory: yield* canonicalProjectPath(configPath, projectRoot, captureDirectory, "captures", name),
-      pdfCaptureDirectory: yield* canonicalProjectPath(configPath, projectRoot, pdfCaptureDirectory, "pdfCaptures", name),
+      captureDirectory: yield* canonicalProjectPath(
+        configPath,
+        projectRoot,
+        captureDirectory,
+        "captures",
+        name,
+      ),
+      pdfCaptureDirectory: yield* canonicalProjectPath(
+        configPath,
+        projectRoot,
+        pdfCaptureDirectory,
+        "pdfCaptures",
+        name,
+      ),
     };
   }
 
@@ -305,11 +364,13 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
 export function getReport(config: ProjectConfig, name: string) {
   if (!Object.hasOwn(config.reports, name)) {
     const availableReports = Object.keys(config.reports);
-    return Effect.fail(new ReportNotFound({
-      availableReports,
-      message: `Unknown report "${name}". Available reports: ${availableReports.join(", ")}.`,
-      report: name,
-    }));
+    return Effect.fail(
+      new ReportNotFound({
+        availableReports,
+        message: `Unknown report "${name}". Available reports: ${availableReports.join(", ")}.`,
+        report: name,
+      }),
+    );
   }
   return Effect.succeed(config.reports[name] as ReportConfig);
 }

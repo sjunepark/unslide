@@ -48,11 +48,11 @@ export interface CommandFailureContext {
 
 export function errorMessage(error: unknown): string {
   if (
-    error instanceof Error
-    && "_tag" in error
-    && error._tag === "PlatformError"
-    && "cause" in error
-    && error.cause instanceof Error
+    error instanceof Error &&
+    "_tag" in error &&
+    error._tag === "PlatformError" &&
+    "cause" in error &&
+    error.cause instanceof Error
   ) {
     return error.cause.message;
   }
@@ -61,28 +61,28 @@ export function errorMessage(error: unknown): string {
 
 export function isMissingFileError(error: unknown): boolean {
   if (error instanceof Error && "code" in error && error.code === "ENOENT") return true;
-  return typeof error === "object"
-    && error !== null
-    && "_tag" in error
-    && error._tag === "PlatformError"
-    && "reason" in error
-    && typeof error.reason === "object"
-    && error.reason !== null
-    && "_tag" in error.reason
-    && error.reason._tag === "NotFound";
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "_tag" in error &&
+    error._tag === "PlatformError" &&
+    "reason" in error &&
+    typeof error.reason === "object" &&
+    error.reason !== null &&
+    "_tag" in error.reason &&
+    error.reason._tag === "NotFound"
+  );
 }
 
 function classifiedCode(cause: unknown): OperationalErrorCode | undefined {
   if (
-    typeof cause === "object"
-    && cause !== null
-    && "cliCode" in cause
-    && (
-      cause.cliCode === "artifact-invalid"
-      || cause.cliCode === "artifact-not-found"
-      || cause.cliCode === "browser-not-installed"
-      || cause.cliCode === "command-failed"
-    )
+    typeof cause === "object" &&
+    cause !== null &&
+    "cliCode" in cause &&
+    (cause.cliCode === "artifact-invalid" ||
+      cause.cliCode === "artifact-not-found" ||
+      cause.cliCode === "browser-not-installed" ||
+      cause.cliCode === "command-failed")
   ) {
     return cause.cliCode;
   }
@@ -90,11 +90,11 @@ function classifiedCode(cause: unknown): OperationalErrorCode | undefined {
 }
 
 function classifiedIssues(cause: unknown): readonly ArtifactDiagnostic[] | undefined {
-  return typeof cause === "object"
-    && cause !== null
-    && "issues" in cause
-    && Array.isArray(cause.issues)
-    ? cause.issues as ArtifactDiagnostic[]
+  return typeof cause === "object" &&
+    cause !== null &&
+    "issues" in cause &&
+    Array.isArray(cause.issues)
+    ? (cause.issues as ArtifactDiagnostic[])
     : undefined;
 }
 
@@ -129,16 +129,19 @@ export function commandFailure(
 
 export function isCliFailure(error: unknown): error is CliFailure {
   if (typeof error !== "object" || error === null || !("_tag" in error)) return false;
-  return error._tag === "ProjectNotFound"
-    || error._tag === "ProjectConfigFailure"
-    || error._tag === "ReportNotFound"
-    || error._tag === "CommandFailure";
+  return (
+    error._tag === "ProjectNotFound" ||
+    error._tag === "ProjectConfigFailure" ||
+    error._tag === "ReportNotFound" ||
+    error._tag === "CommandFailure"
+  );
 }
 
 /** Preserves the primary CLI context while retaining diagnostics from combined failures. */
 export function combineCliFailures(cause: Cause.Cause<unknown>): CliFailure | undefined {
   const failures = cause.reasons.flatMap((reason) =>
-    reason._tag === "Fail" && isCliFailure(reason.error) ? [reason.error] : []);
+    reason._tag === "Fail" && isCliFailure(reason.error) ? [reason.error] : [],
+  );
   if (failures.length !== cause.reasons.length) return undefined;
 
   const primary = failures[0];
@@ -146,15 +149,17 @@ export function combineCliFailures(cause: Cause.Cause<unknown>): CliFailure | un
   if (primary._tag !== "CommandFailure") return primary;
 
   const issues = failures.flatMap((failure) =>
-    failure._tag === "CommandFailure" ? [...(failure.issues ?? [])] : []);
+    failure._tag === "CommandFailure" ? [...(failure.issues ?? [])] : [],
+  );
   return new CommandFailure({
     artifact: primary.artifact,
     cause,
     code: primary.code,
     command: primary.command,
     issues: issues.length > 0 ? issues : primary.issues,
-    message: cause.reasons.map((reason) =>
-      reason._tag === "Fail" ? errorMessage(reason.error) : "").join("\n"),
+    message: cause.reasons
+      .map((reason) => (reason._tag === "Fail" ? errorMessage(reason.error) : ""))
+      .join("\n"),
     path: primary.path,
     report: primary.report,
   });
@@ -166,21 +171,24 @@ export function mapCommandFailure<A, E, R>(
   context: CommandFailureContext,
   message: (cause: E) => string = errorMessage,
 ): Effect.Effect<A, CommandFailure, R> {
-  return Effect.catchCause(effect, (cause) => Effect.failCause(Cause.map(
-    cause,
-    (failure) => failure instanceof CommandFailure
-      ? failure
-      : commandFailure(
-        failure,
-        context,
-        typeof failure === "object"
-        && failure !== null
-        && "_tag" in failure
-        && failure._tag === "ResourceCleanupFailure"
-          ? errorMessage(failure)
-          : message(failure),
+  return Effect.catchCause(effect, (cause) =>
+    Effect.failCause(
+      Cause.map(cause, (failure) =>
+        failure instanceof CommandFailure
+          ? failure
+          : commandFailure(
+              failure,
+              context,
+              typeof failure === "object" &&
+                failure !== null &&
+                "_tag" in failure &&
+                failure._tag === "ResourceCleanupFailure"
+                ? errorMessage(failure)
+                : message(failure),
+            ),
       ),
-  )));
+    ),
+  );
 }
 
 export type CliFailure = ProjectNotFound | ProjectConfigFailure | ReportNotFound | CommandFailure;

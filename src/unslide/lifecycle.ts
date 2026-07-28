@@ -3,20 +3,22 @@ import { errorMessage } from "./failures.js";
 
 export function onceAsync<A>(operation: () => PromiseLike<A>): () => Promise<A> {
   let result: Promise<A> | undefined;
-  return () => result ??= Promise.resolve().then(operation);
+  return () => (result ??= Promise.resolve().then(operation));
 }
 
 export function causeMessage(cause: Cause.Cause<unknown>): string {
-  return cause.reasons.map((reason) => {
-    switch (reason._tag) {
-      case "Fail":
-        return errorMessage(reason.error);
-      case "Die":
-        return errorMessage(reason.defect);
-      case "Interrupt":
-        return "Operation interrupted.";
-    }
-  }).join("\n");
+  return cause.reasons
+    .map((reason) => {
+      switch (reason._tag) {
+        case "Fail":
+          return errorMessage(reason.error);
+        case "Die":
+          return errorMessage(reason.defect);
+        case "Interrupt":
+          return "Operation interrupted.";
+      }
+    })
+    .join("\n");
 }
 
 export class ResourceCleanupFailure extends Data.TaggedError("ResourceCleanupFailure")<{

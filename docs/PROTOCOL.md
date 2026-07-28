@@ -9,7 +9,7 @@ geometry, or visual foundation.
 New artifacts declare this metadata in the document head:
 
 ```html
-<meta name="unslide-protocol" content="1">
+<meta name="unslide-protocol" content="1" />
 ```
 
 Artifacts created before package version 0.1.0 may omit the metadata and are

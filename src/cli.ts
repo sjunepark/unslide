@@ -16,11 +16,7 @@ import {
 } from "./unslide/failures.js";
 import { initializeProject } from "./unslide/init.js";
 import { inspectHtmlArtifact } from "./unslide/inspect.js";
-import {
-  type CliLogLevel,
-  provideCliLogging,
-  withLogPhase,
-} from "./unslide/logging.js";
+import { type CliLogLevel, provideCliLogging, withLogPhase } from "./unslide/logging.js";
 import type { ArtifactDiagnostic } from "./unslide/protocol.js";
 import { applicationLayer } from "./unslide/runtime.js";
 
@@ -107,21 +103,25 @@ function logLevelFlag(): JsonValue {
 function fullFlag(): JsonValue {
   return {
     flag: "--full",
-    description: "Show complete report-authored diagnostics (default: up to 10 issues and 1,000 characters per text field)",
+    description:
+      "Show complete report-authored diagnostics (default: up to 10 issues and 1,000 characters per text field)",
   };
 }
 
 function parseLogLevel(value: string): CliLogLevel | undefined {
-  return LOG_LEVELS.has(value as CliLogLevel) ? value as CliLogLevel : undefined;
+  return LOG_LEVELS.has(value as CliLogLevel) ? (value as CliLogLevel) : undefined;
 }
 
-function parseLoggingOptions(argv: string[], environmentValue: string | undefined): LoggingOptionsResult {
+function parseLoggingOptions(
+  argv: string[],
+  environmentValue: string | undefined,
+): LoggingOptionsResult {
   const joinedFlag = argv.find((argument) => argument.startsWith(`${LOG_LEVEL_FLAG}=`));
   if (joinedFlag) {
     return { message: `Use ${LOG_LEVEL_FLAG} <off|info|debug> with a separate value.`, ok: false };
   }
 
-  const indexes = argv.flatMap((argument, index) => argument === LOG_LEVEL_FLAG ? [index] : []);
+  const indexes = argv.flatMap((argument, index) => (argument === LOG_LEVEL_FLAG ? [index] : []));
   if (indexes.length > 1) {
     return { message: `${LOG_LEVEL_FLAG} may be provided only once.`, ok: false };
   }
@@ -134,12 +134,17 @@ function parseLoggingOptions(argv: string[], environmentValue: string | undefine
     }
     const level = parseLogLevel(rawLevel);
     if (!level) {
-      return { message: `Invalid ${LOG_LEVEL_FLAG} value ${JSON.stringify(rawLevel)}; expected off, info, or debug.`, ok: false };
+      return {
+        message: `Invalid ${LOG_LEVEL_FLAG} value ${JSON.stringify(rawLevel)}; expected off, info, or debug.`,
+        ok: false,
+      };
     }
     return {
       ok: true,
       value: {
-        argv: argv.filter((_, argumentIndex) => argumentIndex !== index && argumentIndex !== index + 1),
+        argv: argv.filter(
+          (_, argumentIndex) => argumentIndex !== index && argumentIndex !== index + 1,
+        ),
         level,
       },
     };
@@ -148,7 +153,10 @@ function parseLoggingOptions(argv: string[], environmentValue: string | undefine
   if (environmentValue !== undefined) {
     const level = parseLogLevel(environmentValue);
     if (!level) {
-      return { message: `Invalid ${LOG_LEVEL_ENV} value ${JSON.stringify(environmentValue)}; expected off, info, or debug.`, ok: false };
+      return {
+        message: `Invalid ${LOG_LEVEL_ENV} value ${JSON.stringify(environmentValue)}; expected off, info, or debug.`,
+        ok: false,
+      };
     }
     return { ok: true, value: { argv: [...argv], level } };
   }
@@ -163,19 +171,33 @@ function topHelp(): JsonValue {
     flags: [helpFlag(), logLevelFlag()],
     commands: [
       { command: "build <name>", description: "Build a named report to standalone HTML" },
-      { command: "inspect <name>", description: "Validate a named report's existing HTML artifact" },
+      {
+        command: "inspect <name>",
+        description: "Validate a named report's existing HTML artifact",
+      },
       { command: "inspect --artifact <path>", description: "Validate any existing HTML artifact" },
       { command: "capture <name>", description: "Capture a named report's HTML pages" },
-      { command: "export <name>", description: "Export a named report's existing HTML artifact to PDF" },
-      { command: "inspect-pdf <name>", description: "Render a named report's existing PDF to page images" },
-      { command: "inspect-pdf --artifact <path> --output <directory>", description: "Render any existing PDF to page images" },
+      {
+        command: "export <name>",
+        description: "Export a named report's existing HTML artifact to PDF",
+      },
+      {
+        command: "inspect-pdf <name>",
+        description: "Render a named report's existing PDF to page images",
+      },
+      {
+        command: "inspect-pdf --artifact <path> --output <directory>",
+        description: "Render any existing PDF to page images",
+      },
       { command: "init", description: "Plan or create a minimal report project" },
     ],
     help: [`Run ${CLI_INVOCATION} <command> --help for command details`],
   };
 }
 
-function commandHelp(command: "build" | "inspect" | "capture" | "export" | "inspect-pdf" | "init"): JsonValue {
+function commandHelp(
+  command: "build" | "inspect" | "capture" | "export" | "inspect-pdf" | "init",
+): JsonValue {
   if (command === "init") {
     return {
       command: "init",
@@ -186,7 +208,11 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
         helpFlag(),
         logLevelFlag(),
       ],
-      examples: [`${CLI_INVOCATION} init`, `${CLI_INVOCATION} init --yes`, `${CLI_INVOCATION} init --name quarterly-review --yes`],
+      examples: [
+        `${CLI_INVOCATION} init`,
+        `${CLI_INVOCATION} init --yes`,
+        `${CLI_INVOCATION} init --name quarterly-review --yes`,
+      ],
     };
   }
   if (command === "inspect") {
@@ -194,12 +220,18 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       command: "inspect",
       usage: `${CLI_INVOCATION} inspect <name> | ${CLI_INVOCATION} inspect --artifact <path>`,
       flags: [
-        { flag: "--artifact <path>", description: "Inspect an explicit HTML path instead of a configured report" },
+        {
+          flag: "--artifact <path>",
+          description: "Inspect an explicit HTML path instead of a configured report",
+        },
         fullFlag(),
         helpFlag(),
         logLevelFlag(),
       ],
-      examples: [`${CLI_INVOCATION} inspect operating-review`, `${CLI_INVOCATION} inspect --artifact artifacts/report.html`],
+      examples: [
+        `${CLI_INVOCATION} inspect operating-review`,
+        `${CLI_INVOCATION} inspect --artifact artifacts/report.html`,
+      ],
     };
   }
   if (command === "capture" || command === "export") {
@@ -207,7 +239,10 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       command,
       usage: `${CLI_INVOCATION} ${command} <name>`,
       flags: [fullFlag(), helpFlag(), logLevelFlag()],
-      examples: [`${CLI_INVOCATION} ${command} spike`, `${CLI_INVOCATION} ${command} operating-review`],
+      examples: [
+        `${CLI_INVOCATION} ${command} spike`,
+        `${CLI_INVOCATION} ${command} operating-review`,
+      ],
     };
   }
   if (command === "inspect-pdf") {
@@ -215,8 +250,14 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
       command: "inspect-pdf",
       usage: `${CLI_INVOCATION} inspect-pdf <name> | ${CLI_INVOCATION} inspect-pdf --artifact <path> --output <directory>`,
       flags: [
-        { flag: "--artifact <path>", description: "Inspect an explicit PDF path instead of a configured report" },
-        { flag: "--output <directory>", description: "Write explicit-artifact page images to this directory" },
+        {
+          flag: "--artifact <path>",
+          description: "Inspect an explicit PDF path instead of a configured report",
+        },
+        {
+          flag: "--output <directory>",
+          description: "Write explicit-artifact page images to this directory",
+        },
         helpFlag(),
         logLevelFlag(),
       ],
@@ -230,7 +271,10 @@ function commandHelp(command: "build" | "inspect" | "capture" | "export" | "insp
     command,
     usage: `${CLI_INVOCATION} ${command} <name>`,
     flags: [helpFlag(), logLevelFlag()],
-    examples: [`${CLI_INVOCATION} ${command} spike`, `${CLI_INVOCATION} ${command} operating-review`],
+    examples: [
+      `${CLI_INVOCATION} ${command} spike`,
+      `${CLI_INVOCATION} ${command} operating-review`,
+    ],
   };
 }
 
@@ -249,13 +293,15 @@ function recoveryCommand(command: string, report: string): string {
 }
 
 function recognizedCommand(rawArguments: string[]): CliCommand | undefined {
-  return rawArguments.find((argument): argument is CliCommand =>
-    argument === "build"
-    || argument === "inspect"
-    || argument === "capture"
-    || argument === "export"
-    || argument === "inspect-pdf"
-    || argument === "init");
+  return rawArguments.find(
+    (argument): argument is CliCommand =>
+      argument === "build" ||
+      argument === "inspect" ||
+      argument === "capture" ||
+      argument === "export" ||
+      argument === "inspect-pdf" ||
+      argument === "init",
+  );
 }
 
 function shellArgument(value: string): string {
@@ -294,9 +340,12 @@ function diagnosticView(issues: readonly ArtifactDiagnostic[], full: boolean): D
   let textTruncated = false;
   const rows = selected.map((issue) => {
     const message = full ? { text: issue.message } : truncateDiagnosticText(issue.message);
-    const resource = issue.resource === undefined
-      ? undefined
-      : full ? { text: issue.resource } : truncateDiagnosticText(issue.resource);
+    const resource =
+      issue.resource === undefined
+        ? undefined
+        : full
+          ? { text: issue.resource }
+          : truncateDiagnosticText(issue.resource);
     textTruncated ||= message.totalChars !== undefined || resource?.totalChars !== undefined;
     return {
       source: issue.source,
@@ -340,11 +389,14 @@ function formatCommandFailure(error: CommandFailure, rawArguments: string[]): vo
     return;
   }
   if (error.code === "artifact-invalid") {
-    const diagnostics = error.issues && error.issues.length > 0
-      ? diagnosticView(error.issues, rawArguments.includes("--full"))
-      : undefined;
+    const diagnostics =
+      error.issues && error.issues.length > 0
+        ? diagnosticView(error.issues, rawArguments.includes("--full"))
+        : undefined;
     const help = [
-      ...(error.report ? [`Run ${recoveryCommand(kind === "PDF" ? "export" : "build", error.report)}`] : []),
+      ...(error.report
+        ? [`Run ${recoveryCommand(kind === "PDF" ? "export" : "build", error.report)}`]
+        : []),
       ...(diagnostics?.truncated ? [`Run ${fullDiagnosticCommand(rawArguments)}`] : []),
     ];
     writeOutput({
@@ -382,16 +434,19 @@ function formatCliFailure(error: CliFailure, rawArguments: string[]): number {
       });
       return 1;
     case "ProjectConfigFailure": {
-      const code = error.code ?? (error.phase === "read" ? "project-config-unreadable" : "project-config-invalid");
+      const code =
+        error.code ??
+        (error.phase === "read" ? "project-config-unreadable" : "project-config-invalid");
       if (code === "command-failed") {
         writeOutput({ error: { code, message: "Project configuration loading failed." } });
       } else {
         writeOutput({
           error: {
             code,
-            message: code === "project-config-unreadable"
-              ? "Project configuration cannot be read."
-              : "Project configuration is invalid.",
+            message:
+              code === "project-config-unreadable"
+                ? "Project configuration cannot be read."
+                : "Project configuration is invalid.",
             path: error.path,
             ...(error.detail || (code === "project-config-invalid" && error.cause === undefined)
               ? { detail: error.detail ?? error.message }
@@ -431,16 +486,19 @@ function projectPath(config: ProjectConfig, absolutePath: string): string {
 type CliCommand = "build" | "inspect" | "capture" | "export" | "inspect-pdf" | "init";
 
 function validateBeforeHelp(command: CliCommand, argv: string[]): string | undefined {
-  const allowedFlags = command === "inspect"
-    ? new Set(["--artifact", "--full", "--help"])
-    : command === "inspect-pdf"
-      ? new Set(["--artifact", "--output", "--help"])
-      : command === "init"
-        ? new Set(["--name", "--yes", "--help"])
-        : command === "capture" || command === "export"
-          ? new Set(["--full", "--help"])
-          : new Set(["--help"]);
-  const unknownFlag = argv.slice(1).find((argument) => argument.startsWith("-") && !allowedFlags.has(argument));
+  const allowedFlags =
+    command === "inspect"
+      ? new Set(["--artifact", "--full", "--help"])
+      : command === "inspect-pdf"
+        ? new Set(["--artifact", "--output", "--help"])
+        : command === "init"
+          ? new Set(["--name", "--yes", "--help"])
+          : command === "capture" || command === "export"
+            ? new Set(["--full", "--help"])
+            : new Set(["--help"]);
+  const unknownFlag = argv
+    .slice(1)
+    .find((argument) => argument.startsWith("-") && !allowedFlags.has(argument));
   if (unknownFlag) return `Unknown flag "${unknownFlag}" for ${command}.`;
 
   const helpCount = argv.filter((argument) => argument === "--help").length;
@@ -449,7 +507,9 @@ function validateBeforeHelp(command: CliCommand, argv: string[]): string | undef
   if (fullCount > 1) return "--full may be provided only once.";
 
   if (command === "build" || command === "capture" || command === "export") {
-    const positionals = argv.slice(1).filter((argument) => argument !== "--help" && argument !== "--full");
+    const positionals = argv
+      .slice(1)
+      .filter((argument) => argument !== "--help" && argument !== "--full");
     return positionals.length > 1
       ? `Unexpected argument "${positionals[1]}" for ${command}.`
       : undefined;
@@ -509,15 +569,21 @@ const home = Effect.fn("cli.home")(function* () {
   const fs = yield* FileSystem.FileSystem;
   const config = yield* withLogPhase(loadProjectConfig(), "project.load");
   const reports = yield* withLogPhase(
-    Effect.all(Object.values(config.reports).map((report) => fs.exists(report.htmlPath).pipe(
-      Effect.map((exists) => ({
-        name: report.name,
-        source: projectPath(config, report.sourcePath),
-        html: projectPath(config, report.htmlPath),
-        htmlStatus: exists ? "present" : "missing",
-      })),
-      Effect.mapError((cause) => commandFailure(cause, { command: "home", path: report.htmlPath, report: report.name })),
-    ))),
+    Effect.all(
+      Object.values(config.reports).map((report) =>
+        fs.exists(report.htmlPath).pipe(
+          Effect.map((exists) => ({
+            name: report.name,
+            source: projectPath(config, report.sourcePath),
+            html: projectPath(config, report.htmlPath),
+            htmlStatus: exists ? "present" : "missing",
+          })),
+          Effect.mapError((cause) =>
+            commandFailure(cause, { command: "home", path: report.htmlPath, report: report.name }),
+          ),
+        ),
+      ),
+    ),
     "reports.scan",
     { project: config.projectRoot },
   );
@@ -525,10 +591,9 @@ const home = Effect.fn("cli.home")(function* () {
   const hasPresentHtml = reports.some((report) => report.htmlStatus === "present");
   const help = [
     ...(hasMissingHtml ? [`Run ${CLI_INVOCATION} build <name>`] : []),
-    ...(hasPresentHtml ? [
-      `Run ${CLI_INVOCATION} inspect <name>`,
-      `Run ${CLI_INVOCATION} capture <name>`,
-    ] : []),
+    ...(hasPresentHtml
+      ? [`Run ${CLI_INVOCATION} inspect <name>`, `Run ${CLI_INVOCATION} capture <name>`]
+      : []),
     ...(!hasPresentHtml ? [`Run ${CLI_INVOCATION} --help`] : []),
   ];
   writeOutput({
@@ -544,13 +609,21 @@ const home = Effect.fn("cli.home")(function* () {
 const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   if (argv.length === 0) return yield* home();
   if (argv[0] === "--help") {
-    if (argv.length > 1) return usageError(`Unexpected argument "${argv[1]}" for --help.`, topHelp());
+    if (argv.length > 1)
+      return usageError(`Unexpected argument "${argv[1]}" for --help.`, topHelp());
     writeOutput(topHelp());
     return 0;
   }
 
   const command = argv[0];
-  if (command !== "build" && command !== "inspect" && command !== "capture" && command !== "export" && command !== "inspect-pdf" && command !== "init") {
+  if (
+    command !== "build" &&
+    command !== "inspect" &&
+    command !== "capture" &&
+    command !== "export" &&
+    command !== "inspect-pdf" &&
+    command !== "init"
+  ) {
     return usageError(`Unknown command "${command}".`, topHelp());
   }
   const validationError = validateBeforeHelp(command, argv);
@@ -577,7 +650,8 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       if (argument === "--name") {
         if (nameSeen) return usageError("--name may be provided only once.", commandHelp("init"));
         const value = argv[index + 1];
-        if (!value || value.startsWith("-")) return usageError("--name requires one value.", commandHelp("init"));
+        if (!value || value.startsWith("-"))
+          return usageError("--name requires one value.", commandHelp("init"));
         nameSeen = true;
         reportName = value;
         index += 1;
@@ -586,7 +660,10 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       return usageError(`Unexpected argument "${argument}" for init.`, commandHelp("init"));
     }
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(reportName)) {
-      return usageError(`Invalid report name "${reportName}"; use lower-kebab case.`, commandHelp("init"));
+      return usageError(
+        `Invalid report name "${reportName}"; use lower-kebab case.`,
+        commandHelp("init"),
+      );
     }
 
     const result = yield* withLogPhase(
@@ -602,15 +679,26 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     };
     if (result.status === "conflict") {
       writeOutput({
-        error: { code: "command-failed", message: "Initialization would overwrite files with different contents." },
+        error: {
+          code: "command-failed",
+          message: "Initialization would overwrite files with different contents.",
+        },
         init,
-        help: [`Run ${CLI_INVOCATION} init${nameSeen ? ` --name ${reportName}` : ""} --yes after reconciling the conflicting files`],
+        help: [
+          `Run ${CLI_INVOCATION} init${nameSeen ? ` --name ${reportName}` : ""} --yes after reconciling the conflicting files`,
+        ],
       });
       return 1;
     }
     writeOutput({
       init,
-      ...(result.status === "planned" ? { help: [`Run ${CLI_INVOCATION} init${nameSeen ? ` --name ${reportName}` : ""} --yes to create these files`] } : {}),
+      ...(result.status === "planned"
+        ? {
+            help: [
+              `Run ${CLI_INVOCATION} init${nameSeen ? ` --name ${reportName}` : ""} --yes to create these files`,
+            ],
+          }
+        : {}),
     });
     return 0;
   }
@@ -622,7 +710,11 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     const result = yield* inspectHtmlArtifact(argv[2] as string);
     writeOutput({
       artifact: { path: result.inputPath, pageCount: result.pages.length },
-      pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
+      pages: result.pages.map((page) => ({
+        index: page.index,
+        id: page.id,
+        element: page.tagName,
+      })),
     });
     return 0;
   }
@@ -633,15 +725,18 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     const artifactPath = argv[artifactIndex + 1];
     const outputDirectory = argv[outputIndex + 1];
     if (
-      argv.length !== 5
-      || artifactIndex < 1
-      || outputIndex < 1
-      || !artifactPath
-      || artifactPath.startsWith("-")
-      || !outputDirectory
-      || outputDirectory.startsWith("-")
+      argv.length !== 5 ||
+      artifactIndex < 1 ||
+      outputIndex < 1 ||
+      !artifactPath ||
+      artifactPath.startsWith("-") ||
+      !outputDirectory ||
+      outputDirectory.startsWith("-")
     ) {
-      return usageError("Explicit PDF inspection requires --artifact <path> and --output <directory> exactly once.", commandHelp("inspect-pdf"));
+      return usageError(
+        "Explicit PDF inspection requires --artifact <path> and --output <directory> exactly once.",
+        commandHelp("inspect-pdf"),
+      );
     }
     const { inspectPdfPages } = yield* Effect.tryPromise({
       try: () => import("./unslide/pdf-inspection.js"),
@@ -649,8 +744,17 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
     });
     const result = yield* inspectPdfPages(artifactPath, outputDirectory);
     writeOutput({
-      pdf: { path: result.inputPath, output: result.outputDirectory, pageCount: result.pages.length },
-      pages: result.pages.map((page) => ({ index: page.index, file: basename(page.outputPath), width: page.width, height: page.height })),
+      pdf: {
+        path: result.inputPath,
+        output: result.outputDirectory,
+        pageCount: result.pages.length,
+      },
+      pages: result.pages.map((page) => ({
+        index: page.index,
+        file: basename(page.outputPath),
+        width: page.width,
+        height: page.height,
+      })),
     });
     return 0;
   }
@@ -674,15 +778,26 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   }
   if (command === "inspect") {
     const result = yield* inspectHtmlArtifact(report.htmlPath).pipe(
-      Effect.mapError((cause) => commandFailure(cause, {
-        command,
-        path: report.htmlPath,
-        report: report.name,
-      })),
+      Effect.mapError((cause) =>
+        commandFailure(cause, {
+          command,
+          path: report.htmlPath,
+          report: report.name,
+        }),
+      ),
     );
     writeOutput({
-      report: { name: report.name, status: "valid", html: projectPath(config, result.inputPath), pageCount: result.pages.length },
-      pages: result.pages.map((page) => ({ index: page.index, id: page.id, element: page.tagName })),
+      report: {
+        name: report.name,
+        status: "valid",
+        html: projectPath(config, result.inputPath),
+        pageCount: result.pages.length,
+      },
+      pages: result.pages.map((page) => ({
+        index: page.index,
+        id: page.id,
+        element: page.tagName,
+      })),
     });
     return 0;
   }
@@ -690,13 +805,16 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   if (command === "export") {
     const { exportHtmlPdf } = yield* Effect.tryPromise({
       try: () => import("./unslide/pdf.js"),
-      catch: (cause) => commandFailure(cause, { command, path: report.htmlPath, report: report.name }),
+      catch: (cause) =>
+        commandFailure(cause, { command, path: report.htmlPath, report: report.name }),
     });
     const result = yield* exportHtmlPdf(report.htmlPath, report.pdfPath).pipe(
-      Effect.mapError((cause) => commandFailure(cause, {
-        command,
-        report: report.name,
-      })),
+      Effect.mapError((cause) =>
+        commandFailure(cause, {
+          command,
+          report: report.name,
+        }),
+      ),
     );
     const firstPage = result.pages[0];
     writeOutput({
@@ -716,14 +834,17 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   if (command === "inspect-pdf") {
     const { inspectPdfPages } = yield* Effect.tryPromise({
       try: () => import("./unslide/pdf-inspection.js"),
-      catch: (cause) => commandFailure(cause, { command, path: report.pdfPath, report: report.name }),
+      catch: (cause) =>
+        commandFailure(cause, { command, path: report.pdfPath, report: report.name }),
     });
     const result = yield* inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory).pipe(
-      Effect.mapError((cause) => commandFailure(cause, {
-        command,
-        path: report.pdfPath,
-        report: report.name,
-      })),
+      Effect.mapError((cause) =>
+        commandFailure(cause, {
+          command,
+          path: report.pdfPath,
+          report: report.name,
+        }),
+      ),
     );
     writeOutput({
       report: {
@@ -744,11 +865,13 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
   }
 
   const result = yield* captureHtmlPages(report.htmlPath, report.captureDirectory).pipe(
-    Effect.mapError((cause) => commandFailure(cause, {
-      command,
-      path: report.htmlPath,
-      report: report.name,
-    })),
+    Effect.mapError((cause) =>
+      commandFailure(cause, {
+        command,
+        path: report.htmlPath,
+        report: report.name,
+      }),
+    ),
   );
   writeOutput({
     report: {
@@ -757,7 +880,12 @@ const runCommand = Effect.fn("cli.runCommand")(function* (argv: string[]) {
       output: projectPath(config, result.outputDirectory),
       pageCount: result.pages.length,
     },
-    pages: result.pages.map((page) => ({ id: page.id, file: basename(page.outputPath), width: page.width, height: page.height })),
+    pages: result.pages.map((page) => ({
+      id: page.id,
+      file: basename(page.outputPath),
+      width: page.width,
+      height: page.height,
+    })),
   });
   return 0;
 });
@@ -773,27 +901,29 @@ function failureLogAnnotations(cause: Cause.Cause<unknown>): Record<string, unkn
   let errorTag = "Unknown";
   if (primary?._tag === "Fail") {
     const error = primary.error;
-    errorTag = typeof error === "object"
-      && error !== null
-      && "_tag" in error
-      && typeof error._tag === "string"
-      ? error._tag
-      : "Failure";
+    errorTag =
+      typeof error === "object" &&
+      error !== null &&
+      "_tag" in error &&
+      typeof error._tag === "string"
+        ? error._tag
+        : "Failure";
   } else if (primary?._tag === "Die") {
     errorTag = "Defect";
   } else if (primary?._tag === "Interrupt") {
     errorTag = "Interrupt";
   }
-  const errorMessage = {
-    CommandFailure: "Command operation failed.",
-    Defect: "Unexpected defect.",
-    Failure: "Operation failed.",
-    Interrupt: "Operation interrupted.",
-    ProjectConfigFailure: "Project configuration failed.",
-    ProjectNotFound: "Project discovery failed.",
-    ReportNotFound: "Report lookup failed.",
-    Unknown: "Operation failed.",
-  }[errorTag] ?? "Operation failed.";
+  const errorMessage =
+    {
+      CommandFailure: "Command operation failed.",
+      Defect: "Unexpected defect.",
+      Failure: "Operation failed.",
+      Interrupt: "Operation interrupted.",
+      ProjectConfigFailure: "Project configuration failed.",
+      ProjectNotFound: "Project discovery failed.",
+      ReportNotFound: "Report lookup failed.",
+      Unknown: "Operation failed.",
+    }[errorTag] ?? "Operation failed.";
   return { errorMessage, errorTag };
 }
 
@@ -803,20 +933,28 @@ function instrumentInvocation<E, R>(
 ): Effect.Effect<number, E, R> {
   return Effect.gen(function* () {
     yield* Effect.logInfo("invocation.started");
-    return yield* effect.pipe(Effect.onExit((exit) => Effect.gen(function* () {
-      if (Exit.isFailure(exit)) {
-        yield* Effect.logError("invocation.failed").pipe(
-          Effect.annotateLogs(failureLogAnnotations(exit.cause)),
-        );
-        yield* Effect.logDebug("failure.cause", exit.cause);
-      } else if (exit.value === 0) {
-        yield* Effect.logInfo("invocation.completed").pipe(Effect.annotateLogs("exitCode", 0));
-      } else if (exit.value === 2) {
-        yield* Effect.logWarning("invocation.rejected").pipe(Effect.annotateLogs("exitCode", 2));
-      } else {
-        yield* Effect.logError("invocation.failed").pipe(Effect.annotateLogs("exitCode", exit.value));
-      }
-    })));
+    return yield* effect.pipe(
+      Effect.onExit((exit) =>
+        Effect.gen(function* () {
+          if (Exit.isFailure(exit)) {
+            yield* Effect.logError("invocation.failed").pipe(
+              Effect.annotateLogs(failureLogAnnotations(exit.cause)),
+            );
+            yield* Effect.logDebug("failure.cause", exit.cause);
+          } else if (exit.value === 0) {
+            yield* Effect.logInfo("invocation.completed").pipe(Effect.annotateLogs("exitCode", 0));
+          } else if (exit.value === 2) {
+            yield* Effect.logWarning("invocation.rejected").pipe(
+              Effect.annotateLogs("exitCode", 2),
+            );
+          } else {
+            yield* Effect.logError("invocation.failed").pipe(
+              Effect.annotateLogs("exitCode", exit.value),
+            );
+          }
+        }),
+      ),
+    );
   }).pipe(
     Effect.annotateLogs({ command, invocationId: randomUUID() }),
     Effect.withLogSpan("invocation"),
@@ -831,9 +969,7 @@ async function main(rawArguments: string[]): Promise<number> {
   const program = provideCliLogging(
     instrumentInvocation(runCommand(arguments_), invocationCommand(arguments_)),
     logging.value.level,
-  ).pipe(
-    Effect.provide(applicationLayer),
-  );
+  ).pipe(Effect.provide(applicationLayer));
   const exit = await Effect.runPromiseExit(program);
   if (Exit.isSuccess(exit)) return exit.value;
 

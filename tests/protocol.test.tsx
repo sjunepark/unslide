@@ -40,15 +40,21 @@ async function validateFixture(fileName: string) {
 function rejectedDiagnostics(error: unknown): Array<Record<string, unknown>> {
   if (!(error instanceof Error) || !("cause" in error)) return [];
   const cause = error.cause;
-  if (typeof cause !== "object" || cause === null || !("reasons" in cause) || !Array.isArray(cause.reasons)) return [];
+  if (
+    typeof cause !== "object" ||
+    cause === null ||
+    !("reasons" in cause) ||
+    !Array.isArray(cause.reasons)
+  )
+    return [];
   return cause.reasons.flatMap((reason) => {
     if (typeof reason !== "object" || reason === null || !("error" in reason)) return [];
     const failure = reason.error;
-    return typeof failure === "object"
-      && failure !== null
-      && "issues" in failure
-      && Array.isArray(failure.issues)
-      ? failure.issues as Array<Record<string, unknown>>
+    return typeof failure === "object" &&
+      failure !== null &&
+      "issues" in failure &&
+      Array.isArray(failure.issues)
+      ? (failure.issues as Array<Record<string, unknown>>)
       : [];
   });
 }
@@ -92,7 +98,10 @@ test("protocol validation rejects unsupported artifact versions with migration g
   assert.equal(result.ok, false);
   if (result.ok) assert.fail("Unsupported protocol fixture unexpectedly passed validation");
   assert.equal(result.issues[0]?.code, "protocol-version");
-  assert.match(result.issues[0]?.message ?? "", /supports version 1.*automatic migration is not available/);
+  assert.match(
+    result.issues[0]?.message ?? "",
+    /supports version 1.*automatic migration is not available/,
+  );
 });
 
 test("protocol validation identifies missing, empty, and duplicate page IDs", async () => {
@@ -110,7 +119,10 @@ test("protocol validation identifies missing, empty, and duplicate page IDs", as
     assert.fail("Invalid protocol fixtures unexpectedly passed validation");
   }
 
-  assert.deepEqual(missingPages.issues.map(({ code }) => code), ["missing-pages"]);
+  assert.deepEqual(
+    missingPages.issues.map(({ code }) => code),
+    ["missing-pages"],
+  );
   assert.match(emptyId.issues[0]?.message ?? "", /Page 1.*empty data-unslide-page/);
   assert.match(duplicateId.issues[0]?.message ?? "", /"same".*positions 1, 2/);
 });
@@ -149,10 +161,7 @@ test("protocol validation bounds a font request that never settles", async () =>
     await page.route("https://fixture.invalid/**", () => {});
     await page.setContent('<main data-unslide-page="pending">Waiting font</main>');
     await page.evaluate(() => {
-      const font = new FontFace(
-        "Pending Fixture Font",
-        "url(https://fixture.invalid/never.woff2)",
-      );
+      const font = new FontFace("Pending Fixture Font", "url(https://fixture.invalid/never.woff2)");
       document.fonts.add(font);
       void font.load();
     });
@@ -215,8 +224,20 @@ test("capture consumes the protocol for a non-A4 chrome-free fixture", async () 
       inputPath,
       outputDirectory: directory,
       pages: [
-        { id: "summary", index: 0, width: 480, height: 300, outputPath: resolve(directory, "page-01.png") },
-        { id: "observation", index: 1, width: 320, height: 420, outputPath: resolve(directory, "page-02.png") },
+        {
+          id: "summary",
+          index: 0,
+          width: 480,
+          height: 300,
+          outputPath: resolve(directory, "page-01.png"),
+        },
+        {
+          id: "observation",
+          index: 1,
+          width: 320,
+          height: 420,
+          outputPath: resolve(directory, "page-02.png"),
+        },
       ],
     });
 
@@ -227,12 +248,19 @@ test("capture consumes the protocol for a non-A4 chrome-free fixture", async () 
 
     await writeFile(resolve(directory, "page-99.png"), "stale capture");
     await writeFile(resolve(directory, "keep.txt"), "unrelated evidence");
-    const hashes = [firstPage, secondPage].map((contents) => createHash("sha256").update(contents).digest("hex"));
+    const hashes = [firstPage, secondPage].map((contents) =>
+      createHash("sha256").update(contents).digest("hex"),
+    );
     await captureHtmlPages(inputPath, directory);
     assert.deepEqual((await readdir(directory)).sort(), ["keep.txt", "page-01.png", "page-02.png"]);
     assert.deepEqual(
-      await Promise.all(["page-01.png", "page-02.png"].map(async (name) =>
-        createHash("sha256").update(await readFile(resolve(directory, name))).digest("hex"))),
+      await Promise.all(
+        ["page-01.png", "page-02.png"].map(async (name) =>
+          createHash("sha256")
+            .update(await readFile(resolve(directory, name)))
+            .digest("hex"),
+        ),
+      ),
       hashes,
     );
   } finally {
@@ -302,13 +330,20 @@ test("capture bounds document loading and names a pending resource", async () =>
     assert.ok(address && typeof address === "object");
     const resourceUrl = `http://127.0.0.1:${address.port}/never.css`;
     const inputPath = resolve(directory, "pending.html");
-    await writeFile(inputPath, `<!doctype html><html><head><link rel="stylesheet" href="${resourceUrl}"></head><body><main data-unslide-page="pending">Pending</main></body></html>`);
+    await writeFile(
+      inputPath,
+      `<!doctype html><html><head><link rel="stylesheet" href="${resourceUrl}"></head><body><main data-unslide-page="pending">Pending</main></body></html>`,
+    );
 
     const startedAt = Date.now();
     await assert.rejects(captureHtmlPages(inputPath, resolve(directory, "captures")), (error) => {
       const diagnostics = rejectedDiagnostics(error);
-      return diagnostics.some((issue) => issue.code === "document-readiness")
-        && diagnostics.some((issue) => issue.code === "resource-pending" && /never\.css/.test(String(issue.resource)));
+      return (
+        diagnostics.some((issue) => issue.code === "document-readiness") &&
+        diagnostics.some(
+          (issue) => issue.code === "resource-pending" && /never\.css/.test(String(issue.resource)),
+        )
+      );
     });
     assert.ok(Date.now() - startedAt < 7_000);
   } finally {
@@ -327,7 +362,10 @@ test("capture names a resource that blocks DOM parsing", async () => {
     assert.ok(address && typeof address === "object");
     const resourceUrl = `http://127.0.0.1:${address.port}/never.js`;
     const inputPath = resolve(directory, "pending-script.html");
-    await writeFile(inputPath, `<!doctype html><html><head><script src="${resourceUrl}"></script></head><body><main data-unslide-page="pending">Pending</main></body></html>`);
+    await writeFile(
+      inputPath,
+      `<!doctype html><html><head><script src="${resourceUrl}"></script></head><body><main data-unslide-page="pending">Pending</main></body></html>`,
+    );
 
     await assert.rejects(
       captureHtmlPages(inputPath, resolve(directory, "captures")),
@@ -343,7 +381,10 @@ test("capture names a resource that blocks DOM parsing", async () => {
 test("capture tracks concurrent requests to the same URL independently", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "unslide-duplicate-request-"));
   let sharedRequests = 0;
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==", "base64");
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+    "base64",
+  );
   const server = createServer((request, response) => {
     if (request.url === "/shared") {
       sharedRequests += 1;
@@ -368,12 +409,17 @@ test("capture tracks concurrent requests to the same URL independently", async (
     assert.ok(address && typeof address === "object");
     const origin = `http://127.0.0.1:${address.port}`;
     const inputPath = resolve(directory, "duplicate-request.html");
-    await writeFile(inputPath, `<!doctype html><html><body><script>void fetch("${origin}/shared"); void fetch("${origin}/shared");</script><main data-unslide-page="one"><img src="${origin}/gate.png" alt=""></main></body></html>`);
+    await writeFile(
+      inputPath,
+      `<!doctype html><html><body><script>void fetch("${origin}/shared"); void fetch("${origin}/shared");</script><main data-unslide-page="one"><img src="${origin}/gate.png" alt=""></main></body></html>`,
+    );
 
     const startedAt = Date.now();
     await assert.rejects(captureHtmlPages(inputPath, resolve(directory, "captures")), (error) =>
-      rejectedDiagnostics(error).some((issue) =>
-        issue.code === "resource-pending" && /\/shared/.test(String(issue.resource))));
+      rejectedDiagnostics(error).some(
+        (issue) => issue.code === "resource-pending" && /\/shared/.test(String(issue.resource)),
+      ),
+    );
     assert.ok(Date.now() - startedAt < 7_000);
     assert.equal(sharedRequests, 2);
   } finally {
@@ -383,77 +429,101 @@ test("capture tracks concurrent requests to the same URL independently", async (
   }
 });
 
-test("readiness retains requests that were pending when the shared deadline expired", { timeout: 10_000 }, async () => {
-  const font = await readFile(resolve("node_modules/pdfjs-dist/standard_fonts/LiberationSans-Regular.ttf"));
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==", "base64");
-  const server = createServer((request, response) => {
-    if (request.url === "/font.ttf") {
-      setTimeout(() => {
-        response.setHeader("Access-Control-Allow-Origin", "*");
-        response.setHeader("Content-Type", "font/ttf");
-        response.end(font);
-      }, 4_400);
-      return;
-    }
-    if (request.url === "/late.png") {
-      setTimeout(() => {
-        response.setHeader("Content-Type", "image/png");
-        response.end(png);
-      }, 5_200);
-      return;
-    }
-    response.statusCode = 404;
-    response.end();
-  });
-
-  try {
-    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
-    const address = server.address();
-    assert.ok(address && typeof address === "object");
-    const origin = `http://127.0.0.1:${address.port}`;
-
-    await assert.rejects(runUnslide(withLoadedArtifact(
-      resolve(fixtureDirectory, "protocol-valid.html"),
-      async ({ page, waitForReadiness }) => {
-        await page.evaluate((resourceOrigin) => {
-          const style = document.createElement("style");
-          style.textContent = `@font-face{font-family:OverdueFont;src:url(${resourceOrigin}/font.ttf)}body{font-family:OverdueFont}`;
-          document.head.append(style);
-          const image = document.createElement("img");
-          image.src = `${resourceOrigin}/late.png`;
-          document.querySelector("[data-unslide-page]")?.append(image);
-          void document.fonts.load("16px OverdueFont");
-        }, origin);
-        await waitForReadiness();
-      },
-    )), (error) => {
-      const diagnostics = rejectedDiagnostics(error);
-      assert.ok(!diagnostics.some((issue) => issue.code === "font-readiness" || issue.code === "resource-failed"));
-      return diagnostics.some((issue) =>
-        issue.code === "resource-pending"
-        && /\/late\.png/.test(String(issue.resource))
-        && /5000ms/.test(String(issue.message)));
+test(
+  "readiness retains requests that were pending when the shared deadline expired",
+  { timeout: 10_000 },
+  async () => {
+    const font = await readFile(
+      resolve("node_modules/pdfjs-dist/standard_fonts/LiberationSans-Regular.ttf"),
+    );
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const server = createServer((request, response) => {
+      if (request.url === "/font.ttf") {
+        setTimeout(() => {
+          response.setHeader("Access-Control-Allow-Origin", "*");
+          response.setHeader("Content-Type", "font/ttf");
+          response.end(font);
+        }, 4_400);
+        return;
+      }
+      if (request.url === "/late.png") {
+        setTimeout(() => {
+          response.setHeader("Content-Type", "image/png");
+          response.end(png);
+        }, 5_200);
+        return;
+      }
+      response.statusCode = 404;
+      response.end();
     });
-  } finally {
-    server.closeAllConnections();
-    await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
-  }
-});
+
+    try {
+      await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const origin = `http://127.0.0.1:${address.port}`;
+
+      await assert.rejects(
+        runUnslide(
+          withLoadedArtifact(
+            resolve(fixtureDirectory, "protocol-valid.html"),
+            async ({ page, waitForReadiness }) => {
+              await page.evaluate((resourceOrigin) => {
+                const style = document.createElement("style");
+                style.textContent = `@font-face{font-family:OverdueFont;src:url(${resourceOrigin}/font.ttf)}body{font-family:OverdueFont}`;
+                document.head.append(style);
+                const image = document.createElement("img");
+                image.src = `${resourceOrigin}/late.png`;
+                document.querySelector("[data-unslide-page]")?.append(image);
+                void document.fonts.load("16px OverdueFont");
+              }, origin);
+              await waitForReadiness();
+            },
+          ),
+        ),
+        (error) => {
+          const diagnostics = rejectedDiagnostics(error);
+          assert.ok(
+            !diagnostics.some(
+              (issue) => issue.code === "font-readiness" || issue.code === "resource-failed",
+            ),
+          );
+          return diagnostics.some(
+            (issue) =>
+              issue.code === "resource-pending" &&
+              /\/late\.png/.test(String(issue.resource)) &&
+              /5000ms/.test(String(issue.message)),
+          );
+        },
+      );
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
+    }
+  },
+);
 
 test("loaded artifacts release Chromium after success and operational failure", async () => {
   const inputPath = resolve(fixtureDirectory, "protocol-valid.html");
   let successfulBrowser: Browser | undefined;
-  await runUnslide(withLoadedArtifact(inputPath, async ({ page }) => {
-    successfulBrowser = page.context().browser() ?? undefined;
-  }));
+  await runUnslide(
+    withLoadedArtifact(inputPath, async ({ page }) => {
+      successfulBrowser = page.context().browser() ?? undefined;
+    }),
+  );
   assert.equal(successfulBrowser?.isConnected(), false);
 
   let failedBrowser: Browser | undefined;
   await assert.rejects(
-    runUnslide(withLoadedArtifact(inputPath, async ({ page }) => {
-      failedBrowser = page.context().browser() ?? undefined;
-      throw new Error("fixture operation failed");
-    })),
+    runUnslide(
+      withLoadedArtifact(inputPath, async ({ page }) => {
+        failedBrowser = page.context().browser() ?? undefined;
+        throw new Error("fixture operation failed");
+      }),
+    ),
     /fixture operation failed/,
   );
   assert.equal(failedBrowser?.isConnected(), false);
@@ -463,12 +533,18 @@ test("operation failures retain browser diagnostics collected during the operati
   const inputPath = resolve(fixtureDirectory, "protocol-valid.html");
 
   await assert.rejects(
-    runUnslide(withLoadedArtifact(inputPath, async ({ page }) => {
-      await page.evaluate(() => console.error("operation fixture diagnostic"));
-      throw new Error("fixture operation failed");
-    })),
-    (error) => rejectedDiagnostics(error).some((issue) =>
-      issue.code === "console-error" && /operation fixture diagnostic/.test(String(issue.message))),
+    runUnslide(
+      withLoadedArtifact(inputPath, async ({ page }) => {
+        await page.evaluate(() => console.error("operation fixture diagnostic"));
+        throw new Error("fixture operation failed");
+      }),
+    ),
+    (error) =>
+      rejectedDiagnostics(error).some(
+        (issue) =>
+          issue.code === "console-error" &&
+          /operation fixture diagnostic/.test(String(issue.message)),
+      ),
   );
 });
 
@@ -486,20 +562,24 @@ test("closing a page during readiness rejects without leaving validation unobser
     const resourceUrl = `http://127.0.0.1:${address.port}/pending.png`;
     const startedAt = Date.now();
 
-    await assert.rejects(runUnslide(withLoadedArtifact(
-      resolve(fixtureDirectory, "protocol-valid.html"),
-      async ({ page, waitForReadiness }) => {
-        await page.evaluate((url) => {
-          const image = document.createElement("img");
-          image.src = url;
-          document.body.append(image);
-        }, resourceUrl);
-        await requested;
-        const readiness = waitForReadiness();
-        setTimeout(() => void page.close(), 100);
-        await readiness;
-      },
-    )));
+    await assert.rejects(
+      runUnslide(
+        withLoadedArtifact(
+          resolve(fixtureDirectory, "protocol-valid.html"),
+          async ({ page, waitForReadiness }) => {
+            await page.evaluate((url) => {
+              const image = document.createElement("img");
+              image.src = url;
+              document.body.append(image);
+            }, resourceUrl);
+            await requested;
+            const readiness = waitForReadiness();
+            setTimeout(() => void page.close(), 100);
+            await readiness;
+          },
+        ),
+      ),
+    );
     assert.ok(Date.now() - startedAt < 2_000);
   } finally {
     server.closeAllConnections();
@@ -531,16 +611,18 @@ test("interrupting a loaded artifact closes the underlying Chromium work", async
 
 test("loaded artifacts retain primary and Chromium cleanup failures together", async () => {
   await assert.rejects(
-    runUnslide(withLoadedArtifact(resolve(fixtureDirectory, "protocol-valid.html"), async ({ page }) => {
-      const browser = page.context().browser();
-      assert.ok(browser);
-      const close = browser.close.bind(browser);
-      browser.close = async (options) => {
-        await close(options);
-        throw new Error("fixture browser cleanup failed");
-      };
-      throw new Error("fixture primary operation failed");
-    })),
+    runUnslide(
+      withLoadedArtifact(resolve(fixtureDirectory, "protocol-valid.html"), async ({ page }) => {
+        const browser = page.context().browser();
+        assert.ok(browser);
+        const close = browser.close.bind(browser);
+        browser.close = async (options) => {
+          await close(options);
+          throw new Error("fixture browser cleanup failed");
+        };
+        throw new Error("fixture primary operation failed");
+      }),
+    ),
     /fixture primary operation failed[\s\S]*Cleanup failed: fixture browser cleanup failed/,
   );
 });

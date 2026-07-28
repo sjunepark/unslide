@@ -2,12 +2,11 @@
 
 ## Current
 
-_None._
+- [Adopt Oxlint, Oxfmt, and tsc](plans/oxlint-oxfmt-tsc.md)
 
 ## Plans
 
-1. [Adopt Oxlint, Oxfmt, and tsc](plans/oxlint-oxfmt-tsc.md)
-2. [Add static and interactive report modes](plans/static-interactive-report-modes.md)
+1. [Add static and interactive report modes](plans/static-interactive-report-modes.md)
 
 ## Tasks
 
