@@ -10,6 +10,10 @@ publishes npm through OIDC trusted publishing.
 `0.1.0` was manually published from the reviewed commit later tagged
 `v0.1.0`; the one-time bootstrap is complete and must not be repeated.
 
+`0.1.1` proved the normal Release Please pull request, matching source tag and
+GitHub Release, tagged-source validation, and trusted npm publication with
+provenance.
+
 The automated path depends on:
 
 - the npm trusted publisher for `sjunepark/unslide` and
@@ -21,6 +25,11 @@ The automated path depends on:
 The credential's source value belongs in the maintainer's credential vault, not
 in repository files or an unmanaged project-local copy. npm publication uses
 short-lived OIDC credentials and no long-lived npm token.
+
+The fine-grained GitHub token must select `sjunepark/unslide` and grant
+read-write access to contents, issues, pull requests, and workflows. Workflow
+access is required because a generated release pull request can contain
+workflow changes.
 
 ## Versioning
 
