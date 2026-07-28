@@ -8,7 +8,8 @@ checks enforced locally and through the existing CI validation path.
 
 ## Current state
 
-- This plan is current on the roadmap.
+- This plan is complete and leaves the roadmap's current queue in pull request
+  [#12](https://github.com/sjunepark/unslide/pull/12).
 - Oxlint and Oxfmt are pinned and configured; Oxfmt has been applied across its
   owned repository scope, and the initial Oxlint findings are resolved without
   rule suppressions.
@@ -22,6 +23,8 @@ checks enforced locally and through the existing CI validation path.
   proof-report page image has been inspected.
 - Implementation review found no remaining safe-fix or decision-required
   findings; the public package dry run contains no development-tooling output.
+- Pull request CI and security checks pass. Codex approved the change, and
+  CodeRabbit reported no actionable inline findings.
 
 ## Decisions
 
@@ -60,5 +63,4 @@ without a parallel validation path.
 
 ## Next action
 
-Deliver the reviewed and validated change through its pull request, then close
-the goal and advance the roadmap.
+None.

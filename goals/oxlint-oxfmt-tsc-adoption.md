@@ -6,8 +6,9 @@ locally and in CI.
 
 ## State
 
-Status: active. The implementation is tracked in
-[the adoption plan](../plans/oxlint-oxfmt-tsc.md).
+Status: complete. The implementation and delivery evidence are recorded in
+[the adoption plan](../plans/oxlint-oxfmt-tsc.md) and pull request
+[#12](https://github.com/sjunepark/unslide/pull/12).
 
 Included scope is pinned tool ownership and configuration, one composed local
 and CI command surface, repository-wide formatting and lint remediation, and
@@ -28,10 +29,11 @@ contributor guidance. Static and interactive report modes are excluded.
 - Independent implementation review found no remaining safe-fix or
   decision-required findings, and `npm pack --dry-run` verified the public
   package contents.
+- Pull request #12 passed the repository CI and security checks. Codex approved
+  the change, and CodeRabbit reported no actionable inline findings.
 - A pre-existing transitive audit finding through AJV was confirmed unchanged
   by this work and remains outside the toolchain-adoption scope.
 
 ## Next Action
 
-Complete implementation review and PR delivery, then close this goal and
-advance the roadmap.
+None.
