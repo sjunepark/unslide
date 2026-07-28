@@ -1,11 +1,12 @@
 # Plan
 
-Active implementation goal: **none. Goal 1 — harden PDF export readiness and
-its visual-fidelity contract — is complete in
-[PR #9](https://github.com/sjunepark/unslide/pull/9).**
+Active implementation goal: **Goal 2 — prove the automated `0.1.1` release
+path. Goal 1 — harden PDF export readiness and its visual-fidelity contract —
+is complete in [PR #9](https://github.com/sjunepark/unslide/pull/9).**
 
-Current next action: **scope the independent-consumer evidence and first
-Release Please-generated release as separate work before beginning it.**
+Current next action: **complete and verify the first Release Please-generated
+release as `0.1.1`. Independent-consumer evidence remains a separate 1.0
+release gate.**
 
 This file owns current execution state and unresolved evidence gates. Durable
 product, design, architecture, support, and release policy belong in their
@@ -20,8 +21,8 @@ focused documents and decision records.
   policy and operations belong to
   [D6](docs/decisions/0006-public-npm-distribution.md) and
   [docs/RELEASE.md](docs/RELEASE.md).
-- Release Please is configured, but the first subsequent automated release has
-  not yet been proven.
+- Release Please selected `0.1.1` for the merged PDF fixes. Its release pull
+  request is the accepted scope for proving the automated path.
 - Blockers: none.
 
 ## Goal 1 — Harden PDF Export Readiness and Fidelity Contract
@@ -87,9 +88,23 @@ scoring, an exact-color guarantee for arbitrary color spaces or rendering
 environments, animation stabilization, a new asynchronous readiness protocol,
 a second PDF renderer, or production CLI handling for stale linked builds.
 
-After Goal 1, resume the prior next action: exercise the public package in
-independent consumers, record evidence against the gates below, and verify the
-first Release Please-generated release before widening product scope.
+## Goal 2 — Prove the Automated 0.1.1 Release Path
+
+Outcome: the first Release Please-generated release proves the normal
+versioning, tagging, GitHub Release, tagged-source validation, and trusted npm
+publication path end to end.
+
+Accepted scope:
+
+1. Review and merge the generated `0.1.1` release pull request.
+2. Verify the matching source tag, GitHub Release, tagged-source validation,
+   and npm publication with provenance.
+3. Record the proven automated path in the release runbook.
+
+Independent-consumer evidence remains a separate 1.0 release gate under
+[D6](docs/decisions/0006-public-npm-distribution.md). Synthetic packed-consumer
+coverage remains part of the repository validation suite and is not a
+substitute for that evidence.
 
 ## Evidence Gates
 

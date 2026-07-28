@@ -1,6 +1,6 @@
 # Supported Delivery Contract
 
-This document records the verified `0.1.0` delivery boundary. It is narrower
+This document records the verified `0.1.1` delivery boundary. It is narrower
 than what the underlying libraries may happen to support. `package.json` and
 the lockfile remain authoritative for dependency pins.
 

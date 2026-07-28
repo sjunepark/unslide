@@ -12,6 +12,10 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(".");
+const repositoryManifest = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
+  name: string;
+  version: string;
+};
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
@@ -96,7 +100,7 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
     await execFileAsync("pnpm", ["pack", "--pack-destination", packageDirectory], {
       cwd: repositoryRoot,
     });
-    const tarballPath = resolve(packageDirectory, "unslide-0.1.0.tgz");
+    const tarballPath = resolve(packageDirectory, `${repositoryManifest.name}-${repositoryManifest.version}.tgz`);
     const { stdout: tarListing } = await execFileAsync("tar", ["-tzf", tarballPath]);
     const packedFiles = tarListing.trim().split("\n");
     for (const required of [
@@ -144,7 +148,7 @@ test("packed tooling initializes and runs from a clean external consumer", { tim
       exports: Record<string, unknown>;
       dependencies: Record<string, string>;
     };
-    assert.equal(installedManifest.version, "0.1.0");
+    assert.equal(installedManifest.version, repositoryManifest.version);
     assert.equal(installedManifest.engines.node, ">=24.15 <25");
     assert.deepEqual(Object.keys(installedManifest.exports).sort(), ["./protocol.md", "./react", "./schema/unslide.json", "./support.md"]);
     assert.equal(installedManifest.dependencies["pdfjs-dist"], "6.1.200");
