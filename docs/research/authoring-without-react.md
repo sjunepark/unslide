@@ -4,7 +4,8 @@ Status: deferred research. React remains the supported authoring module.
 
 This note preserves the alternatives and evaluation criteria for a future
 decision. It does not change current scope, the public interface, or the
-evidence gate in [PLAN.md](../../PLAN.md).
+evidence gate in the
+[product scope](../../PRODUCT.md#deferred-capability-gates).
 
 ## Question
 
@@ -171,8 +172,10 @@ Revisit only when at least one of these produces concrete evidence:
 - A dependency-free prototype preserves the authoring quality of a substantial
   report.
 
-The current [PLAN.md](../../PLAN.md) gate for additional source adapters still
-applies. A future implementation requires an explicit scope decision.
+The current
+[product-scope gate](../../PRODUCT.md#deferred-capability-gates) for additional
+source adapters still applies. A future implementation requires an explicit
+scope decision.
 
 ## Prototype Evaluation
 
@@ -193,4 +196,5 @@ writer and candidate while performing the same work:
 
 If the evidence supports a change, record the accepted interface and migration
 policy in a new decision record, then update `PRODUCT.md`, `docs/DESIGN.md`,
-`ARCHITECTURE.md`, `PLAN.md`, and the support contract as applicable.
+`ARCHITECTURE.md`, `ROADMAP.md`, the affected plan, and the support contract as
+applicable.

@@ -1,8 +1,8 @@
 # PDF Export Readiness
 
-Outcome: complete PLAN Goal 1 so PDF export waits for print-activated static
-resources and the visual-fidelity boundary is accurate throughout the product
-contract.
+Outcome: complete the PDF export readiness work so export waits for
+print-activated static resources and the visual-fidelity boundary is accurate
+throughout the product contract.
 
 ## State
 
@@ -14,6 +14,13 @@ readiness, structural-versus-visual guidance, report-owned exact print-color
 adjustment, the static-input boundary, starter and packed-consumer evidence,
 and linked-development guidance. Independent consumer exercises and the first
 Release Please-generated release remain deferred.
+
+## Non-goals
+
+Manual or system Print-to-PDF support, generic pixel-difference scoring, an
+exact-color guarantee for arbitrary color spaces or rendering environments,
+animation stabilization, a new asynchronous readiness protocol, a second PDF
+renderer, and production CLI handling for stale linked builds were excluded.
 
 ## Evidence
 
@@ -41,5 +48,4 @@ Release Please-generated release remain deferred.
 
 ## Next Action
 
-Use [PLAN.md](../PLAN.md) to scope the excluded independent-consumer and first
-Release Please-generated release work separately.
+None — complete.

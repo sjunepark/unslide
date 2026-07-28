@@ -121,4 +121,6 @@ safety, and an explicit conflict path.
 Automatic pagination, fit repair, visual editing, presentation behavior,
 business calculations, mandatory design systems, and speculative adapters
 remain outside the product boundary. [D3](decisions/0003-headless-artifact-protocol.md)
-records the rationale, and [PLAN.md](../PLAN.md) owns the evidence gates.
+records the rationale, and the
+[product scope](../PRODUCT.md#deferred-capability-gates) owns the evidence
+gates.

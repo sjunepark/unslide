@@ -166,8 +166,8 @@ Repository-only documentation has one responsibility per file:
   defines authoring vocabulary and ownership.
 - [Architecture](https://github.com/sjunepark/unslide/blob/main/ARCHITECTURE.md)
   maps runtime components and invariants.
-- [Plan](https://github.com/sjunepark/unslide/blob/main/PLAN.md) records current
-  execution state and evidence gates.
+- [Roadmap](https://github.com/sjunepark/unslide/blob/main/ROADMAP.md) records
+  current and ordered work; linked plan files own execution detail.
 - [Release](https://github.com/sjunepark/unslide/blob/main/docs/RELEASE.md) is
   the publishing runbook.
 - [Decision records](https://github.com/sjunepark/unslide/tree/main/docs/decisions)
