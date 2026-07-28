@@ -34,9 +34,9 @@ entries while sharing data, calculations, page modules, and visual source.
   arbitrary report-owned interactivity, initial-state capture/PDF for
   interactive reports, and a mandatory warning that interactive HTML may
   differ from its static projection.
-- This work is scheduled immediately after the Oxlint, Oxfmt, and `tsc`
-  adoption plan. It must use the resulting validation and formatting commands
-  rather than introducing a parallel path.
+- The Oxlint, Oxfmt, and `tsc` adoption is complete. This work is scheduled
+  after the consumer report authoring plan and must use the resulting
+  validation and formatting commands rather than introducing a parallel path.
 
 ## Accepted design
 
@@ -228,6 +228,6 @@ final `$code-review` with no unresolved actionable findings.
 
 ## Next action
 
-After the Oxlint, Oxfmt, and `tsc` plan is complete and this plan becomes
+After the consumer report authoring plan is complete and this plan becomes
 current, execute Goal 1: write the decision record and reconcile the public
 contract before changing the schema, renderer, validator, or browser runtime.
