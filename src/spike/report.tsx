@@ -16,7 +16,9 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
       <section className="page cover" data-unslide-page="cover">
         <p className="cover-index">FIELD NOTE / 01</p>
         <div className="cover-copy">
-          <p className="eyebrow">{data.company} · {data.period}</p>
+          <p className="eyebrow">
+            {data.company} · {data.period}
+          </p>
           <h1>{data.title}</h1>
           <p className="cover-subtitle">{data.subtitle}</p>
         </div>
@@ -45,7 +47,9 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
       </section>
 
       <section className="page regions" data-unslide-page="regions">
-        <SectionTitle eyebrow="Regional detail">Growth is broad, with uneven economics</SectionTitle>
+        <SectionTitle eyebrow="Regional detail">
+          Growth is broad, with uneven economics
+        </SectionTitle>
         <table>
           <thead>
             <tr>
@@ -68,7 +72,9 @@ export function SpikeReport({ data }: { data: SpikeReportData }) {
             ))}
           </tbody>
         </table>
-        <p className="table-note">Revenue contribution by reporting region; management reporting basis.</p>
+        <p className="table-note">
+          Revenue contribution by reporting region; management reporting basis.
+        </p>
       </section>
     </main>
   );

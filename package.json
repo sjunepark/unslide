@@ -3,41 +3,23 @@
   "version": "0.1.1",
   "description": "Code-first tooling for explicit fixed-page HTML reports and structurally validated PDF output.",
   "keywords": [
-    "reports",
     "html",
     "pdf",
     "playwright",
-    "react"
+    "react",
+    "reports"
   ],
   "homepage": "https://github.com/sjunepark/unslide#readme",
   "bugs": {
     "url": "https://github.com/sjunepark/unslide/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sjunepark/unslide.git"
   },
-  "packageManager": "pnpm@11.12.0+sha512.820a6fbd0d9f04c226638002aead1e45340a9139dd5dc077c1d83ef44aa2481c8eb6637b4c9aa696a3c7e35ba818e49cf27213e5f2b91138d09b7a3e26e898ba",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
-  },
-  "type": "module",
-  "engines": {
-    "node": ">=24.15 <25"
-  },
   "bin": {
     "unslide": "bin/unslide.mjs"
-  },
-  "exports": {
-    "./react": {
-      "types": "./dist/unslide/react.d.ts",
-      "default": "./dist/unslide/react.js"
-    },
-    "./schema/unslide.json": "./schema/unslide.schema.json",
-    "./protocol.md": "./docs/PROTOCOL.md",
-    "./support.md": "./docs/SUPPORT.md"
   },
   "files": [
     "bin/unslide.mjs",
@@ -50,11 +32,29 @@
     "LICENSE",
     "README.md"
   ],
+  "type": "module",
+  "exports": {
+    "./react": {
+      "types": "./dist/unslide/react.d.ts",
+      "default": "./dist/unslide/react.js"
+    },
+    "./schema/unslide.json": "./schema/unslide.schema.json",
+    "./protocol.md": "./docs/PROTOCOL.md",
+    "./support.md": "./docs/SUPPORT.md"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build:package": "node scripts/clean-package.mjs && tsc -p tsconfig.build.json",
     "prepack": "pnpm run build:package",
     "unslide": "pnpm --silent run build:package && ./bin/unslide.mjs",
-    "check": "effect-language-service patch && tsc --noEmit",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --deny-warnings .",
+    "typecheck": "effect-language-service patch && tsc --noEmit",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck",
     "test": "tsx --test tests/*.test.tsx",
     "validate": "pnpm run check && pnpm test && pnpm run render:spike && pnpm run capture:spike && pnpm run export:spike && pnpm run inspect-pdf:spike && pnpm run render:report && pnpm run capture:report && pnpm run export:report && pnpm run inspect-pdf:report",
     "render:report": "pnpm --silent run unslide build operating-review",
@@ -83,6 +83,12 @@
     "@effect/language-service": "0.87.0",
     "@types/node": "24.0.13",
     "@types/react-dom": "19.1.6",
+    "oxfmt": "0.59.0",
+    "oxlint": "1.74.0",
     "typescript": "5.8.3"
-  }
+  },
+  "engines": {
+    "node": ">=24.15 <25"
+  },
+  "packageManager": "pnpm@11.12.0+sha512.820a6fbd0d9f04c226638002aead1e45340a9139dd5dc077c1d83ef44aa2481c8eb6637b4c9aa696a3c7e35ba818e49cf27213e5f2b91138d09b7a3e26e898ba"
 }

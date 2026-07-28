@@ -16,6 +16,8 @@ export default (
       <title>{`${operatingReviewData.company} — ${operatingReviewData.period} Operating Review`}</title>
       <style>{styles}</style>
     </head>
-    <body><OperatingReview data={operatingReviewData} /></body>
+    <body>
+      <OperatingReview data={operatingReviewData} />
+    </body>
   </html>
 );

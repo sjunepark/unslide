@@ -25,7 +25,9 @@ export function Page({ number, total, chrome, className = "", children }: PagePr
       {chrome && (
         <footer className="page-footer">
           <span>{chrome.footerLeft}</span>
-          <span>{number} / {total}</span>
+          <span>
+            {number} / {total}
+          </span>
         </footer>
       )}
     </section>

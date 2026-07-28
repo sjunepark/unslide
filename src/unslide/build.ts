@@ -16,11 +16,12 @@ export const buildReport = Effect.fn("build.buildReport")(function* (report: Rep
   const entryModule = yield* withLogPhase(
     Effect.tryPromise({
       try: () => tsImport(report.sourcePath, import.meta.url) as Promise<Record<string, unknown>>,
-      catch: (cause) => commandFailure(
-        cause,
-        context,
-        `Cannot load source for report "${report.name}": ${cause instanceof Error ? cause.message : String(cause)}`,
-      ),
+      catch: (cause) =>
+        commandFailure(
+          cause,
+          context,
+          `Cannot load source for report "${report.name}": ${cause instanceof Error ? cause.message : String(cause)}`,
+        ),
     }),
     "source.load",
     { path: report.sourcePath, report: report.name },

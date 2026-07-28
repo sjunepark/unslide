@@ -21,16 +21,16 @@ The compact fixture lives in `src/spike/`; the richer trial lives in
 `src/reports/operating-review/`. Their configured paths are canonical in
 [`unslide.json`](../unslide.json).
 
-| Task | Command | Output |
-|---|---|---|
-| Build fixture HTML | `pnpm run render:spike` | `artifacts/spike/report.html` |
-| Capture fixture HTML | `pnpm run capture:spike` | `.tmp/captures/spike/` |
-| Export fixture PDF | `pnpm run export:spike` | `artifacts/spike/report.pdf` |
-| Inspect fixture PDF | `pnpm run inspect-pdf:spike` | `.tmp/pdf-captures/spike/` |
-| Build trial HTML | `pnpm run render:report` | `artifacts/operating-review/report.html` |
-| Capture trial HTML | `pnpm run capture:report` | `.tmp/captures/operating-review/` |
-| Export trial PDF | `pnpm run export:report` | `artifacts/operating-review/report.pdf` |
-| Inspect trial PDF | `pnpm run inspect-pdf:report` | `.tmp/pdf-captures/operating-review/` |
+| Task                 | Command                       | Output                                   |
+| -------------------- | ----------------------------- | ---------------------------------------- |
+| Build fixture HTML   | `pnpm run render:spike`       | `artifacts/spike/report.html`            |
+| Capture fixture HTML | `pnpm run capture:spike`      | `.tmp/captures/spike/`                   |
+| Export fixture PDF   | `pnpm run export:spike`       | `artifacts/spike/report.pdf`             |
+| Inspect fixture PDF  | `pnpm run inspect-pdf:spike`  | `.tmp/pdf-captures/spike/`               |
+| Build trial HTML     | `pnpm run render:report`      | `artifacts/operating-review/report.html` |
+| Capture trial HTML   | `pnpm run capture:report`     | `.tmp/captures/operating-review/`        |
+| Export trial PDF     | `pnpm run export:report`      | `artifacts/operating-review/report.pdf`  |
+| Inspect trial PDF    | `pnpm run inspect-pdf:report` | `.tmp/pdf-captures/operating-review/`    |
 
 Repository aliases call the same schema-validated CLI:
 
@@ -79,13 +79,22 @@ files are evidence, not an authoring format.
 ## Validate
 
 ```sh
+pnpm run format:check
+pnpm run lint
+pnpm run typecheck
 pnpm run check
 pnpm test
 pnpm run validate
 npm pack --dry-run
 ```
 
-- `check` validates TypeScript and Effect language-service rules.
+- `format:check` asks Oxfmt to verify every supported repository file without
+  changing it; `format` applies the same formatting scope.
+- `lint` runs Oxlint's correctness rules and React checks with no tolerated
+  warnings.
+- `typecheck` patches the Effect language service and runs `tsc --noEmit`.
+- `check` composes the formatting, linting, and type-checking commands in the
+  same order used by CI through `validate`.
 - `test` exercises source-level and packaged behavioral contracts.
 - `validate` additionally runs every configured HTML/PDF proof pipeline.
 - `npm pack --dry-run` verifies the public package contents.

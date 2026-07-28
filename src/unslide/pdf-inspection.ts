@@ -46,11 +46,16 @@ export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(functi
   const context = { command: "inspect-pdf", path: inputPath } as const;
   const bytes = yield* withLogPhase(
     fs.readFile(inputPath).pipe(
-      Effect.mapError((cause) => commandFailure(
-        cause,
-        { ...context, code: isMissingFileError(cause) ? "artifact-not-found" : "command-failed" },
-        `Cannot read PDF ${inputPath}: ${errorMessage(cause)}`,
-      )),
+      Effect.mapError((cause) =>
+        commandFailure(
+          cause,
+          {
+            ...context,
+            code: isMissingFileError(cause) ? "artifact-not-found" : "command-failed",
+          },
+          `Cannot read PDF ${inputPath}: ${errorMessage(cause)}`,
+        ),
+      ),
     ),
     "pdf.load",
     { path: inputPath },
@@ -68,21 +73,23 @@ export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(functi
             });
             return { destroy: onceAsync(() => task.destroy()), task };
           },
-          catch: (cause) => new PdfInspectionFailure({
-            cause,
-            message: errorMessage(cause),
-            phase: "load",
-          }),
+          catch: (cause) =>
+            new PdfInspectionFailure({
+              cause,
+              message: errorMessage(cause),
+              phase: "load",
+            }),
         }),
         ({ destroy }) => Effect.promise(destroy),
       );
       const document = yield* Effect.tryPromise({
         try: () => loading.task.promise,
-        catch: (cause) => new PdfInspectionFailure({
-          cause,
-          message: errorMessage(cause),
-          phase: "load",
-        }),
+        catch: (cause) =>
+          new PdfInspectionFailure({
+            cause,
+            message: errorMessage(cause),
+            phase: "load",
+          }),
       });
       if (document.numPages < 1) {
         return yield* new PdfInspectionFailure({
@@ -94,116 +101,130 @@ export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(functi
       const rendered: InspectedPdfPage[] = [];
 
       for (let index = 1; index <= document.numPages; index += 1) {
-        const renderedPage = yield* scoped(Effect.gen(function* () {
-          const page = yield* Effect.acquireRelease(
-            Effect.tryPromise({
-              try: (signal) => {
-                const destroy = () => {
-                  void loading.destroy().catch(() => {});
-                };
-                signal.addEventListener("abort", destroy, { once: true });
-                return document.getPage(index).finally(() => {
-                  signal.removeEventListener("abort", destroy);
-                });
-              },
-              catch: (cause) => new PdfInspectionFailure({
-                cause,
-                message: `Cannot load PDF page ${index}: ${errorMessage(cause)}`,
-                phase: "page",
+        const renderedPage = yield* scoped(
+          Effect.gen(function* () {
+            const page = yield* Effect.acquireRelease(
+              Effect.tryPromise({
+                try: (signal) => {
+                  const destroy = () => {
+                    void loading.destroy().catch(() => {});
+                  };
+                  signal.addEventListener("abort", destroy, { once: true });
+                  return document.getPage(index).finally(() => {
+                    signal.removeEventListener("abort", destroy);
+                  });
+                },
+                catch: (cause) =>
+                  new PdfInspectionFailure({
+                    cause,
+                    message: `Cannot load PDF page ${index}: ${errorMessage(cause)}`,
+                    phase: "page",
+                  }),
               }),
-            }),
-            (loadedPage) => Effect.sync(() => {
-              loadedPage.cleanup();
-            }),
-            { interruptible: true },
-          );
-          const viewport = page.getViewport({ scale: RASTER_DPI / POINTS_PER_INCH });
-          const width = Math.ceil(viewport.width);
-          const height = Math.ceil(viewport.height);
-          if (width < 1 || height < 1) {
-            return yield* new PdfInspectionFailure({
-              message: `PDF page ${index} has invalid geometry ${width}×${height} pixels.`,
-              phase: "validate",
-            });
-          }
-
-          const canvas = yield* Effect.acquireRelease(
-            Effect.try({
-              try: () => createCanvas(width, height),
-              catch: (cause) => new PdfInspectionFailure({
-                cause,
-                message: `Cannot create a canvas for PDF page ${index}: ${errorMessage(cause)}`,
-                phase: "render",
-              }),
-            }),
-            (ownedCanvas) => Effect.sync(() => {
-              ownedCanvas.width = 0;
-              ownedCanvas.height = 0;
-            }),
-          );
-          const renderState = yield* Effect.acquireRelease(
-            Effect.try({
-              try: () => ({
-                cancelled: false,
-                settled: false,
-                task: page.render({
-                  canvas: canvas as unknown as HTMLCanvasElement,
-                  viewport,
-                  background: "#ffffff",
-                  intent: "display",
+              (loadedPage) =>
+                Effect.sync(() => {
+                  loadedPage.cleanup();
                 }),
+              { interruptible: true },
+            );
+            const viewport = page.getViewport({ scale: RASTER_DPI / POINTS_PER_INCH });
+            const width = Math.ceil(viewport.width);
+            const height = Math.ceil(viewport.height);
+            if (width < 1 || height < 1) {
+              return yield* new PdfInspectionFailure({
+                message: `PDF page ${index} has invalid geometry ${width}×${height} pixels.`,
+                phase: "validate",
+              });
+            }
+
+            const canvas = yield* Effect.acquireRelease(
+              Effect.try({
+                try: () => createCanvas(width, height),
+                catch: (cause) =>
+                  new PdfInspectionFailure({
+                    cause,
+                    message: `Cannot create a canvas for PDF page ${index}: ${errorMessage(cause)}`,
+                    phase: "render",
+                  }),
               }),
-              catch: (cause) => new PdfInspectionFailure({
-                cause,
-                message: `Cannot start rendering PDF page ${index}: ${errorMessage(cause)}`,
-                phase: "render",
+              (ownedCanvas) =>
+                Effect.sync(() => {
+                  ownedCanvas.width = 0;
+                  ownedCanvas.height = 0;
+                }),
+            );
+            const renderState = yield* Effect.acquireRelease(
+              Effect.try({
+                try: () => ({
+                  cancelled: false,
+                  settled: false,
+                  task: page.render({
+                    canvas: canvas as unknown as HTMLCanvasElement,
+                    viewport,
+                    background: "#ffffff",
+                    intent: "display",
+                  }),
+                }),
+                catch: (cause) =>
+                  new PdfInspectionFailure({
+                    cause,
+                    message: `Cannot start rendering PDF page ${index}: ${errorMessage(cause)}`,
+                    phase: "render",
+                  }),
               }),
-            }),
-            (state) => Effect.sync(() => {
-              if (!state.settled && !state.cancelled) {
-                state.cancelled = true;
-                state.task.cancel();
-              }
-            }),
-          );
-          yield* Effect.tryPromise({
-            try: () => renderState.task.promise.then(
-              () => {
-                renderState.settled = true;
-              },
-              (cause) => {
-                renderState.settled = true;
-                throw cause;
-              },
-            ),
-            catch: (cause) => new PdfInspectionFailure({
-              cause,
-              message: `Cannot render PDF page ${index}: ${errorMessage(cause)}`,
-              phase: "render",
-            }),
-          });
-          const fileName = `page-${String(index).padStart(digits, "0")}.png`;
-          const png = yield* Effect.uninterruptible(Effect.tryPromise({
-            try: () => canvas.encode("png"),
-            catch: (cause) => new PdfInspectionFailure({
-              cause,
-              message: `Cannot encode PDF page ${index}: ${errorMessage(cause)}`,
-              phase: "encode",
-            }),
-          }));
-          yield* Effect.uninterruptible(fs.writeFile(
-            path.resolve(stagingDirectory, fileName),
-            png,
-            { flag: "wx" },
-          ).pipe(
-            Effect.mapError((cause) => new PdfInspectionFailure({
-              cause,
-              message: `Cannot write PDF page ${index}: ${errorMessage(cause)}`,
-              phase: "write",
-            })),
-          ));
-          return { index, width, height, outputPath: path.resolve(outputDirectory, fileName) };
-        }));
+              (state) =>
+                Effect.sync(() => {
+                  if (!state.settled && !state.cancelled) {
+                    state.cancelled = true;
+                    state.task.cancel();
+                  }
+                }),
+            );
+            yield* Effect.tryPromise({
+              try: () =>
+                renderState.task.promise.then(
+                  () => {
+                    renderState.settled = true;
+                  },
+                  (cause) => {
+                    renderState.settled = true;
+                    throw cause;
+                  },
+                ),
+              catch: (cause) =>
+                new PdfInspectionFailure({
+                  cause,
+                  message: `Cannot render PDF page ${index}: ${errorMessage(cause)}`,
+                  phase: "render",
+                }),
+            });
+            const fileName = `page-${String(index).padStart(digits, "0")}.png`;
+            const png = yield* Effect.uninterruptible(
+              Effect.tryPromise({
+                try: () => canvas.encode("png"),
+                catch: (cause) =>
+                  new PdfInspectionFailure({
+                    cause,
+                    message: `Cannot encode PDF page ${index}: ${errorMessage(cause)}`,
+                    phase: "encode",
+                  }),
+              }),
+            );
+            yield* Effect.uninterruptible(
+              fs.writeFile(path.resolve(stagingDirectory, fileName), png, { flag: "wx" }).pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new PdfInspectionFailure({
+                      cause,
+                      message: `Cannot write PDF page ${index}: ${errorMessage(cause)}`,
+                      phase: "write",
+                    }),
+                ),
+              ),
+            );
+            return { index, width, height, outputPath: path.resolve(outputDirectory, fileName) };
+          }),
+        );
         rendered.push(renderedPage);
         yield* logDebug("page.rasterized", {
           height: renderedPage.height,

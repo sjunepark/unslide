@@ -22,16 +22,16 @@ predictable.
 
 ## Vocabulary
 
-| Term | Meaning |
-|---|---|
-| Report | User-owned source and data that produce a complete ordered document |
-| Page | An explicitly composed capturable region and, for supported PDF export, one printed sheet |
-| Page marker | A nonvisual protocol attribute that gives a page a stable unique identity and observable order |
-| Repeated material | Any report-owned structure reused across pages, such as a label, logo, or number |
-| HTML artifact | The canonical standalone delivery output |
-| PDF artifact | A delivery output printed from canonical HTML, not a second renderer |
-| Inspection artifact | A disposable image rendered from the HTML or PDF target being judged |
-| Recipe | Optional editable visual source; never a runtime requirement |
+| Term                | Meaning                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| Report              | User-owned source and data that produce a complete ordered document                            |
+| Page                | An explicitly composed capturable region and, for supported PDF export, one printed sheet      |
+| Page marker         | A nonvisual protocol attribute that gives a page a stable unique identity and observable order |
+| Repeated material   | Any report-owned structure reused across pages, such as a label, logo, or number               |
+| HTML artifact       | The canonical standalone delivery output                                                       |
+| PDF artifact        | A delivery output printed from canonical HTML, not a second renderer                           |
+| Inspection artifact | A disposable image rendered from the HTML or PDF target being judged                           |
+| Recipe              | Optional editable visual source; never a runtime requirement                                   |
 
 These terms describe behavior, not required React components, classes, or DOM
 structure.
@@ -121,4 +121,6 @@ safety, and an explicit conflict path.
 Automatic pagination, fit repair, visual editing, presentation behavior,
 business calculations, mandatory design systems, and speculative adapters
 remain outside the product boundary. [D3](decisions/0003-headless-artifact-protocol.md)
-records the rationale, and [PLAN.md](../PLAN.md) owns the evidence gates.
+records the rationale, and the
+[product scope](../PRODUCT.md#deferred-capability-gates) owns the evidence
+gates.

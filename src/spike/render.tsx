@@ -16,6 +16,8 @@ export default (
       <title>{`${spikeReportData.company} — ${spikeReportData.period}`}</title>
       <style>{styles}</style>
     </head>
-    <body><SpikeReport data={spikeReportData} /></body>
+    <body>
+      <SpikeReport data={spikeReportData} />
+    </body>
   </html>
 );

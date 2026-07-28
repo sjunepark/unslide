@@ -8,7 +8,9 @@ export interface InspectionResult {
   pages: ArtifactPage[];
 }
 
-export const inspectHtmlArtifact = Effect.fn("inspect.inspectHtmlArtifact")(function* (input: string) {
+export const inspectHtmlArtifact = Effect.fn("inspect.inspectHtmlArtifact")(function* (
+  input: string,
+) {
   const path = yield* Path.Path;
   const inputPath = path.resolve(input);
   const pages = yield* mapCommandFailure(

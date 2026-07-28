@@ -3,4 +3,4 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: false
 minimumReleaseAgeExclude:
-  - '@effect/language-service@0.87.0'
+  - "@effect/language-service@0.87.0"

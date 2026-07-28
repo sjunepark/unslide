@@ -10,15 +10,17 @@ Before writing Effect code, run `effect-solutions list`, then `effect-solutions 
 
 ## Work
 
-- Read `PRODUCT.md` and follow the current next action in `PLAN.md`. Do not
-  implement a deferred capability before an explicit scope decision accepts it.
+- Read `PRODUCT.md` and use `ROADMAP.md` to select current and queued work. Read
+  the selected plan completely before implementation. Do not implement a
+  deferred capability before an explicit scope decision accepts it.
 - Read `docs/DESIGN.md` for authoring changes, `ARCHITECTURE.md` for system
   boundaries, and the relevant `docs/decisions/` record before changing an
-  accepted constraint. Read any active detailed plan completely.
+  accepted constraint.
 - Read `docs/RELEASE.md` before preparing a release or changing release
   automation.
-- Execute one numbered goal at a time. Update `PLAN.md` in place when its
-  decisions, evidence, blockers, or next action change.
+- Execute one roadmap item at a time. Update its plan in place when decisions,
+  evidence, blockers, or the next action change; update `ROADMAP.md` only when
+  queue state or order changes.
 
 ## Boundaries
 
@@ -40,7 +42,8 @@ Before writing Effect code, run `effect-solutions list`, then `effect-solutions 
 - For a report change, run its `render`, `capture`, `export`, and `inspect-pdf`
   scripts from `package.json`; inspect every HTML and PDF page image.
 - For contract or scope changes, keep `PRODUCT.md`, `docs/DESIGN.md`,
-  `ARCHITECTURE.md`, `PLAN.md`, and relevant decisions consistent.
+  `ARCHITECTURE.md`, `ROADMAP.md`, affected plans, and relevant decisions
+  consistent.
 - In live plans and current-state docs, name validation commands and covered
   behavior instead of recording volatile totals, generated dimensions, dated
   audit results, or other facts that command output already owns. Keep numeric
