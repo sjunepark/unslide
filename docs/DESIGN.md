@@ -20,6 +20,12 @@ An author or coding agent should be able to:
 The author decides every visual property. Unslide makes the lifecycle
 predictable.
 
+The accepted consumer workflow adds focused or complete `review` as a
+composition of these same steps. It records exact artifact evidence but does
+not judge the report. See the [CLI command contract](COMMANDS.md),
+[result and manifest contract](RESULTS.md), and
+[React authoring contract](AUTHORING.md).
+
 ## Vocabulary
 
 | Term                | Meaning                                                                                        |
@@ -87,6 +93,11 @@ Configuration tells tooling where report source and derived artifacts live.
 The [JSON Schema](../schema/unslide.schema.json) is the field-level source of
 truth. Geometry, fonts, margins, colors, chrome, and all other visual choices
 remain in source.
+
+Conventional artifact paths may be derived from the report name, while source
+stays explicit and existing overrides stay authoritative. Source absence is
+observable report state rather than a reason to block unrelated artifact work.
+Configuration still contains no freshness or visual policy.
 
 ## HTML and PDF Inspection
 

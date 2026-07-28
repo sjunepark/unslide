@@ -50,6 +50,20 @@ visual design, print CSS, numbering, and content fit.
   must use that future contract rather than create a competing parser or
   metadata source.
 
+## Execution state
+
+- Goal 1 is specified in [D7](../docs/decisions/0007-consumer-authoring-contracts.md),
+  [the CLI contract](../docs/COMMANDS.md),
+  [the result and manifest contract](../docs/RESULTS.md), and
+  [the React authoring contract](../docs/AUTHORING.md).
+- The contract preserves version-1 explicit configuration and dependent PDF
+  defaults, defines the intentional pre-1.0 result migration, and keeps the
+  static/interactive parser dependency deferred to its queued plan.
+- `pnpm run check` passes. Independent implementation, system, design, and
+  simplification review findings were applied; no unresolved Goal 1 decision
+  remains.
+- Goal 1 PR delivery is the current action. Goals 2–5 remain pending.
+
 ## Accepted design
 
 ### Queue and boundaries
@@ -275,5 +289,5 @@ findings.
 
 ## Next action
 
-When this plan becomes current, execute Goal 1: reconcile the accepted command,
-result, configuration, and authoring contracts before changing implementation.
+Finish Goal 1 PR review and feedback handling, then execute Goal 2 without
+starting later goals.
