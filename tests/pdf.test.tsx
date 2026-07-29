@@ -80,7 +80,7 @@ test("PDF text evidence validates every page rather than accepting a repeated he
         id: "subset",
         index: 1,
         samples: samplePageText("a b c d", ["a b c x b c d"]),
-        normalizedCoverage: "abcd",
+        normalizedCoverage: { digits: "", letters: "abcd" },
       },
       {
         id: "superset",
@@ -91,7 +91,7 @@ test("PDF text evidence validates every page rather than accepting a repeated he
     ["a b c x b c d", "a b c x b c d"],
     [{ textSample: "a b c x b c d" }, { textSample: "a b c x b c d" }],
   );
-  assert.match(subset ?? "", /PDF page 1 \(subset\).*extractable-text sample/);
+  assert.match(subset ?? "", /PDF page 1 \(subset\).*normalized full-page/);
 
   const normalizedCoverage = validatePageTextSamples(
     [
@@ -99,7 +99,7 @@ test("PDF text evidence validates every page rather than accepting a repeated he
         id: "subset",
         index: 1,
         samples: samplePageText("a b c d", ["a b c x b c d"]),
-        normalizedCoverage: "abcd",
+        normalizedCoverage: { digits: "", letters: "abcd" },
       },
       {
         id: "superset",
@@ -118,13 +118,104 @@ test("PDF text evidence validates every page rather than accepting a repeated he
         id: "positioned",
         index: 1,
         samples: samplePageText("important message body"),
-        normalizedCoverage: [..."importantmessagebody"].sort().join(""),
+        normalizedCoverage: {
+          digits: "",
+          letters: [..."importantmessagebody"].sort().join(""),
+        },
       },
     ],
     ["body 1 2 3 important message"],
     [{ textSample: "body 1 2 3 important message" }],
   );
   assert.equal(reorderedCoverage, undefined);
+
+  const missingAuthoredNumber = validatePageTextSamples(
+    [
+      {
+        id: "financials",
+        index: 1,
+        samples: samplePageText("Revenue 123"),
+        normalizedCoverage: {
+          digits: "123",
+          letters: [..."revenue"].sort().join(""),
+        },
+      },
+    ],
+    ["Revenue"],
+    [{ textSample: "Revenue" }],
+  );
+  assert.match(missingAuthoredNumber ?? "", /PDF page 1 \(financials\)/);
+
+  const changedAuthoredNumber = validatePageTextSamples(
+    [
+      {
+        id: "financials",
+        index: 1,
+        samples: samplePageText("Revenue 123"),
+        normalizedCoverage: {
+          digits: "123",
+          letters: [..."revenue"].sort().join(""),
+        },
+      },
+    ],
+    ["Revenue 124"],
+    [{ textSample: "Revenue 124" }],
+  );
+  assert.match(changedAuthoredNumber ?? "", /PDF page 1 \(financials\)/);
+
+  const longExpected = "alpha beta gamma 123 delta epsilon zeta eta theta iota kappa lambda";
+  const longSamples = samplePageText(longExpected);
+  assert.ok(longSamples.every((sample) => !sample.tokens.includes("123")));
+  const changedUnsampledText =
+    "alpha beta gamma 124 delta epsilon zeta eta theta iota kappa lambda";
+  assert.ok(longSamples.every((sample) => changedUnsampledText.includes(sample.tokens.join(" "))));
+  const changedUnsampledNumber = validatePageTextSamples(
+    [
+      {
+        id: "long-financials",
+        index: 1,
+        samples: longSamples,
+        normalizedCoverage: {
+          digits: "123",
+          letters: (longExpected.match(/\p{L}/gu) ?? []).sort().join(""),
+        },
+      },
+    ],
+    [changedUnsampledText],
+    [{ textSample: changedUnsampledText }],
+  );
+  assert.match(changedUnsampledNumber ?? "", /PDF page 1 \(long-financials\)/);
+
+  const generatedCounterAndSplitNumber = validatePageTextSamples(
+    [
+      {
+        id: "financials",
+        index: 1,
+        samples: samplePageText("Revenue 123"),
+        normalizedCoverage: {
+          digits: "123",
+          letters: [..."revenue"].sort().join(""),
+        },
+      },
+    ],
+    ["01 Revenue 1 23 02"],
+    [{ textSample: "01 Revenue 1 23 02" }],
+  );
+  assert.equal(generatedCounterAndSplitNumber, undefined);
+
+  const numericOnlyReorderedCoverage = validatePageTextSamples(
+    [
+      {
+        id: "numeric-only",
+        index: 1,
+        samples: samplePageText("123 456 789"),
+        normalizedCoverage: { digits: "123456789", letters: "" },
+      },
+    ],
+    ["789 123 456"],
+    [{ textSample: "789 123 456" }],
+  );
+  assert.equal(numericOnlyReorderedCoverage, undefined);
 });
 
 async function temporaryDirectory(prefix: string): Promise<string> {
@@ -386,7 +477,7 @@ test("rejects pages with identical normalized text before replacing prior output
 
     await assert.rejects(
       exportHtmlPdf(inputPath, outputPath),
-      /page 1 \(one\).*neither a distinctive extractable-text sample nor unique normalized full-page letter coverage/,
+      /page 1 \(one\).*neither a distinctive extractable-text sample nor unique normalized full-page coverage/,
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
   } finally {
@@ -394,7 +485,31 @@ test("rejects pages with identical normalized text before replacing prior output
   }
 });
 
-test("accepts unique normalized full-page letter coverage when one page is a substring of another", async () => {
+test("uses numeric-only full-page coverage when one page is a substring of another", async () => {
+  const directory = await temporaryDirectory("unslide pdf numeric full page ");
+  const inputPath = resolve(directory, "report.html");
+  const outputPath = resolve(directory, "report.pdf");
+  try {
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}main{width:4in;height:3in;break-after:page}main:last-child{break-after:auto}",
+        '<main data-unslide-page="one">1</main><main data-unslide-page="two">1 2</main>',
+      ),
+    );
+
+    const result = await exportHtmlPdf(inputPath, outputPath);
+    assert.deepEqual(
+      result.pages.map((page) => page.id),
+      ["one", "two"],
+    );
+    await access(outputPath);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("accepts unique normalized full-page coverage when one page is a substring of another", async () => {
   const directory = await temporaryDirectory("unslide pdf normalized full page ");
   const inputPath = resolve(directory, "report.html");
   const outputPath = resolve(directory, "report.pdf");

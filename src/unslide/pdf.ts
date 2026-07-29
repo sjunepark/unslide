@@ -30,7 +30,12 @@ interface ExpectedPageText {
   id: string;
   index: number;
   samples: ReadonlyArray<PageTextSample>;
-  normalizedCoverage?: string;
+  normalizedCoverage?: NormalizedTextCoverage;
+}
+
+interface NormalizedTextCoverage {
+  readonly digits: string;
+  readonly letters: string;
 }
 
 interface PageTextSample {
@@ -200,8 +205,47 @@ function compactText(value: string): string {
   ).join("");
 }
 
-function normalizedLetterCoverage(value: string): string {
-  return [...compactText(value).replace(/\p{N}/gu, "")].sort().join("");
+function normalizedTextCoverage(value: string): NormalizedTextCoverage {
+  const compact = compactText(value);
+  return {
+    digits: [...compact.replace(/\p{L}/gu, "")].sort().join(""),
+    letters: [...compact.replace(/\p{N}/gu, "")].sort().join(""),
+  };
+}
+
+function containsExpectedCharacters(actual: string, expected: string): boolean {
+  const available = new Map<string, number>();
+  for (const character of actual) {
+    available.set(character, (available.get(character) ?? 0) + 1);
+  }
+  for (const character of expected) {
+    const remaining = available.get(character) ?? 0;
+    if (remaining === 0) return false;
+    available.set(character, remaining - 1);
+  }
+  return true;
+}
+
+function sameNormalizedCoverage(
+  left: NormalizedTextCoverage,
+  right: NormalizedTextCoverage,
+): boolean {
+  return left.letters === right.letters && left.digits === right.digits;
+}
+
+function preservesNormalizedCoverage(
+  actualText: string,
+  expected: NormalizedTextCoverage,
+): boolean {
+  const actual = normalizedTextCoverage(actualText);
+  // PDF extraction may reorder positioned text, while CSS counters can add
+  // digits that do not exist in DOM innerText and styled runs can split one
+  // number across items. Require every authored digit but tolerate only that
+  // numeric-only surplus.
+  return (
+    actual.letters === expected.letters &&
+    containsExpectedCharacters(actual.digits, expected.digits)
+  );
 }
 
 export function validatePageTextSamples(
@@ -210,7 +254,8 @@ export function validatePageTextSamples(
   pages: readonly Pick<PdfPage, "textSample">[],
 ): string | undefined {
   for (const expected of expectedText) {
-    const actual = compactText(extractedText[expected.index - 1] ?? "");
+    const actualText = extractedText[expected.index - 1] ?? "";
+    const actual = compactText(actualText);
     let failedSample: PageTextSample | undefined;
     for (const sample of expected.samples) {
       if (!actual.includes(compactText(sample.tokens.join(" ")))) {
@@ -219,10 +264,12 @@ export function validatePageTextSamples(
       }
     }
     if (
-      failedSample !== undefined &&
-      (expected.normalizedCoverage === undefined ||
-        normalizedLetterCoverage(actual) !== expected.normalizedCoverage)
+      expected.normalizedCoverage !== undefined &&
+      !preservesNormalizedCoverage(actualText, expected.normalizedCoverage)
     ) {
+      return `PDF page ${expected.index} (${expected.id}) does not preserve its normalized full-page extractable-text coverage. Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`;
+    }
+    if (failedSample !== undefined && expected.normalizedCoverage === undefined) {
       return `PDF page ${expected.index} (${expected.id}) does not preserve its ${failedSample.region} extractable-text sample (${failedSample.tokens.join(" ")}). Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`;
     }
   }
@@ -359,7 +406,7 @@ function validatePdf(
             .map((item) => item.str);
           const text = textItems.join(" ");
           return {
-            compactText: compactText(text),
+            text,
             page: {
               index,
               id: expectedText[index - 1]?.id ?? String(index),
@@ -370,7 +417,7 @@ function validatePdf(
           };
         }),
       );
-      extractedText.push(pageData.compactText);
+      extractedText.push(pageData.text);
       pages.push(pageData.page);
     }
 
@@ -509,10 +556,12 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         const expectedText = pageText.map((text, index) => {
           const otherPageText = pageText.filter((_, otherIndex) => otherIndex !== index);
           const distinctive = distinctivePageSample(text, otherPageText);
-          const coverage = normalizedLetterCoverage(text);
+          const coverage = normalizedTextCoverage(text);
           const normalizedCoverage =
-            coverage !== "" &&
-            otherPageText.every((other) => normalizedLetterCoverage(other) !== coverage)
+            (coverage.letters !== "" || coverage.digits !== "") &&
+            otherPageText.every(
+              (other) => !sameNormalizedCoverage(normalizedTextCoverage(other), coverage),
+            )
               ? coverage
               : undefined;
           return {
@@ -537,7 +586,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         if (indistinguishable) {
           throw new ArtifactOperationFailure({
             code: "extractable-text",
-            message: `Artifact page ${indistinguishable.index} (${indistinguishable.id}) has neither a distinctive extractable-text sample nor unique normalized full-page letter coverage. Add page-specific text before PDF export.`,
+            message: `Artifact page ${indistinguishable.index} (${indistinguishable.id}) has neither a distinctive extractable-text sample nor unique normalized full-page coverage. Add page-specific text before PDF export.`,
           });
         }
 
