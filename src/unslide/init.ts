@@ -1,8 +1,19 @@
 import { lstat } from "node:fs/promises";
 import { Cause, Effect, Exit, FileSystem, Path } from "effect";
-import { commandFailure, errorMessage, type CommandFailureContext } from "./failures.js";
+import {
+  commandFailure,
+  errorMessage,
+  InitOperationFailure,
+  type CommandFailureContext,
+} from "./failures.js";
 
-export type InitFileState = "create" | "created" | "unchanged" | "conflict";
+export type InitFileState =
+  | "create"
+  | "created"
+  | "unchanged"
+  | "conflict"
+  | "failed"
+  | "not-started";
 
 export interface InitFile {
   path: string;
@@ -171,18 +182,25 @@ export const initializeProject = Effect.fn("init.initializeProject")(function* (
     );
     if (Exit.isFailure(writeExit)) {
       const cause = Cause.squash(writeExit.cause);
-      const message = `Cannot finish initialization${created.length === 0 ? "" : `; these safely created files remain: ${created.map((createdFile) => createdFile.relativePath).join(", ")}`}: ${errorMessage(cause)}`;
-      if (writeExit.cause.reasons.some((reason) => reason._tag !== "Fail")) {
-        return yield* Effect.failCause(
-          created.length === 0
-            ? writeExit.cause
-            : Cause.combine(
-                writeExit.cause,
-                Cause.fail(commandFailure(writeExit.cause, context, message)),
-              ),
-        );
+      file.state = "failed";
+      for (const pending of creates) {
+        if (pending.state === "create") pending.state = "not-started";
       }
-      return yield* commandFailure(writeExit.cause, context, message);
+      const message = `Cannot finish initialization${created.length === 0 ? "" : `; these safely created files remain: ${created.map((createdFile) => createdFile.relativePath).join(", ")}`}: ${errorMessage(cause)}`;
+      const partial = new InitOperationFailure({
+        cause,
+        files: files.map((planned) => ({
+          path: planned.path,
+          state: planned.state as "created" | "unchanged" | "failed" | "not-started",
+        })),
+        message,
+        projectRoot,
+        reportName,
+      });
+      if (writeExit.cause.reasons.some((reason) => reason._tag !== "Fail")) {
+        return yield* Effect.failCause(Cause.combine(writeExit.cause, Cause.fail(partial)));
+      }
+      return yield* partial;
     }
     file.state = "created";
     created.push(file);

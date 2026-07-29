@@ -13,6 +13,7 @@ const GEOMETRY_TOLERANCE_POINTS = 1;
 
 export interface PdfPage {
   index: number;
+  id: string;
   widthPoints: number;
   heightPoints: number;
   textSample: string;
@@ -25,8 +26,14 @@ export interface PdfExportResult {
 }
 
 interface ExpectedPageText {
+  id: string;
   index: number;
-  tokens: string[];
+  samples: ReadonlyArray<PageTextSample>;
+}
+
+interface PageTextSample {
+  readonly region: "beginning" | "middle" | "ending";
+  readonly tokens: readonly string[];
 }
 
 interface PageGeometry {
@@ -84,6 +91,100 @@ function textTokens(value: string): string[] {
   );
 }
 
+function pageRegion(start: number, width: number, tokenCount: number): PageTextSample["region"] {
+  const center = start + (width - 1) / 2;
+  return center < tokenCount / 3
+    ? "beginning"
+    : center < (tokenCount * 2) / 3
+      ? "middle"
+      : "ending";
+}
+
+function distinctivePageSample(
+  value: string,
+  otherPageText: readonly string[],
+): PageTextSample | undefined {
+  const tokens = textTokens(value);
+  if (tokens.length === 0 || otherPageText.length === 0) return undefined;
+  const otherText = otherPageText.map(compactText);
+  const joinedTokens = tokens.join("");
+  const tokenOffsets = tokens.reduce<number[]>(
+    (offsets, token) => {
+      offsets.push((offsets.at(-1) ?? 0) + token.length);
+      return offsets;
+    },
+    [0],
+  );
+  const distinctiveStart = (width: number): number | undefined => {
+    for (let start = 0; start <= tokens.length - width; start += 1) {
+      const normalizedCandidate = joinedTokens.slice(
+        tokenOffsets[start],
+        tokenOffsets[start + width],
+      );
+      if (otherText.every((other) => !other.includes(normalizedCandidate))) {
+        return start;
+      }
+    }
+    return undefined;
+  };
+
+  let minimumWidth = Math.min(3, tokens.length);
+  let maximumWidth = tokens.length;
+  let distinctive: { start: number; width: number } | undefined;
+  while (minimumWidth <= maximumWidth) {
+    const width = Math.floor((minimumWidth + maximumWidth) / 2);
+    const start = distinctiveStart(width);
+    if (start === undefined) {
+      minimumWidth = width + 1;
+    } else {
+      distinctive = { start, width };
+      maximumWidth = width - 1;
+    }
+  }
+  return distinctive
+    ? {
+        region: pageRegion(distinctive.start, distinctive.width, tokens.length),
+        tokens: tokens.slice(distinctive.start, distinctive.start + distinctive.width),
+      }
+    : undefined;
+}
+
+function pageTextSamples(
+  value: string,
+  distinctive: PageTextSample | undefined,
+): ExpectedPageText["samples"] {
+  const tokens = textTokens(value);
+  if (tokens.length === 0) return [];
+  const width = Math.min(3, tokens.length);
+  const candidates = [
+    { region: "beginning" as const, start: 0 },
+    { region: "middle" as const, start: Math.floor((tokens.length - width) / 2) },
+    { region: "ending" as const, start: tokens.length - width },
+  ];
+  const seen = new Set<string>();
+  const samples: PageTextSample[] = candidates.flatMap(({ region, start }) => {
+    const sample = tokens.slice(start, start + width);
+    const key = sample.join("\u0000");
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ region, tokens: sample }];
+  });
+  if (distinctive) {
+    const key = distinctive.tokens.join("\u0000");
+    if (!seen.has(key)) {
+      samples.push(distinctive);
+    }
+  }
+  return samples;
+}
+
+export function samplePageText(
+  value: string,
+  otherPageText: readonly string[] = [],
+): ExpectedPageText["samples"] {
+  return pageTextSamples(value, distinctivePageSample(value, otherPageText));
+}
+
 function displayGeometry(width: number, height: number): string {
   return `${width.toFixed(2)}×${height.toFixed(2)} points`;
 }
@@ -95,6 +196,22 @@ function compactText(value: string): string {
       .toLocaleLowerCase("und")
       .match(/[\p{L}\p{N}]+/gu) ?? []
   ).join("");
+}
+
+export function validatePageTextSamples(
+  expectedText: readonly ExpectedPageText[],
+  extractedText: readonly string[],
+  pages: readonly Pick<PdfPage, "textSample">[],
+): string | undefined {
+  for (const expected of expectedText) {
+    const actual = compactText(extractedText[expected.index - 1] ?? "");
+    for (const sample of expected.samples) {
+      if (!actual.includes(compactText(sample.tokens.join(" ")))) {
+        return `PDF page ${expected.index} (${expected.id}) does not preserve its ${sample.region} extractable-text sample (${sample.tokens.join(" ")}). Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`;
+      }
+    }
+  }
+  return undefined;
 }
 
 function parseAbsoluteLength(value: string): number | undefined {
@@ -230,6 +347,7 @@ function validatePdf(
             compactText: compactText(text),
             page: {
               index,
+              id: expectedText[index - 1]?.id ?? String(index),
               widthPoints: viewport.width,
               heightPoints: viewport.height,
               textSample: text.replace(/\s+/g, " ").trim().slice(0, 120),
@@ -269,14 +387,12 @@ function validatePdf(
       }
     }
 
-    for (const expected of expectedText) {
-      const actual = extractedText[expected.index - 1] ?? "";
-      if (!expected.tokens.every((token) => actual.includes(compactText(token)))) {
-        return yield* new PdfValidationFailure({
-          message: `PDF page ${expected.index} does not preserve expected extractable text (${expected.tokens.join(" ")}). Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`,
-          phase: "validate",
-        });
-      }
+    const textFailure = validatePageTextSamples(expectedText, extractedText, pages);
+    if (textFailure) {
+      return yield* new PdfValidationFailure({
+        message: textFailure,
+        phase: "validate",
+      });
     }
     return pages;
   });
@@ -377,15 +493,28 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         }
 
         const pageText = await page.locator(PAGE_MARKER_SELECTOR).allInnerTexts();
-        const expectedText = pageText.flatMap((text, index) => {
-          const tokens = textTokens(text).slice(0, 3);
-          return tokens.length === 0 ? [] : [{ index: index + 1, tokens }];
+        const expectedText = pageText.map((text, index) => {
+          const otherPageText = pageText.filter((_, otherIndex) => otherIndex !== index);
+          const distinctive = distinctivePageSample(text, otherPageText);
+          return {
+            id: pages[index]?.id ?? String(index + 1),
+            index: index + 1,
+            samples: pageTextSamples(text, distinctive),
+            distinguishable: pageText.length === 1 || distinctive !== undefined,
+          };
         });
-        if (expectedText.length === 0) {
+        if (expectedText.every((pageText) => pageText.samples.length === 0)) {
           throw new ArtifactOperationFailure({
             code: "extractable-text",
             message:
               "Artifact must contain extractable text in at least one marked page before PDF export.",
+          });
+        }
+        const indistinguishable = expectedText.find((pageText) => !pageText.distinguishable);
+        if (indistinguishable) {
+          throw new ArtifactOperationFailure({
+            code: "extractable-text",
+            message: `Artifact page ${indistinguishable.index} (${indistinguishable.id}) has no extractable-text sample that distinguishes it from every other marked page. Add page-specific text before PDF export.`,
           });
         }
 
@@ -396,7 +525,12 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
           printBackground: true,
           tagged: true,
         });
-        return { bytes, expectedPageCount: pages.length, expectedGeometry, expectedText };
+        return {
+          bytes,
+          expectedPageCount: pages.length,
+          expectedGeometry,
+          expectedText: expectedText.map(({ distinguishable: _, ...pageText }) => pageText),
+        };
       }),
       "pdf.print",
       { path: inputPath },

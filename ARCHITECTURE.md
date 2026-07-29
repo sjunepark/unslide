@@ -79,12 +79,14 @@ One Effect program owns executable operations. The Node filesystem/path Layer
 is provided once at the boundary; typed internal failures, scopes, and cleanup
 evidence do not enter the public React declarations or artifact protocol.
 
-The CLI presenter translates observed failures into the stable TOON/exit-code
-contract documented in [README.md](README.md#cli-automation-contract).
-Complete authored diagnostics remain structured internally; only the presenter
-bounds them or applies `--full`. Effect logging is replaced at the boundary so
-default stderr stays empty, while explicit `info` or `debug` levels emit
-diagnostic JSON without changing stdout.
+The typed CLI parser and presenter translate command outcomes into the shared
+TOON/JSON result envelope and exit-code contract documented in
+[README.md](README.md#cli-automation-contract). Complete authored diagnostics
+remain structured internally; only the presenter bounds them or applies
+`--full`. The executable root performs the sole stdout write after execution,
+logging, and cleanup. Effect logging writes directly to stderr when enabled;
+report-authored console calls are captured separately so default stderr stays
+empty and stdout remains exactly one result document.
 
 Configuration selects source and derived-artifact paths only. The schema and
 loader reject unknown fields, unsafe paths, and source/output overlap; they do

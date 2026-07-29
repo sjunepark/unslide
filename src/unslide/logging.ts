@@ -6,7 +6,9 @@ export interface LogAnnotations {
   readonly [key: string]: unknown;
 }
 
-const stderrJsonLogger = Logger.withConsoleError(Logger.formatJson);
+const stderrJsonLogger = Logger.map(Logger.formatJson, (line) => {
+  process.stderr.write(`${line}\n`);
+});
 const LoggingEnabled = Context.Reference<boolean>("unslide/LoggingEnabled", {
   defaultValue: () => false,
 });

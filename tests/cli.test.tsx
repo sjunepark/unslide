@@ -23,6 +23,9 @@ const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(".");
 const cliPath = resolve("src/cli.ts");
 const tsxImport = import.meta.resolve("tsx");
+const repositoryManifest = JSON.parse(
+  await readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+) as { version: string };
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
@@ -33,6 +36,17 @@ interface CliResult {
   stderr: string;
   stdout: string;
   value: Record<string, unknown>;
+}
+
+function decodeResult(arguments_: readonly string[], stdout: string): Record<string, unknown> {
+  const formatIndexes = arguments_.flatMap((argument, index) =>
+    argument === "--format" ? [index] : [],
+  );
+  const format =
+    formatIndexes.length === 1 ? arguments_[(formatIndexes[0] as number) + 1] : undefined;
+  return format === "json"
+    ? (JSON.parse(stdout) as Record<string, unknown>)
+    : (decode(stdout) as Record<string, unknown>);
 }
 
 async function runCli(
@@ -46,14 +60,14 @@ async function runCli(
       ["--import", tsxImport, cliPath, ...arguments_],
       { cwd, env: { ...process.env, UNSLIDE_LOG_LEVEL: "off", ...environment } },
     );
-    return { exitCode: 0, stderr, stdout, value: decode(stdout) as Record<string, unknown> };
+    return { exitCode: 0, stderr, stdout, value: decodeResult(arguments_, stdout) };
   } catch (error) {
     const failure = error as Error & { code: number; stderr: string; stdout: string };
     return {
       exitCode: failure.code,
       stderr: failure.stderr,
       stdout: failure.stdout,
-      value: decode(failure.stdout) as Record<string, unknown>,
+      value: decodeResult(arguments_, failure.stdout),
     };
   }
 }
@@ -61,16 +75,6 @@ async function runCli(
 const stableCliEnvironment = {
   UNSLIDE_BIN: "/opt/unslide/bin/unslide",
   UNSLIDE_INVOCATION: "unslide",
-};
-
-const stableLogLevelFlag = {
-  flag: "--log-level <off|info|debug>",
-  description: "Emit Effect JSON Lines on stderr (default: UNSLIDE_LOG_LEVEL or off)",
-};
-
-const stableHelpFlag = {
-  flag: "--help",
-  description: "Show concise command help without requiring command values",
 };
 
 const stableFullFlag = {
@@ -95,38 +99,6 @@ function parseLogs(stderr: string): EffectLogEntry[] {
         .trim()
         .split("\n")
         .map((line) => JSON.parse(line) as EffectLogEntry);
-}
-
-function stableTopHelp() {
-  return {
-    bin: "/opt/unslide/bin/unslide",
-    description: "Build and inspect explicit-page HTML and PDF reports",
-    usage: "unslide <command>",
-    flags: [stableHelpFlag, stableLogLevelFlag],
-    commands: [
-      { command: "build <name>", description: "Build a named report to standalone HTML" },
-      {
-        command: "inspect <name>",
-        description: "Validate a named report's existing HTML artifact",
-      },
-      { command: "inspect --artifact <path>", description: "Validate any existing HTML artifact" },
-      { command: "capture <name>", description: "Capture a named report's HTML pages" },
-      {
-        command: "export <name>",
-        description: "Export a named report's existing HTML artifact to PDF",
-      },
-      {
-        command: "inspect-pdf <name>",
-        description: "Render a named report's existing PDF to page images",
-      },
-      {
-        command: "inspect-pdf --artifact <path> --output <directory>",
-        description: "Render any existing PDF to page images",
-      },
-      { command: "init", description: "Plan or create a minimal report project" },
-    ],
-    help: ["Run unslide <command> --help for command details"],
-  };
 }
 
 async function runPackageCli(arguments_: string[]): Promise<CliResult> {
@@ -195,36 +167,53 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
   const help = await runCli(["--help"]);
   assert.equal(help.exitCode, 0);
   assert.equal(help.stderr, "");
-  assert.match(String(help.value.bin), /src\/cli\.ts$/);
-  assert.equal(help.value.usage, `${shellQuote(cliPath)} <command>`);
+  assert.equal(help.value.resultSchemaVersion, 1);
+  assert.equal(help.value.status, "ok");
+  assert.equal(help.stdout.endsWith("\n"), true);
+  const helpResult = help.value.result as Record<string, unknown>;
+  assert.equal(helpResult.kind, "help");
+  assert.match(String(helpResult.usage), /src\/cli\.ts/);
 
   const commandHelp = await runCli(["capture", "--help"]);
   assert.equal(commandHelp.exitCode, 0);
   assert.equal(commandHelp.stderr, "");
-  assert.equal(commandHelp.value.command, "capture");
+  assert.match(
+    String((commandHelp.value.result as Record<string, unknown>).usage),
+    /capture <name>/,
+  );
 
   const exportHelp = await runCli(["export", "--help"]);
   assert.equal(exportHelp.exitCode, 0);
-  assert.equal(exportHelp.value.command, "export");
+  assert.match(String((exportHelp.value.result as Record<string, unknown>).usage), /export <name>/);
 
   const pdfInspectionHelp = await runCli(["inspect-pdf", "--help"]);
   assert.equal(pdfInspectionHelp.exitCode, 0);
-  assert.equal(pdfInspectionHelp.value.command, "inspect-pdf");
+  assert.match(
+    String((pdfInspectionHelp.value.result as Record<string, unknown>).usage),
+    /inspect-pdf/,
+  );
 
   for (const command of ["build", "inspect", "capture", "export", "inspect-pdf", "init"]) {
     const result = await runCli([command, "--help"], repositoryRoot, stableCliEnvironment);
     assert.equal(result.exitCode, 0);
     assert.equal(result.stderr, "");
-    assert.deepEqual((result.value.flags as unknown[]).slice(-2), [
-      stableHelpFlag,
-      stableLogLevelFlag,
-    ]);
+    const commandResult = result.value.result as Record<string, unknown>;
+    assert.ok(
+      (commandResult.flags as unknown[]).some((flag) =>
+        String((flag as Record<string, unknown>).flag).startsWith("--format"),
+      ),
+    );
+    assert.ok(
+      (commandResult.flags as unknown[]).some((flag) =>
+        String((flag as Record<string, unknown>).flag).startsWith("--log-level"),
+      ),
+    );
   }
 
   for (const command of ["inspect", "capture", "export"]) {
     const result = await runCli([command, "--help"], repositoryRoot, stableCliEnvironment);
     assert.ok(
-      (result.value.flags as unknown[]).some(
+      ((result.value.result as Record<string, unknown>).flags as unknown[]).some(
         (flag) => (flag as Record<string, unknown>).flag === stableFullFlag.flag,
       ),
     );
@@ -244,11 +233,17 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
     await runCli(["build", "report", "--full"]),
     await runCli(["inspect-pdf", "report", "--full"]),
     await runCli(["init", "--full"]),
+    await runCli(["--format=toon", "--help"]),
+    await runCli(["--format", "toon", "--format", "json", "--help"]),
+    await runCli(["--format", "json", "--format", "toon", "--help"]),
+    await runCli(["--format", "--help"]),
+    await runCli(["--wat"]),
   ]) {
     assert.equal(result.exitCode, 2);
     assert.equal(result.stderr, "");
-    assert.ok(result.value.error);
-    assert.ok(result.value.help);
+    assert.equal(result.value.status, "error");
+    assert.equal((result.value.error as Record<string, unknown>).code, "usage");
+    assert.ok((result.value.help as unknown[]).length > 0);
   }
 });
 
@@ -277,7 +272,10 @@ test("help commands preserve repository, PATH, and safely quoted direct invocati
       UNSLIDE_INVOCATION: undefined,
       npm_lifecycle_event: undefined,
     });
-    assert.equal((pathInvocation.value as { usage: string }).usage, "unslide build <name>");
+    assert.equal(
+      (pathInvocation.value.result as Record<string, unknown> as { usage: string }).usage,
+      "unslide build <name>",
+    );
 
     const directInvocation = await runCli(["build", "--help"], repositoryRoot, {
       PATH: process.env.PATH,
@@ -286,7 +284,7 @@ test("help commands preserve repository, PATH, and safely quoted direct invocati
       npm_lifecycle_event: undefined,
     });
     assert.equal(
-      (directInvocation.value as { usage: string }).usage,
+      (directInvocation.value.result as Record<string, unknown> as { usage: string }).usage,
       `${shellQuote(spacedExecutable)} build <name>`,
     );
 
@@ -302,7 +300,10 @@ test("help commands preserve repository, PATH, and safely quoted direct invocati
         npm_config_user_agent: userAgent,
         npm_lifecycle_event: "unslide",
       });
-      assert.equal((repositoryInvocation.value as { usage: string }).usage, expected);
+      assert.equal(
+        (repositoryInvocation.value.result as Record<string, unknown> as { usage: string }).usage,
+        expected,
+      );
     }
 
     assert.equal(
@@ -337,44 +338,50 @@ test("home output reports HTML existence and contextual next actions", async () 
     ),
   );
 
-  const base = {
-    bin: "/opt/unslide/bin/unslide",
-    description: "Build and inspect explicit-page HTML and PDF reports",
-    project: projectRoot,
-  };
-  const missingReports = [
-    { name: "alpha", source, html: "generated output/alpha.html", htmlStatus: "missing" },
-    { name: "bravo", source, html: "generated output/bravo.html", htmlStatus: "missing" },
-  ];
-
   try {
     const missing = await runCli([], projectRoot, stableCliEnvironment);
-    assert.deepEqual(missing.value, {
-      ...base,
-      reports: missingReports,
-      help: ["Run unslide build <name>", "Run unslide --help"],
-    });
+    const missingHome = missing.value.result as Record<string, unknown>;
+    assert.equal(missingHome.kind, "home");
+    assert.equal(missingHome.projectRoot, projectRoot);
+    const missingReports = missingHome.reports as Array<Record<string, unknown>>;
+    assert.deepEqual(
+      missingReports.map((report) => report.name),
+      ["alpha", "bravo"],
+    );
+    assert.ok(missingReports.every((report) => !(report.html as { exists: boolean }).exists));
+    assert.ok(
+      missingReports.every((report) =>
+        String((report.source as { path: string }).path).startsWith(projectRoot),
+      ),
+    );
+    assert.deepEqual(missing.value.help, ["Run unslide build <name>", "Run unslide --help"]);
 
     await mkdir(resolve(projectRoot, "generated output"), { recursive: true });
     await writeFile(resolve(projectRoot, "generated output/alpha.html"), "existing HTML");
     const mixed = await runCli([], projectRoot, stableCliEnvironment);
-    assert.deepEqual(mixed.value, {
-      ...base,
-      reports: [{ ...missingReports[0], htmlStatus: "present" }, missingReports[1]],
-      help: [
-        "Run unslide build <name>",
-        "Run unslide inspect <name>",
-        "Run unslide capture <name>",
-      ],
-    });
+    const mixedReports = (mixed.value.result as Record<string, unknown>).reports as Array<
+      Record<string, unknown>
+    >;
+    assert.deepEqual(
+      mixedReports.map((report) => (report.html as { exists: boolean }).exists),
+      [true, false],
+    );
+    assert.deepEqual(mixed.value.help, [
+      "Run unslide build <name>",
+      "Run unslide inspect <name>",
+      "Run unslide capture <name>",
+    ]);
 
     await writeFile(resolve(projectRoot, "generated output/bravo.html"), "existing HTML");
     const present = await runCli([], projectRoot, stableCliEnvironment);
-    assert.deepEqual(present.value, {
-      ...base,
-      reports: missingReports.map((report) => ({ ...report, htmlStatus: "present" })),
-      help: ["Run unslide inspect <name>", "Run unslide capture <name>"],
-    });
+    const presentReports = (present.value.result as Record<string, unknown>).reports as Array<
+      Record<string, unknown>
+    >;
+    assert.ok(presentReports.every((report) => (report.html as { exists: boolean }).exists));
+    assert.deepEqual(present.value.help, [
+      "Run unslide inspect <name>",
+      "Run unslide capture <name>",
+    ]);
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
@@ -387,8 +394,8 @@ test("global Effect logging is opt-in, structured, and configurable by flag or e
     stableCliEnvironment,
   );
   assert.equal(info.exitCode, 0);
-  assert.equal(info.stdout, encode(stableTopHelp()));
-  assert.equal(info.value.usage, "unslide <command>");
+  assert.equal(info.stdout, `${encode(info.value)}\n`);
+  assert.match(String((info.value.result as Record<string, unknown>).usage), /^unslide /);
   const infoLogs = parseLogs(info.stderr);
   assert.deepEqual(
     infoLogs.map((entry) => entry.message),
@@ -491,7 +498,7 @@ test("logging keeps stable failures on info and adds full Effect causes on debug
       stableCliEnvironment,
     );
     assert.equal(debug.exitCode, 1);
-    assert.equal(debug.stdout, info.stdout);
+    assert.deepEqual({ ...debug.value, timings: [] }, { ...info.value, timings: [] });
     const debugLogs = parseLogs(debug.stderr);
     const cause = debugLogs.find((entry) => entry.message === "failure.cause");
     assert.equal(cause?.level, "DEBUG");
@@ -501,73 +508,56 @@ test("logging keeps stable failures on info and adds full Effect causes on debug
   }
 });
 
-test("CLI root preserves exact TOON bytes and maps every tagged failure", async () => {
+test("CLI root emits one versioned document and maps every tagged failure", async () => {
   const externalRoot = await mkdtemp(resolve(tmpdir(), "unslide-cli-boundary-"));
   const canonicalExternalRoot = await realpath(externalRoot);
   const projectRoot = await createProject("unslide failure mapping ");
   try {
-    const help = await runCli(["--help"], repositoryRoot, stableCliEnvironment);
-    assert.deepEqual(
-      { exitCode: help.exitCode, stderr: help.stderr, stdout: help.stdout },
-      { exitCode: 0, stderr: "", stdout: encode(stableTopHelp()) },
-    );
+    for (const format of ["toon", "json"] as const) {
+      const help = await runCli(
+        ["--format", format, "--help"],
+        repositoryRoot,
+        stableCliEnvironment,
+      );
+      assert.equal(help.exitCode, 0);
+      assert.equal(help.stderr, "");
+      assert.equal(help.stdout.endsWith("\n"), true);
+      assert.equal(help.stdout.endsWith("\n\n"), false);
+      assert.equal(help.value.resultSchemaVersion, 1);
+      assert.equal(help.value.toolVersion, repositoryManifest.version);
+      assert.equal(help.value.command, "help");
+      assert.equal(help.value.status, "ok");
+      assert.deepEqual(help.value.warnings, []);
+      assert.deepEqual(help.value.timings, []);
+      assert.deepEqual(help.value.help, []);
+    }
 
     const usage = await runCli(["build"], repositoryRoot, stableCliEnvironment);
-    assert.deepEqual(
-      { exitCode: usage.exitCode, stderr: usage.stderr, stdout: usage.stdout },
-      {
-        exitCode: 2,
-        stderr: "",
-        stdout: encode({
-          error: { code: "usage", message: "build requires exactly one report name." },
-          help: {
-            command: "build",
-            usage: "unslide build <name>",
-            flags: [stableHelpFlag, stableLogLevelFlag],
-            examples: ["unslide build spike", "unslide build operating-review"],
-          },
-        }),
-      },
-    );
+    assert.equal(usage.exitCode, 2);
+    assert.equal(usage.stderr, "");
+    assert.equal(usage.value.status, "error");
+    assert.deepEqual(usage.value.error, {
+      code: "usage",
+      message: "build requires exactly one report name.",
+    });
 
     const missingProject = await runCli([], externalRoot, stableCliEnvironment);
     const missingMessage = `No unslide.json project configuration was found from ${canonicalExternalRoot}.`;
-    assert.deepEqual(
-      {
-        exitCode: missingProject.exitCode,
-        stderr: missingProject.stderr,
-        stdout: missingProject.stdout,
-      },
-      {
-        exitCode: 1,
-        stderr: "",
-        stdout: encode({
-          error: { code: "project-not-found", message: missingMessage },
-          help: ["Run unslide init to plan a new project"],
-        }),
-      },
-    );
+    assert.equal(missingProject.exitCode, 1);
+    assert.equal(missingProject.stderr, "");
+    assert.deepEqual(missingProject.value.error, {
+      code: "project-not-found",
+      message: missingMessage,
+    });
+    assert.deepEqual(missingProject.value.help, ["Run unslide init"]);
 
     const namedMissingProject = await runCli(
       ["build", "fixture"],
       externalRoot,
       stableCliEnvironment,
     );
-    assert.deepEqual(
-      {
-        exitCode: namedMissingProject.exitCode,
-        stderr: namedMissingProject.stderr,
-        stdout: namedMissingProject.stdout,
-      },
-      {
-        exitCode: 1,
-        stderr: "",
-        stdout: encode({
-          error: { code: "project-not-found", message: missingMessage },
-          help: ["Run unslide init to plan a new project"],
-        }),
-      },
-    );
+    assert.equal(namedMissingProject.exitCode, 1);
+    assert.deepEqual(namedMissingProject.value.error, missingProject.value.error);
 
     const externalConfigPath = resolve(externalRoot, "unslide.json");
     const canonicalExternalConfigPath = resolve(canonicalExternalRoot, "unslide.json");
@@ -575,11 +565,18 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
     const unreadableConfig = await runCli([], externalRoot, stableCliEnvironment);
     assert.equal(unreadableConfig.exitCode, 1);
     assert.equal(unreadableConfig.stderr, "");
-    assert.deepEqual(unreadableConfig.value.error, {
-      code: "project-config-unreadable",
-      message: "Project configuration cannot be read.",
-      path: canonicalExternalConfigPath,
-    });
+    assert.deepEqual(
+      {
+        code: (unreadableConfig.value.error as Record<string, unknown>).code,
+        message: (unreadableConfig.value.error as Record<string, unknown>).message,
+        path: (unreadableConfig.value.error as Record<string, unknown>).path,
+      },
+      {
+        code: "project-config-unreadable",
+        message: "Project configuration cannot be read.",
+        path: canonicalExternalConfigPath,
+      },
+    );
 
     await rm(externalConfigPath, { recursive: true });
     await writeFile(externalConfigPath, '{"version": 1, "reports":');
@@ -605,93 +602,173 @@ test("CLI root preserves exact TOON bytes and maps every tagged failure", async 
 
     await writeFile(externalConfigPath, JSON.stringify({ version: 2, reports: {} }));
     const invalidConfig = await runCli([], externalRoot, stableCliEnvironment);
-    assert.deepEqual(
-      {
-        exitCode: invalidConfig.exitCode,
-        stderr: invalidConfig.stderr,
-        stdout: invalidConfig.stdout,
-      },
-      {
-        exitCode: 1,
-        stderr: "",
-        stdout: encode({
-          error: {
-            code: "project-config-invalid",
-            message: "Project configuration is invalid.",
-            path: canonicalExternalConfigPath,
-            detail:
-              "Unsupported unslide.json version 2. This release supports version 1; update the configuration manually because automatic migration is not available.",
-          },
-        }),
-      },
-    );
+    assert.equal(invalidConfig.exitCode, 1);
+    assert.match(JSON.stringify(invalidConfig.value.error), /Unsupported unslide\.json version 2/);
 
     const missingReport = await runCli(["build", "missing"], projectRoot, stableCliEnvironment);
-    assert.deepEqual(
-      {
-        exitCode: missingReport.exitCode,
-        stderr: missingReport.stderr,
-        stdout: missingReport.stdout,
-      },
-      {
-        exitCode: 1,
-        stderr: "",
-        stdout: encode({
-          error: {
-            code: "report-not-found",
-            message: 'Report "missing" is not configured.',
-            availableReports: ["fixture"],
-          },
-          help: ["Run unslide build <name>"],
-        }),
-      },
-    );
+    assert.equal(missingReport.exitCode, 1);
+    assert.deepEqual(missingReport.value.error, {
+      code: "report-not-found",
+      message: 'Report "missing" is not configured.',
+      availableReports: ["fixture"],
+    });
+    assert.deepEqual(missingReport.value.help, ["Run unslide build <name>"]);
 
     const missingReportWithFull = await runCli(
       ["capture", "missing", "--full"],
       projectRoot,
       stableCliEnvironment,
     );
-    assert.deepEqual(missingReportWithFull.value.help, ["Run unslide capture <name> --full"]);
+    assert.deepEqual(missingReportWithFull.value.help, ["Run unslide capture <name>"]);
 
     const invalidArtifact = await runCli(
       ["inspect", "--artifact", resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html")],
       repositoryRoot,
       stableCliEnvironment,
     );
+    assert.equal(invalidArtifact.exitCode, 1);
+    const invalidError = invalidArtifact.value.error as Record<string, unknown>;
+    assert.equal(invalidError.code, "artifact-invalid");
+    assert.equal(invalidError.path, resolve("tests/fixtures/protocol-no-pages.html"));
     assert.deepEqual(
-      {
-        exitCode: invalidArtifact.exitCode,
-        stderr: invalidArtifact.stderr,
-        stdout: invalidArtifact.stdout,
-      },
-      {
-        exitCode: 1,
-        stderr: "",
-        stdout: encode({
-          error: {
-            code: "artifact-invalid",
-            message: "HTML artifact is invalid.",
-            path: resolve(repositoryRoot, "tests/fixtures/protocol-no-pages.html"),
-          },
-          diagnostics: {
-            shown: 1,
-            total: 1,
-            truncated: false,
-            issues: [
-              {
-                source: "protocol",
-                code: "missing-pages",
-                message:
-                  'No report pages found. Expected at least one element with data-unslide-page="<id>".',
-              },
-            ],
-          },
-        }),
-      },
+      (
+        (invalidError.diagnostics as Record<string, unknown>).issues as Array<
+          Record<string, unknown>
+        >
+      ).map((issue) => issue.code),
+      ["missing-pages"],
     );
   } finally {
     await rm(externalRoot, { recursive: true, force: true });
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("format selection, source details, and authored console output stay automation-safe", async () => {
+  for (const arguments_ of [
+    ["--format=json", "--help"],
+    ["--format", "json", "--format", "toon", "--help"],
+    ["--format", "json", "--format", "json", "--help"],
+  ]) {
+    const fallback = await runCli(arguments_);
+    assert.equal(fallback.exitCode, 2);
+    assert.doesNotThrow(() => decode(fallback.stdout, { strict: true }));
+    assert.throws(() => JSON.parse(fallback.stdout));
+  }
+  const malformedFormat = await runCli(["--format", "yaml", "--help"]);
+  assert.equal(malformedFormat.exitCode, 2);
+  assert.equal(malformedFormat.value.status, "error");
+  assert.equal((malformedFormat.value.error as Record<string, unknown>).code, "usage");
+
+  const jsonUsage = await runCli(["build", "--format", "json"]);
+  assert.equal(jsonUsage.exitCode, 2);
+  assert.equal(jsonUsage.value.status, "error");
+  assert.doesNotThrow(() => JSON.parse(jsonUsage.stdout));
+  assert.deepEqual(jsonUsage.value.help, [`Run ${shellQuote(cliPath)} --format json build report`]);
+
+  const projectRoot = await createProject("unslide source channels ");
+  const sourcePath = resolve(projectRoot, "source files", "report.tsx");
+  const htmlPath = resolve(projectRoot, "generated output", "report file.html");
+  try {
+    await writeFile(
+      sourcePath,
+      `import React from "react";
+console.log("authored stdout attempt", { source: "fixture" });
+console.error("authored stderr attempt");
+console.warn(${JSON.stringify("W".repeat(1_205))});
+queueMicrotask(() => console.info("authored microtask attempt"));
+setTimeout(() => console.log("delayed authored stdout attempt"), 100);
+const unkeyed = [<span>first</span>, <span>second</span>];
+export default <html><head><meta name="unslide-protocol" content="1" /></head><body><main data-unslide-page="safe">Safe channels{unkeyed}</main></body></html>;
+`,
+    );
+    for (const format of ["toon", "json"] as const) {
+      const built = await runCli(["build", "fixture", "--format", format], projectRoot);
+      assert.equal(built.exitCode, 0, built.stdout);
+      assert.equal(built.stderr, "");
+      assert.equal(built.value.status, "ok");
+      assert.doesNotMatch(built.stdout, /authored (?:stdout|stderr) attempt/);
+    }
+    const debug = await runCli(
+      ["build", "fixture", "--log-level", "debug"],
+      projectRoot,
+      stableCliEnvironment,
+    );
+    const consoleLogs = parseLogs(debug.stderr).filter(
+      (entry) => entry.message === "report.console",
+    );
+    assert.deepEqual(
+      new Set(consoleLogs.map((entry) => entry.annotations.level)),
+      new Set(["log", "error", "warn", "info"]),
+    );
+    const truncatedWarning = consoleLogs.find(
+      (entry) => entry.annotations.level === "warn" && entry.annotations.messageTotalChars,
+    );
+    assert.ok(truncatedWarning);
+    assert.equal([...(truncatedWarning.annotations.message as string)].length, 1_000);
+    assert.equal(truncatedWarning.annotations.messageTotalChars, 1_205);
+    assert.ok(
+      consoleLogs.some(
+        (entry) => entry.annotations.phase === "render" && entry.annotations.level === "error",
+      ),
+    );
+
+    const priorHtml = await readFile(htmlPath, "utf8");
+    await writeFile(
+      sourcePath,
+      `import React, { readTextAsset } from "unslide/react";
+const css = await readTextAsset(new URL("./missing.css", import.meta.url).pathname);
+export default <html><head><style>{css}</style></head><body><main data-unslide-page="broken">Broken</main></body></html>;
+`,
+    );
+    const missingAsset = await runCli(["build", "fixture"], projectRoot);
+    assert.equal(missingAsset.exitCode, 1);
+    const assetError = missingAsset.value.error as Record<string, unknown>;
+    assert.equal(assetError.code, "command-failed");
+    assert.match(String(assetError.detail), /Cannot read local text asset.*missing\.css/);
+    assert.ok([...String(assetError.detail)].length <= 1_000);
+    assert.equal(await readFile(htmlPath, "utf8"), priorHtml);
+
+    await writeFile(
+      sourcePath,
+      `throw new Error("Stylesheet compilation failed: invalid authored selector");\nexport default null;\n`,
+    );
+    const stylesheetFailure = await runCli(["build", "fixture"], projectRoot);
+    assert.equal(stylesheetFailure.exitCode, 1);
+    assert.match(
+      String((stylesheetFailure.value.error as Record<string, unknown>).detail),
+      /Stylesheet compilation failed: invalid authored selector/,
+    );
+    assert.equal(await readFile(htmlPath, "utf8"), priorHtml);
+
+    await writeFile(sourcePath, "export default <html><body><main>unterminated");
+    const compileFailure = await runCli(["build", "fixture", "--format", "json"], projectRoot);
+    assert.equal(compileFailure.exitCode, 1);
+    assert.match(
+      String((compileFailure.value.error as Record<string, unknown>).detail),
+      /Cannot load source[\s\S]*report\.tsx/,
+    );
+    assert.equal(await readFile(htmlPath, "utf8"), priorHtml);
+
+    await writeFile(sourcePath, "export default { report: true };\n");
+    const invalidExport = await runCli(["build", "fixture"], projectRoot);
+    assert.equal(invalidExport.exitCode, 1);
+    assert.match(
+      String((invalidExport.value.error as Record<string, unknown>).detail),
+      /must export one complete React document/,
+    );
+
+    await writeFile(
+      sourcePath,
+      `throw new Error(${JSON.stringify("D".repeat(1_205))});\nexport default null;\n`,
+    );
+    const boundedAuthorDetail = await runCli(["build", "fixture", "--format", "json"], projectRoot);
+    assert.equal(boundedAuthorDetail.exitCode, 1);
+    assert.equal(
+      [...String((boundedAuthorDetail.value.error as Record<string, unknown>).detail)].length,
+      1_000,
+    );
+  } finally {
     await rm(projectRoot, { recursive: true, force: true });
   }
 });
@@ -710,29 +787,25 @@ test("operational failures use stable codes, corrective commands, and diagnostic
       const result = await runCli([command, "fixture"], projectRoot, stableCliEnvironment);
       assert.equal(result.exitCode, 1);
       assert.equal(result.stderr, "");
-      assert.deepEqual(result.value, {
-        error: {
-          code: "artifact-not-found",
-          message: "HTML artifact was not found.",
-          report: "fixture",
-          path: htmlPath,
-        },
-        help: ["Run unslide build fixture"],
+      assert.deepEqual(result.value.error, {
+        code: "artifact-not-found",
+        message: "HTML artifact was not found.",
+        report: "fixture",
+        path: htmlPath,
       });
+      assert.deepEqual(result.value.help, ["Run unslide build fixture"]);
     }
 
     const missingPdf = await runCli(["inspect-pdf", "fixture"], projectRoot, stableCliEnvironment);
     assert.equal(missingPdf.exitCode, 1);
     assert.equal(missingPdf.stderr, "");
-    assert.deepEqual(missingPdf.value, {
-      error: {
-        code: "artifact-not-found",
-        message: "PDF artifact was not found.",
-        report: "fixture",
-        path: pdfPath,
-      },
-      help: ["Run unslide export fixture"],
+    assert.deepEqual(missingPdf.value.error, {
+      code: "artifact-not-found",
+      message: "PDF artifact was not found.",
+      report: "fixture",
+      path: pdfPath,
     });
+    assert.deepEqual(missingPdf.value.help, ["Run unslide export fixture"]);
 
     await mkdir(dirname(htmlPath), { recursive: true });
     await writeFile(
@@ -742,28 +815,12 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     const invalidHtml = await runCli(["inspect", "fixture"], projectRoot, stableCliEnvironment);
     assert.equal(invalidHtml.exitCode, 1);
     assert.equal(invalidHtml.stderr, "");
-    assert.deepEqual(invalidHtml.value, {
-      error: {
-        code: "artifact-invalid",
-        message: "HTML artifact is invalid.",
-        report: "fixture",
-        path: htmlPath,
-      },
-      diagnostics: {
-        shown: 1,
-        total: 1,
-        truncated: false,
-        issues: [
-          {
-            source: "protocol",
-            code: "missing-pages",
-            message:
-              'No report pages found. Expected at least one element with data-unslide-page="<id>".',
-          },
-        ],
-      },
-      help: ["Run unslide build fixture"],
-    });
+    const invalidHtmlError = invalidHtml.value.error as Record<string, unknown>;
+    assert.equal(invalidHtmlError.code, "artifact-invalid");
+    assert.equal(invalidHtmlError.report, "fixture");
+    assert.equal(invalidHtmlError.path, htmlPath);
+    assert.equal((invalidHtmlError.diagnostics as Record<string, unknown>).total, 1);
+    assert.deepEqual(invalidHtml.value.help, ["Run unslide build fixture"]);
 
     await writeFile(
       htmlPath,
@@ -808,13 +865,14 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     );
     assert.equal(invalidGeneratedPdf.exitCode, 1);
     assert.equal(invalidGeneratedPdf.stderr, "");
-    assert.deepEqual(invalidGeneratedPdf.value.error, {
-      code: "artifact-invalid",
-      message: "PDF artifact is invalid.",
-      report: "fixture",
-    });
+    assert.equal(
+      (invalidGeneratedPdf.value.error as Record<string, unknown>).code,
+      "artifact-invalid",
+    );
+    assert.equal((invalidGeneratedPdf.value.error as Record<string, unknown>).report, "fixture");
     assert.deepEqual(invalidGeneratedPdf.value.help, ["Run unslide export fixture"]);
-    const pdfDiagnostics = invalidGeneratedPdf.value.diagnostics as Record<string, unknown>;
+    const pdfDiagnostics = (invalidGeneratedPdf.value.error as Record<string, unknown>)
+      .diagnostics as Record<string, unknown>;
     assert.deepEqual(
       {
         shown: pdfDiagnostics.shown,
@@ -839,15 +897,10 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     const invalidPdf = await runCli(["inspect-pdf", "fixture"], projectRoot, stableCliEnvironment);
     assert.equal(invalidPdf.exitCode, 1);
     assert.equal(invalidPdf.stderr, "");
-    assert.deepEqual(invalidPdf.value, {
-      error: {
-        code: "artifact-invalid",
-        message: "PDF artifact is invalid.",
-        report: "fixture",
-        path: pdfPath,
-      },
-      help: ["Run unslide export fixture"],
-    });
+    assert.equal((invalidPdf.value.error as Record<string, unknown>).code, "artifact-invalid");
+    assert.equal((invalidPdf.value.error as Record<string, unknown>).report, "fixture");
+    assert.equal((invalidPdf.value.error as Record<string, unknown>).path, pdfPath);
+    assert.deepEqual(invalidPdf.value.help, ["Run unslide export fixture"]);
 
     await writeFile(
       htmlPath,
@@ -859,13 +912,13 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     });
     assert.equal(browserMissing.exitCode, 1);
     assert.equal(browserMissing.stderr, "");
-    assert.deepEqual(browserMissing.value, {
-      error: {
-        code: "browser-not-installed",
-        message: "The canonical Chromium browser is not installed.",
-      },
-      help: ["Run pnpm dlx playwright@1.61.1 install chromium"],
+    assert.deepEqual(browserMissing.value.error, {
+      code: "browser-not-installed",
+      message: "The canonical Chromium browser is not installed.",
     });
+    assert.deepEqual(browserMissing.value.help, [
+      "Run pnpm dlx playwright@1.61.1 install chromium",
+    ]);
 
     const executableProbe = await execFileAsync(
       process.execPath,
@@ -890,14 +943,11 @@ test("operational failures use stable codes, corrective commands, and diagnostic
     });
     assert.equal(launchFailure.exitCode, 1);
     assert.equal(launchFailure.stderr, "");
-    assert.deepEqual(launchFailure.value, {
-      error: {
-        code: "command-failed",
-        message: "capture failed.",
-        report: "fixture",
-        path: htmlPath,
-      },
-    });
+    const launchError = launchFailure.value.error as Record<string, unknown>;
+    assert.equal(launchError.code, "command-failed");
+    assert.equal(launchError.message, "capture failed.");
+    assert.equal(launchError.report, "fixture");
+    assert.equal(launchError.path, htmlPath);
 
     const debugLaunchFailure = await runCli(
       ["capture", "fixture", "--log-level", "debug"],
@@ -907,7 +957,10 @@ test("operational failures use stable codes, corrective commands, and diagnostic
         PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers,
       },
     );
-    assert.equal(debugLaunchFailure.stdout, launchFailure.stdout);
+    assert.deepEqual(
+      { ...debugLaunchFailure.value, timings: [] },
+      { ...launchFailure.value, timings: [] },
+    );
     assert.match(
       debugLaunchFailure.stderr,
       /Cannot launch the canonical Chromium browser|BrowserFailure/,
@@ -917,7 +970,10 @@ test("operational failures use stable codes, corrective commands, and diagnostic
       ...stableCliEnvironment,
       PLAYWRIGHT_BROWSERS_PATH: brokenBrowsers,
     });
-    assert.equal(fullLaunchFailure.stdout, launchFailure.stdout);
+    assert.equal(
+      (fullLaunchFailure.value.error as Record<string, unknown>).code,
+      (launchFailure.value.error as Record<string, unknown>).code,
+    );
     assert.equal(fullLaunchFailure.stderr, "");
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
@@ -1002,7 +1058,8 @@ test("authored diagnostics are structured and bounded unless --full is requested
     );
     assert.equal(bounded.exitCode, 1);
     assert.equal(bounded.stderr, "");
-    const boundedDiagnostics = bounded.value.diagnostics as Record<string, unknown>;
+    const boundedDiagnostics = (bounded.value.error as Record<string, unknown>)
+      .diagnostics as Record<string, unknown>;
     assert.deepEqual(
       {
         shown: boundedDiagnostics.shown,
@@ -1035,7 +1092,10 @@ test("authored diagnostics are structured and bounded unless --full is requested
     );
     assert.equal(full.exitCode, 1);
     assert.equal(full.stderr, "");
-    const fullDiagnostics = full.value.diagnostics as Record<string, unknown>;
+    const fullDiagnostics = (full.value.error as Record<string, unknown>).diagnostics as Record<
+      string,
+      unknown
+    >;
     assert.deepEqual(
       {
         shown: fullDiagnostics.shown,
@@ -1047,7 +1107,7 @@ test("authored diagnostics are structured and bounded unless --full is requested
     const fullIssues = fullDiagnostics.issues as Array<Record<string, unknown>>;
     assert.equal(fullIssues.find((issue) => issue.code === "console-error")?.message, longMessage);
     assert.equal(fullIssues.find((issue) => issue.resource)?.resource, longResource);
-    assert.equal(full.value.help, undefined);
+    assert.deepEqual(full.value.help, []);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -1060,13 +1120,13 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
     const plan = await runCli(["init", "--name", "quarterly-review"], projectRoot);
     assert.equal(plan.exitCode, 0);
     assert.equal(plan.stderr, "");
-    assert.equal((plan.value.init as Record<string, unknown>).status, "planned");
+    assert.equal((plan.value.result as Record<string, unknown>).status, "planned");
     await assert.rejects(readFile(resolve(projectRoot, "unslide.json"), "utf8"), /ENOENT/);
 
     const creation = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
     assert.equal(creation.exitCode, 0);
     assert.equal(creation.stderr, "");
-    assert.equal((creation.value.init as Record<string, unknown>).status, "created");
+    assert.equal((creation.value.result as Record<string, unknown>).status, "created");
     assert.match(
       await readFile(resolve(projectRoot, "quarterly-review.tsx"), "utf8"),
       /data-unslide-page="welcome"/,
@@ -1077,7 +1137,7 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
 
     const repeat = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
     assert.equal(repeat.exitCode, 0);
-    assert.equal((repeat.value.init as Record<string, unknown>).status, "unchanged");
+    assert.equal((repeat.value.result as Record<string, unknown>).status, "unchanged");
 
     await writeFile(resolve(projectRoot, "quarterly-review.css"), "user-owned change\n");
     const conflict = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
@@ -1096,14 +1156,19 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
   }
 });
 
-test("CLI init rejects unsupported arguments and invalid report names", async () => {
-  for (const result of [
+test("CLI rejects unsupported arguments and invalid report names", async () => {
+  const invalid = [
     await runCli(["init", "--name"]),
     await runCli(["init", "--name", "Quarterly Review"]),
     await runCli(["init", "--yes", "--yes"]),
     await runCli(["init", "--unknown"]),
-  ]) {
-    assert.equal(result.exitCode, 2);
+  ];
+  for (const command of ["build", "capture", "export", "inspect", "inspect-pdf"]) {
+    invalid.push(await runCli([command, "Bad_Name"]));
+    invalid.push(await runCli([command, "Bad_Name", "--help"]));
+  }
+  for (const result of invalid) {
+    assert.equal(result.exitCode, 2, result.stdout);
     assert.equal(result.stderr, "");
     assert.ok(result.value.help);
   }
@@ -1118,7 +1183,7 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     const home = await runCli([], nestedDirectory);
     assert.equal(home.exitCode, 0);
     assert.equal(home.stderr, "");
-    assert.equal(home.value.project, projectRoot);
+    assert.equal((home.value.result as Record<string, unknown>).projectRoot, projectRoot);
 
     const build = await runCli(["build", "fixture"], nestedDirectory);
     assert.equal(build.exitCode, 0, build.stdout);
@@ -1135,7 +1200,10 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     const inspection = await runCli(["inspect", "fixture"], projectRoot);
     assert.equal(inspection.exitCode, 0);
     assert.equal(inspection.stderr, "");
-    assert.equal((inspection.value.report as Record<string, unknown>).pageCount, 2);
+    assert.equal(
+      ((inspection.value.result as Record<string, unknown>).pages as unknown[]).length,
+      2,
+    );
 
     const capture = await runCli(["capture", "fixture", "--log-level", "debug"], projectRoot);
     assert.equal(capture.exitCode, 0);
@@ -1143,29 +1211,36 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
     assert.ok(captureLogs.some((entry) => entry.annotations.phase === "browser.readiness"));
     assert.ok(captureLogs.some((entry) => entry.message === "page.captured"));
     assert.equal(new Set(captureLogs.map((entry) => entry.annotations.invocationId)).size, 1);
-    const captureReport = capture.value.report as Record<string, unknown>;
-    const capturePages = capture.value.pages as Array<Record<string, unknown>>;
-    assert.equal(captureReport.output, "captured pages");
+    const captureReport = capture.value.result as Record<string, unknown>;
+    const capturePages = captureReport.pages as Array<Record<string, unknown>>;
+    assert.equal(
+      (captureReport.output as Record<string, unknown>).path,
+      resolve(projectRoot, "captured pages"),
+    );
     assert.equal(capturePages.length, 2);
     assert.deepEqual(
       capturePages.map((page) => page.id),
       ["fixture-1", "fixture-2"],
     );
     assert.deepEqual(
-      capturePages.map((page) => page.file),
-      ["page-01.png", "page-02.png"],
+      capturePages.map((page) => page.number),
+      [1, 2],
     );
-    assert.equal(capture.stdout.split("captured pages").length - 1, 1);
     for (const page of capturePages) {
-      await readFile(resolve(projectRoot, String(captureReport.output), String(page.file)));
+      await readFile(String(page.path));
     }
     const png = await readFile(resolve(projectRoot, "captured pages", "page-01.png"));
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [320, 180]);
 
     const exported = await runCli(["export", "fixture"], projectRoot);
     assert.equal(exported.exitCode, 0, exported.stdout);
-    assert.equal((exported.value.report as Record<string, unknown>).pageCount, 2);
-    assert.equal((exported.value.report as Record<string, unknown>).widthPoints, 240);
+    const exportResult = exported.value.result as Record<string, unknown>;
+    assert.equal((exportResult.pages as unknown[]).length, 2);
+    assert.equal(
+      ((exportResult.pages as Array<Record<string, unknown>>)[0] as Record<string, unknown>)
+        .widthPoints,
+      240,
+    );
     assert.deepEqual(exported.value.help, [`Run ${shellQuote(cliPath)} inspect-pdf fixture`]);
     assert.equal(
       (await readFile(resolve(projectRoot, "generated output", "report file.pdf")))
@@ -1176,18 +1251,20 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
 
     const pdfInspection = await runCli(["inspect-pdf", "fixture"], projectRoot);
     assert.equal(pdfInspection.exitCode, 0, pdfInspection.stdout);
-    const pdfReport = pdfInspection.value.report as Record<string, unknown>;
-    const pdfPages = pdfInspection.value.pages as Array<Record<string, unknown>>;
-    assert.equal(pdfReport.pageCount, 2);
-    assert.equal(pdfReport.status, "pdf-inspected");
-    assert.equal(pdfReport.output, "captured pages-pdf");
-    assert.deepEqual(
-      pdfPages.map((page) => page.file),
-      ["page-01.png", "page-02.png"],
+    const pdfReport = pdfInspection.value.result as Record<string, unknown>;
+    const pdfPages = pdfReport.pages as Array<Record<string, unknown>>;
+    assert.equal(pdfPages.length, 2);
+    assert.equal(pdfReport.kind, "inspect-pdf");
+    assert.equal(
+      (pdfReport.output as Record<string, unknown>).path,
+      resolve(projectRoot, "captured pages-pdf"),
     );
-    assert.equal(pdfInspection.stdout.split("captured pages-pdf").length - 1, 1);
+    assert.deepEqual(
+      pdfPages.map((page) => page.number),
+      [1, 2],
+    );
     for (const page of pdfPages) {
-      await readFile(resolve(projectRoot, String(pdfReport.output), String(page.file)));
+      await readFile(String(page.path));
     }
     const pdfPng = await readFile(resolve(projectRoot, "captured pages-pdf", "page-01.png"));
     assert.deepEqual([pdfPng.readUInt32BE(16), pdfPng.readUInt32BE(20)], [320, 181]);
@@ -1204,17 +1281,16 @@ test("CLI discovers a project from nested paths and handles spaces end to end", 
       nestedDirectory,
     );
     assert.equal(explicitInspection.exitCode, 0, explicitInspection.stdout);
-    const explicitPdf = explicitInspection.value.pdf as Record<string, unknown>;
-    const explicitPages = explicitInspection.value.pages as Array<Record<string, unknown>>;
-    assert.equal(explicitPdf.pageCount, 2);
-    assert.equal(explicitPdf.output, explicitOutput);
+    const explicitPdf = explicitInspection.value.result as Record<string, unknown>;
+    const explicitPages = explicitPdf.pages as Array<Record<string, unknown>>;
+    assert.equal(explicitPages.length, 2);
+    assert.equal((explicitPdf.output as Record<string, unknown>).path, explicitOutput);
     assert.deepEqual(
-      explicitPages.map((page) => page.file),
-      ["page-01.png", "page-02.png"],
+      explicitPages.map((page) => page.number),
+      [1, 2],
     );
-    assert.equal(explicitInspection.stdout.split(explicitOutput).length - 1, 1);
     for (const page of explicitPages) {
-      await readFile(resolve(String(explicitPdf.output), String(page.file)));
+      await readFile(String(page.path));
     }
     assert.equal(
       (await readFile(resolve(explicitOutput, "page-01.png"))).subarray(1, 4).toString(),
@@ -1237,7 +1313,10 @@ test("CLI inspection accepts a standalone artifact without project configuration
     const result = await runCli(["inspect", "--artifact", artifactPath], directory);
     assert.equal(result.exitCode, 0);
     assert.equal(result.stderr, "");
-    assert.equal((result.value.artifact as Record<string, unknown>).pageCount, 1);
+    assert.equal(
+      (((result.value.result as Record<string, unknown>).pages as unknown[]) ?? []).length,
+      1,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

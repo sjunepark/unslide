@@ -28,7 +28,12 @@ async function runConsumerCli(consumerRoot: string, arguments_: string[]) {
     cwd: consumerRoot,
   });
   assert.equal(stderr, "");
-  return decode(stdout) as Record<string, unknown>;
+  assert.equal(stdout.endsWith("\n"), true);
+  assert.equal(stdout.endsWith("\n\n"), false);
+  const formatIndex = arguments_.indexOf("--format");
+  return formatIndex >= 0 && arguments_[formatIndex + 1] === "json"
+    ? (JSON.parse(stdout) as Record<string, unknown>)
+    : (decode(stdout) as Record<string, unknown>);
 }
 
 async function runConsumerCliFailure(consumerRoot: string, arguments_: string[]) {
@@ -39,7 +44,13 @@ async function runConsumerCliFailure(consumerRoot: string, arguments_: string[])
     const failure = error as Error & { code?: number; stderr?: string; stdout?: string };
     assert.equal(failure.code, 1);
     assert.equal(failure.stderr, "");
-    return decode(failure.stdout ?? "") as Record<string, unknown>;
+    const stdout = failure.stdout ?? "";
+    assert.equal(stdout.endsWith("\n"), true);
+    assert.equal(stdout.endsWith("\n\n"), false);
+    const formatIndex = arguments_.indexOf("--format");
+    return formatIndex >= 0 && arguments_[formatIndex + 1] === "json"
+      ? (JSON.parse(stdout) as Record<string, unknown>)
+      : (decode(stdout) as Record<string, unknown>);
   }
 }
 
@@ -104,6 +115,7 @@ test(
     const consumerRoot = await mkdtemp(resolve(tmpdir(), "unslide-adoption-consumer-"));
 
     try {
+      const canonicalConsumerRoot = await realpath(consumerRoot);
       await execFileAsync("pnpm", ["pack", "--pack-destination", packageDirectory], {
         cwd: repositoryRoot,
       });
@@ -184,11 +196,15 @@ test(
       assert.equal(installedManifest.dependencies.effect, "4.0.0-beta.97");
 
       const help = await runConsumerCli(consumerRoot, ["--help"]);
-      assert.match(String(help.bin), /\/bin\/unslide\.mjs$/);
+      assert.equal(help.resultSchemaVersion, 1);
+      const helpResult = help.result as Record<string, unknown>;
       assert.equal(
-        help.usage,
-        `${shellQuote(resolve(await realpath(consumerRoot), "node_modules/unslide/bin/unslide.mjs"))} <command>`,
+        helpResult.usage,
+        `${shellQuote(resolve(await realpath(consumerRoot), "node_modules/unslide/bin/unslide.mjs"))} [--format <toon|json>] [--log-level <off|info|debug>] <command>`,
       );
+      const jsonHelp = await runConsumerCli(consumerRoot, ["--format", "json", "--help"]);
+      assert.equal(jsonHelp.resultSchemaVersion, 1);
+      assert.equal(jsonHelp.status, "ok");
       try {
         await runConsumerCli(consumerRoot, []);
         assert.fail("Consumer without configuration unexpectedly showed a project home view");
@@ -199,11 +215,11 @@ test(
       }
 
       const plan = await runConsumerCli(consumerRoot, ["init"]);
-      assert.equal((plan.init as Record<string, unknown>).status, "planned");
+      assert.equal((plan.result as Record<string, unknown>).status, "planned");
       const creation = await runConsumerCli(consumerRoot, ["init", "--yes"]);
-      assert.equal((creation.init as Record<string, unknown>).status, "created");
+      assert.equal((creation.result as Record<string, unknown>).status, "created");
       const repeat = await runConsumerCli(consumerRoot, ["init", "--yes"]);
-      assert.equal((repeat.init as Record<string, unknown>).status, "unchanged");
+      assert.equal((repeat.result as Record<string, unknown>).status, "unchanged");
       assert.match(
         await readFile(resolve(consumerRoot, "report.tsx"), "utf8"),
         /from "unslide\/react"/,
@@ -282,19 +298,25 @@ export default (
     </body>
   </html>
 );
+console.log("authored consumer output must not escape");
 `,
       );
 
-      const build = await runConsumerCli(consumerRoot, ["build", "report"]);
-      assert.equal((build.report as Record<string, unknown>).status, "built");
+      const build = await runConsumerCli(consumerRoot, ["build", "report", "--format", "json"]);
+      const buildResult = build.result as Record<string, unknown>;
+      assert.equal(buildResult.kind, "build");
       const inspection = await runConsumerCli(consumerRoot, ["inspect", "report"]);
-      assert.equal((inspection.report as Record<string, unknown>).pageCount, 1);
+      const inspectionResult = inspection.result as Record<string, unknown>;
+      assert.equal((inspectionResult.pages as unknown[]).length, 1);
       const capture = await runConsumerCli(consumerRoot, ["capture", "report"]);
-      assert.equal((capture.report as Record<string, unknown>).pageCount, 1);
+      const captureResult = capture.result as Record<string, unknown>;
+      assert.equal((captureResult.pages as unknown[]).length, 1);
       const exported = await runConsumerCli(consumerRoot, ["export", "report"]);
-      assert.equal((exported.report as Record<string, unknown>).pageCount, 1);
+      const exportResult = exported.result as Record<string, unknown>;
+      assert.equal((exportResult.pages as unknown[]).length, 1);
       const pdfInspection = await runConsumerCli(consumerRoot, ["inspect-pdf", "report"]);
-      assert.equal((pdfInspection.report as Record<string, unknown>).pageCount, 1);
+      const pdfInspectionResult = pdfInspection.result as Record<string, unknown>;
+      assert.equal((pdfInspectionResult.pages as unknown[]).length, 1);
 
       const html = await readFile(resolve(consumerRoot, "artifacts", "report.html"), "utf8");
       assert.match(html, /data-unslide-page="delivery"/);
@@ -311,9 +333,39 @@ export default (
       );
       assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [960, 540]);
 
+      for (const [evidence, bytes] of [
+        [buildResult.html, Buffer.from(html)],
+        [inspectionResult.html, Buffer.from(html)],
+      ] as const) {
+        const file = evidence as Record<string, unknown>;
+        assert.equal(file.path, resolve(canonicalConsumerRoot, "artifacts", "report.html"));
+        assert.equal(file.bytes, bytes.byteLength);
+        assert.equal(file.sha256, sha256(bytes));
+      }
+      const capturedPage = (captureResult.pages as Array<Record<string, unknown>>)[0];
+      assert.equal(capturedPage?.number, 1);
+      assert.equal(capturedPage?.id, "delivery");
+      assert.equal(
+        capturedPage?.path,
+        resolve(canonicalConsumerRoot, ".tmp/captures/report/page-01.png"),
+      );
+      assert.equal(capturedPage?.widthPixels, 960);
+      assert.equal(capturedPage?.heightPixels, 540);
+      assert.equal(capturedPage?.bytes, png.byteLength);
+      assert.equal(capturedPage?.sha256, sha256(png));
+
       const pdfPath = resolve(consumerRoot, "artifacts", "report.pdf");
       const pdfBytes = await readFile(pdfPath);
       assert.equal(pdfBytes.subarray(0, 5).toString(), "%PDF-");
+      const pdfEvidence = exportResult.pdf as Record<string, unknown>;
+      assert.equal(pdfEvidence.path, resolve(canonicalConsumerRoot, "artifacts", "report.pdf"));
+      assert.equal(pdfEvidence.bytes, pdfBytes.byteLength);
+      assert.equal(pdfEvidence.sha256, sha256(pdfBytes));
+      const exportedPage = (exportResult.pages as Array<Record<string, unknown>>)[0];
+      assert.equal(exportedPage?.number, 1);
+      assert.equal(exportedPage?.id, "delivery");
+      assert.ok(Math.abs(Number(exportedPage?.widthPoints) - 720) <= 1);
+      assert.ok(Math.abs(Number(exportedPage?.heightPoints) - 405) <= 1);
       const firstContract = await pdfContract(new Uint8Array(pdfBytes));
       assert.equal(firstContract.pageCount, 1);
       assert.ok(Math.abs(firstContract.widthPoints - 720) <= 1);
@@ -335,12 +387,34 @@ export default (
       const firstPdfPng = await readFile(pdfPngPath);
       assert.deepEqual([firstPdfPng.readUInt32BE(16), firstPdfPng.readUInt32BE(20)], [960, 540]);
       assert.deepEqual(await pixelAt(pdfPngPath, 10, 10), [23, 59, 44, 255]);
+      const inspectedPdfPage = (pdfInspectionResult.pages as Array<Record<string, unknown>>)[0];
+      assert.equal(inspectedPdfPage?.number, 1);
+      assert.equal(
+        inspectedPdfPage?.path,
+        resolve(canonicalConsumerRoot, ".tmp/pdf-captures/report/page-01.png"),
+      );
+      assert.equal(inspectedPdfPage?.widthPixels, 960);
+      assert.equal(inspectedPdfPage?.heightPixels, 540);
+      assert.equal(inspectedPdfPage?.bytes, firstPdfPng.byteLength);
+      assert.equal(inspectedPdfPage?.sha256, sha256(firstPdfPng));
 
       await runConsumerCli(consumerRoot, ["export", "report"]);
       await runConsumerCli(consumerRoot, ["inspect-pdf", "report"]);
       const secondContract = await pdfContract(new Uint8Array(await readFile(pdfPath)));
       assert.deepEqual(secondContract, firstContract);
       assert.equal(sha256(await readFile(pdfPngPath)), sha256(firstPdfPng));
+
+      for (const format of ["toon", "json"] as const) {
+        const failure = await runConsumerCliFailure(consumerRoot, [
+          "build",
+          "missing",
+          "--format",
+          format,
+        ]);
+        assert.equal(failure.resultSchemaVersion, 1);
+        assert.equal(failure.status, "error");
+        assert.equal((failure.error as Record<string, unknown>).code, "report-not-found");
+      }
 
       await writeFile(
         resolve(consumerRoot, "artifacts", "report.html"),
