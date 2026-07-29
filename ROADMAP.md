@@ -2,11 +2,11 @@
 
 ## Current
 
-- [Improve consumer report authoring](plans/consumer-authoring-ergonomics.md)
+- [Add static and interactive report modes](plans/static-interactive-report-modes.md)
 
 ## Plans
 
-1. [Add static and interactive report modes](plans/static-interactive-report-modes.md)
+_None._
 
 ## Tasks
 

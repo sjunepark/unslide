@@ -115,8 +115,10 @@ visual design, print CSS, numbering, and content fit.
   checks, both repositories' complete validation, the impairment-report
   review, and all configured proof-page visual inspections pass. Final review
   found one consumer selector-verification gap; explicit ID and number checks
-  plus regressions resolved it, and the verification pass has no unresolved
-  findings. Delivery remains pending.
+  plus regressions resolved it. PR feedback covering the required primitive
+  sequence, durable-plan and installed-skill synchronization, and real public
+  CLI integration coverage is resolved. Goal 5 was delivered in package PR
+  #17 and adjacent consumer PR #8 with individual commits preserved.
 
 ## Accepted design
 
@@ -343,4 +345,4 @@ findings.
 
 ## Next action
 
-Deliver the reviewed main and independent-consumer changes for merge.
+Begin Goal 1 of [the static and interactive report-mode plan](static-interactive-report-modes.md).
