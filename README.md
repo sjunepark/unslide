@@ -57,19 +57,22 @@ conflict before writing and leaves the existing project unchanged on failure.
 Build and inspect the report:
 
 ```sh
-pnpm exec unslide build report
-pnpm exec unslide inspect report
-pnpm exec unslide capture report
-pnpm exec unslide export report
-pnpm exec unslide inspect-pdf report
+pnpm exec unslide review report --page-id welcome
+pnpm exec unslide review report
+pnpm exec unslide review report --pdf
 ```
 
-`capture` and `export` consume existing HTML, and `inspect-pdf` consumes
-an existing PDF. Rebuild upstream artifacts after changing source. Export
-waits boundedly for static resources activated by print media, then checks PDF
-structure; it does not establish visual fidelity. Inspect every PDF-native page
-image. The tooling does not measure or repair content fit, although page-count
-validation can reveal unintended print fragmentation.
+`review` rebuilds HTML, validates the complete artifact, captures the requested
+scope, and optionally exports and captures the actual PDF. Its manifest records
+direct paths and hashes for the completed evidence. It does not establish
+visual fidelity: inspect every recorded HTML and PDF-native page image.
+
+Primitive `build`, `inspect`, `capture`, `export`, and `inspect-pdf` commands
+remain independently usable. They intentionally do not refresh their upstream
+artifacts. The packaged [authoring guide](docs/GUIDE.md) follows the business
+starter through realistic source structure and delivery; the compact
+[CLI workflow reference](docs/CLI.md) distinguishes primitive, composed,
+configured, and standalone-artifact paths.
 
 ## Authoring Contract
 
@@ -157,6 +160,8 @@ The public package exposes only:
 - the `unslide` executable;
 - `unslide/react` for React authoring and local-asset helpers;
 - the project [JSON Schema](schema/unslide.schema.json);
+- the packaged [authoring guide](docs/GUIDE.md) and
+  [CLI workflow reference](docs/CLI.md);
 - the [artifact protocol](docs/PROTOCOL.md); and
 - the [supported delivery contract](docs/SUPPORT.md).
 
@@ -194,12 +199,9 @@ See the
 for proof-report commands, generated artifacts, packed-consumer testing, and
 visual inspection requirements.
 
-The active consumer-authoring plan's accepted contracts are documented
-in [CLI Commands](docs/COMMANDS.md), [Result and Manifest Model](docs/RESULTS.md),
-and [React Authoring](docs/AUTHORING.md). The configuration, setup, React, asset,
-and existing-command result sections are implemented; review, focused-page,
-and standalone capture/export sections remain roadmap work until their goals
-are implemented and validated.
+The consumer-authoring contracts are documented in
+[CLI Commands](docs/COMMANDS.md), [Result and Manifest Model](docs/RESULTS.md),
+and [React Authoring](docs/AUTHORING.md).
 
 Repository-only documentation has one responsibility per file:
 

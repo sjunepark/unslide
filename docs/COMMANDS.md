@@ -1,8 +1,7 @@
 # CLI Command Contract
 
-This document defines the accepted command surface for the active
-consumer-authoring plan. Until the corresponding numbered goal is implemented,
-the released command surface in [README.md](../README.md) remains authoritative.
+This document defines the released command surface. For a shorter operational
+view, see the packaged [CLI workflow reference](CLI.md).
 
 ## Invocation and Global Options
 

@@ -1,8 +1,8 @@
 # Supported Delivery Contract
 
-This document records the verified `0.1.1` delivery boundary. It is narrower
-than what the underlying libraries may happen to support. `package.json` and
-the lockfile remain authoritative for dependency pins.
+This document records the verified delivery boundary. It is narrower than what
+the underlying libraries may happen to support. `package.json` and the lockfile
+remain authoritative for dependency pins.
 
 ## Reference Environment
 
@@ -38,7 +38,9 @@ pnpm dlx playwright@1.61.1 install chromium
 | PDF inspection      | One ordered 96-DPI PNG per actual PDF page, using no HTML or browser state                                                                     |
 | Content exercised   | Source-relative assets; local WOFF2, TTF, OTF, raster and SVG images; inline SVG; links; Korean and English text; authored print color         |
 | Semantics exercised | Document title and language, heading outline, marked structure tree, and link annotation                                                       |
-| Publication         | Atomic HTML/PDF replacement and recoverable managed page-image replacement                                                                     |
+| Workflows           | Configured primitives, focused or complete review, all-report review, and standalone HTML capture/export                                       |
+| Evidence            | Versioned TOON/JSON results, direct artifact paths and hashes, and transactional last-successful-review manifests                              |
+| Publication         | Atomic HTML/PDF/manifest replacement and recoverable managed page-image replacement                                                            |
 
 HTML remains canonical. One marked HTML page produces one PDF page, and all
 pages in a supported PDF share one geometry. Project configuration selects
@@ -83,10 +85,8 @@ guaranteed; inline local assets when delivery must not depend on the host.
 
 Each requires separate evidence and an explicit scope decision.
 
-## Accepted Work Not Yet Claimed
-
-The current consumer-authoring plan has accepted composite review,
-focused-page, manifest, and symmetric artifact-workflow contracts in
-[D7](decisions/0007-consumer-authoring-contracts.md). They do not enter this
-verified delivery boundary until their implementation and packed-consumer
-proof pass the plan's completion criteria.
+The packed-consumer proof exercises the business starter's type check, build,
+focused and complete review, primitive lifecycle, manifest evidence, and public
+documentation from an installed tarball. The independent impairment-report
+consumer exercises the same review composition without moving its protected
+reference discovery, comparison, or acceptance policy into Unslide.

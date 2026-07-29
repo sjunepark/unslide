@@ -101,7 +101,22 @@ visual design, print CSS, numbering, and content fit.
   resolved manifest state, post-commit cancellation, and page-set rollback are
   resolved through regression-backed transactional publication. Every
   configured proof-report HTML and PDF page image was visually inspected. Goal
-  4 delivery remains pending; Goal 5 has not started.
+  4 was delivered in PR #16 and merged to `dev` with its individual commits
+  preserved.
+- Goal 5 adds packaged progressive authoring and CLI references, makes review
+  the primary documented loop, and extends the packed business consumer across
+  focused and complete review while preserving the independently usable
+  primitive paths. The adjacent impairment-report consumer delegates report
+  discovery and focused HTML/PDF review to Unslide while retaining protected
+  reference discovery, rasterization, pairing, and acceptance policy. This
+  implementation exposed PDF text extraction reordering and generated-counter
+  evidence; normalized full-page letter coverage now handles that equivalent
+  extraction while page-substitution regressions remain enforced. Focused
+  checks, both repositories' complete validation, the impairment-report
+  review, and all configured proof-page visual inspections pass. Final review
+  found one consumer selector-verification gap; explicit ID and number checks
+  plus regressions resolved it, and the verification pass has no unresolved
+  findings. Delivery remains pending.
 
 ## Accepted design
 
@@ -328,4 +343,4 @@ findings.
 
 ## Next action
 
-Deliver the reviewed Goal 4 PR before beginning Goal 5.
+Deliver the reviewed main and independent-consumer changes for merge.

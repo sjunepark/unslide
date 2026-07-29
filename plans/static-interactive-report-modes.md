@@ -34,9 +34,11 @@ entries while sharing data, calculations, page modules, and visual source.
   arbitrary report-owned interactivity, initial-state capture/PDF for
   interactive reports, and a mandatory warning that interactive HTML may
   differ from its static projection.
-- The Oxlint, Oxfmt, and `tsc` adoption is complete. This work is scheduled
-  after the consumer report authoring plan and must use the resulting
-  validation and formatting commands rather than introducing a parallel path.
+- The Oxlint, Oxfmt, and `tsc` adoption is complete. The consumer report
+  authoring work adds configured and standalone primitives, focused and
+  complete `review` composition, transactional manifests, and packaged
+  authoring and CLI references. This work must extend those public workflows
+  and validation commands rather than introducing a parallel path.
 
 ## Accepted design
 

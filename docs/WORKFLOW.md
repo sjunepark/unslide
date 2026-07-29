@@ -40,6 +40,8 @@ pnpm --silent run unslide inspect <name>
 pnpm --silent run unslide capture <name>
 pnpm --silent run unslide export <name>
 pnpm --silent run unslide inspect-pdf <name>
+pnpm --silent run unslide review <name>
+pnpm --silent run unslide review <name> --pdf
 ```
 
 Run `pnpm --silent run unslide` from the project root or a nested directory to
@@ -56,6 +58,12 @@ The authoring loop is:
 5. Inspect every PDF-native page image.
 6. Correct the same source and repeat.
 
+`review` composes that lifecycle from fresh source and publishes a versioned
+manifest last. Use `review <name> --page-id <id>` while iterating on one page,
+`review <name>` for complete HTML evidence, and `review <name> --pdf` for final
+HTML and PDF evidence. Primitive commands remain useful when testing a single
+existing artifact deliberately.
+
 The tooling validates the [page protocol](PROTOCOL.md) and static resources. It
 does not measure or repair fit. PDF export waits for print-active static
 resources and rejects page-count divergence, which can expose unintended print
@@ -65,7 +73,7 @@ replaces inspection of every PDF-native page image.
 ## Artifact Ownership
 
 - `artifacts/` contains generated standalone HTML and structurally validated
-  PDF delivery files.
+  PDF delivery files plus last-successful-review manifests.
 - `.tmp/captures/` contains disposable Chromium screenshots of marked HTML
   pages.
 - `.tmp/pdf-captures/` contains disposable images rasterized from the actual

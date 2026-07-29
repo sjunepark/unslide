@@ -33,7 +33,7 @@ For a newly minimal report `<name>`, omitted artifact fields resolve to:
 | `captures`    | `.tmp/captures/<name>`     |
 | `pdfCaptures` | `.tmp/pdf-captures/<name>` |
 
-The future review manifest is derived from the resolved HTML path by
+The review manifest is derived from the resolved HTML path by
 replacing its `.html` suffix with `.review.json`; it is not configurable
 separately. If that candidate overlaps a version-1 source or artifact path,
 append `-2`, then the next positive integer as needed, before `.json` and use
@@ -50,7 +50,7 @@ Schema, lexical confinement, canonical symlink confinement, source/output
 separation, and cross-report output separation are validated after defaults
 are applied. Visual fields remain invalid. Source existence is observed only
 after structural and path validation: a missing
-source is reported by home (and by the forthcoming `report` command), fails a
+source is reported by home and `report`, fails a
 build of that report, and does not block discovery or artifact operations for
 other reports.
 

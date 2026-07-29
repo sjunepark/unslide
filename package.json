@@ -26,6 +26,8 @@
     "dist/**/*.js",
     "dist/unslide/assets.d.ts",
     "dist/unslide/react.d.ts",
+    "docs/CLI.md",
+    "docs/GUIDE.md",
     "docs/PROTOCOL.md",
     "docs/SUPPORT.md",
     "schema/unslide.schema.json",
@@ -39,6 +41,8 @@
       "default": "./dist/unslide/react.js"
     },
     "./schema/unslide.json": "./schema/unslide.schema.json",
+    "./cli.md": "./docs/CLI.md",
+    "./guide.md": "./docs/GUIDE.md",
     "./protocol.md": "./docs/PROTOCOL.md",
     "./support.md": "./docs/SUPPORT.md"
   },
