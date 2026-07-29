@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
@@ -179,6 +179,24 @@ test(
       await execFileAsync("pnpm", ["install"], { cwd: consumerRoot });
       await execFileAsync("pnpm", ["install", "--frozen-lockfile"], { cwd: consumerRoot });
 
+      const commonJsTypecheckRoot = resolve(consumerRoot, "commonjs-typecheck");
+      await mkdir(commonJsTypecheckRoot);
+      await writeFile(
+        resolve(commonJsTypecheckRoot, "package.json"),
+        `${JSON.stringify({ private: true }, null, 2)}\n`,
+      );
+      await runConsumerCli(commonJsTypecheckRoot, [
+        "init",
+        "--name",
+        "typed-review",
+        "--starter",
+        "business-report",
+        "--yes",
+      ]);
+      await execFileAsync("pnpm", ["exec", "tsc", "--noEmit", "-p", "typed-review/tsconfig.json"], {
+        cwd: commonJsTypecheckRoot,
+      });
+
       const installedPackage = await realpath(resolve(consumerRoot, "node_modules", "unslide"));
       assert.ok(installedPackage.startsWith(await realpath(consumerRoot)));
       await access(resolve(installedPackage, "schema", "unslide.schema.json"));
@@ -249,8 +267,6 @@ test(
       );
       await assert.rejects(access(resolve(consumerRoot, "src", "unslide")), /ENOENT/);
       await assert.rejects(access(resolve(consumerRoot, "scripts", "capture.ts")), /ENOENT/);
-      const starterElementBuild = await runConsumerCli(consumerRoot, ["build", "report"]);
-      assert.equal((starterElementBuild.result as Record<string, unknown>).kind, "build");
 
       const businessPlan = await runConsumerCli(consumerRoot, [
         "add",
@@ -273,6 +289,8 @@ test(
         ["exec", "tsc", "--noEmit", "-p", "business-review/tsconfig.json"],
         { cwd: consumerRoot },
       );
+      const starterElementBuild = await runConsumerCli(consumerRoot, ["build", "report"]);
+      assert.equal((starterElementBuild.result as Record<string, unknown>).kind, "build");
       const businessBuild = await runConsumerCli(consumerRoot, ["build", "business-review"]);
       assert.equal((businessBuild.result as Record<string, unknown>).kind, "build");
       const businessCapture = await runConsumerCli(consumerRoot, ["capture", "business-review"]);
@@ -286,10 +304,23 @@ test(
           Record<string, unknown>
         >;
         assert.equal(pages.length, 3);
+      }
+      for (const result of [businessCapture, businessPdfInspection]) {
+        const pages = (result.result as Record<string, unknown>).pages as Array<
+          Record<string, unknown>
+        >;
         for (const page of pages) {
-          if (typeof page.path === "string") await access(page.path);
+          assert.equal(typeof page.path, "string");
+          await access(page.path as string);
         }
       }
+      const businessExportPages = (businessExport.result as Record<string, unknown>).pages as Array<
+        Record<string, unknown>
+      >;
+      assert.deepEqual(
+        businessExportPages.map((page) => page.id),
+        ["cover", "contents", "highlights"],
+      );
 
       const fontFixture = await readFile(
         resolve(repositoryRoot, "tests/fixtures/assets/codicon-subset.woff2.b64"),

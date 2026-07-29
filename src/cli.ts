@@ -426,6 +426,13 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
         path: resolve(init.projectRoot, ".gitignore"),
       });
     }
+    const name =
+      parsed.kind === "init" && parsed.nameWasExplicit
+        ? ` --name ${shellArgument(parsed.name)}`
+        : "";
+    const retryCommand = `${formattedInvocation(format)} ${
+      parsed.kind === "init" ? `init${name}` : `add ${shellArgument(parsed.name)}`
+    }${parsed.starter === "minimal" ? "" : ` --starter ${parsed.starter}`} --yes`;
     if (init.status === "conflict") {
       const result = {
         kind: "project-change",
@@ -439,10 +446,6 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
           status: file.state as "create" | "unchanged" | "conflict",
         })),
       } satisfies ProjectChangeFailure;
-      const name =
-        parsed.kind === "init" && parsed.nameWasExplicit
-          ? ` --name ${shellArgument(parsed.name)}`
-          : "";
       return {
         command,
         exitCode: 1,
@@ -451,30 +454,15 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
           code: "command-failed",
           message: `${parsed.kind === "init" ? "Initialization" : "Addition"} would overwrite files with different contents.`,
         },
-        help: [
-          `Run ${formattedInvocation(format)} ${
-            parsed.kind === "init" ? `init${name}` : `add ${shellArgument(parsed.name)}`
-          }${parsed.starter === "minimal" ? "" : ` --starter ${parsed.starter}`} --yes after reconciling the conflicting files`,
-        ],
+        help: [`Run ${retryCommand} after reconciling the conflicting files`],
       } satisfies CommandOutcome;
     }
     const result = projectChange(init as InitResult);
-    const name =
-      parsed.kind === "init" && parsed.nameWasExplicit
-        ? ` --name ${shellArgument(parsed.name)}`
-        : "";
     return {
       command,
       exitCode: 0,
       result,
-      help:
-        init.status === "planned"
-          ? [
-              `Run ${formattedInvocation(format)} ${
-                parsed.kind === "init" ? `init${name}` : `add ${shellArgument(parsed.name)}`
-              }${parsed.starter === "minimal" ? "" : ` --starter ${parsed.starter}`} --yes to create these files`,
-            ]
-          : [],
+      help: init.status === "planned" ? [`Run ${retryCommand} to create these files`] : [],
     } satisfies CommandOutcome;
   }
 

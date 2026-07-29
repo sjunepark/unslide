@@ -24,6 +24,7 @@ allowBuilds:
 ```
 
 ```sh
+pnpm pkg set type=module
 pnpm add unslide react react-dom
 pnpm add -D typescript @types/node @types/react
 pnpm dlx playwright@1.61.1 install chromium

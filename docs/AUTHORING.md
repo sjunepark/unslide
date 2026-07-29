@@ -74,6 +74,9 @@ Missing, primitive, promise, class, memo, lazy, and other object exports are
 invalid. Async or suspending components are unsupported by the static renderer.
 Source modules are trusted code and may use top-level await. Unslide evaluates
 TSX and renders static markup but does not run the caller's TypeScript checker.
+The containing package must use ESM (`"type": "module"` in `package.json`) so
+Node evaluates `.tsx` sources with the module semantics required by top-level
+await and source-relative `import.meta.url` assets.
 
 The existing default React re-export from `unslide/react` remains available
 during 0.x compatibility. New code may use the automatic JSX runtime directly.
@@ -87,6 +90,7 @@ React and React DOM are required consumer peers in the supported range
 the consumer's React installation instead of private copies.
 
 ```sh
+pnpm pkg set type=module
 pnpm add unslide react react-dom
 pnpm add -D typescript @types/node @types/react
 ```

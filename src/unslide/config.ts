@@ -1,9 +1,10 @@
 import { access, readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Ajv, type ErrorObject } from "ajv";
+import { Ajv, type ErrorObject, type ValidateFunction } from "ajv";
 import { Effect } from "effect";
 import { ProjectConfigFailure, ProjectNotFound, ReportNotFound } from "./failures.js";
+import { canonicalizeThroughExistingAncestor, pathsOverlap } from "./paths.js";
 
 export const CONFIG_FILE_NAME = "unslide.json";
 
@@ -38,6 +39,7 @@ export interface ProjectConfig {
 }
 
 const schemaPath = fileURLToPath(new URL("../../schema/unslide.schema.json", import.meta.url));
+let projectConfigValidator: ValidateFunction<ProjectConfigJson> | undefined;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -130,16 +132,6 @@ function resolveProjectPath(
   return Effect.succeed(resolvedPath);
 }
 
-function pathsOverlap(first: string, second: string): boolean {
-  const firstToSecond = relative(first, second);
-  const secondToFirst = relative(second, first);
-  return (
-    firstToSecond === "" ||
-    (!firstToSecond.startsWith(`..${sep}`) && firstToSecond !== "..") ||
-    (!secondToFirst.startsWith(`..${sep}`) && secondToFirst !== "..")
-  );
-}
-
 const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* (
   configPath: string,
   projectRoot: string,
@@ -147,42 +139,10 @@ const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* 
   field: string,
   reportName: string,
 ) {
-  let existingAncestor = inputPath;
-  let canonicalPath: string;
-
-  while (true) {
-    const result = yield* Effect.promise(() =>
-      realpath(existingAncestor).then(
-        (path) => ({ _tag: "Found" as const, path }),
-        (cause) => {
-          if (!isNodeError(cause)) throw cause;
-          return { _tag: "Failed" as const, cause };
-        },
-      ),
-    );
-    if (result._tag === "Found") {
-      canonicalPath = resolve(result.path, relative(existingAncestor, inputPath));
-      break;
-    }
-    if (result.cause.code !== "ENOENT" && result.cause.code !== "ENOTDIR") {
-      return yield* new ProjectConfigFailure({
-        cause: result.cause,
-        message: result.cause.message,
-        path: configPath,
-        phase: "resolve",
-      });
-    }
-    const parent = dirname(existingAncestor);
-    if (parent === existingAncestor) {
-      return yield* new ProjectConfigFailure({
-        cause: result.cause,
-        message: result.cause.message,
-        path: configPath,
-        phase: "resolve",
-      });
-    }
-    existingAncestor = parent;
-  }
+  const canonicalPath = yield* Effect.tryPromise({
+    try: () => canonicalizeThroughExistingAncestor(inputPath),
+    catch: (cause) => nodeFailure(cause, configPath, "resolve"),
+  });
 
   const canonicalRoot = yield* Effect.tryPromise({
     try: () => realpath(projectRoot),
@@ -231,14 +191,20 @@ export const validateProjectConfigContents = Effect.fn("config.validateProjectCo
       }
     }
 
-    const schemaText = yield* Effect.tryPromise({
-      try: () => readFile(schemaPath, "utf8"),
+    const validate = yield* Effect.tryPromise({
+      try: async () => {
+        if (projectConfigValidator) return projectConfigValidator;
+        const schemaText = await readFile(schemaPath, "utf8");
+        const schema = JSON.parse(schemaText) as object;
+        projectConfigValidator = new Ajv({
+          allErrors: true,
+          strict: true,
+        }).compile<ProjectConfigJson>(schema);
+        return projectConfigValidator;
+      },
       catch: (cause) =>
         nodeFailure(cause, schemaPath, "read", errorMessage(cause), "command-failed"),
     });
-    const schema = JSON.parse(schemaText) as object;
-    const ajv = new Ajv({ allErrors: true, strict: true });
-    const validate = ajv.compile<ProjectConfigJson>(schema);
     if (!validate(configJson)) {
       return yield* new ProjectConfigFailure({
         message: `Invalid ${configPath}: ${formatSchemaErrors(validate.errors ?? [])}`,

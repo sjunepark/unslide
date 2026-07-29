@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { relative, resolve, sep } from "node:path";
+import { resolve } from "node:path";
 import { encode } from "@toon-format/toon";
 import { Clock, Effect, Exit, FileSystem, Option } from "effect";
 import type { CommandName, HelpResult, OutputFormat } from "./cli-command.js";
 import type { ProjectConfig, ReportConfig } from "./config.js";
+import { pathsOverlap } from "./paths.js";
 
 const packageJson = createRequire(import.meta.url)("../../package.json") as { version: string };
 
@@ -293,16 +294,6 @@ export const pathState = Effect.fn("results.pathState")(function* (
     modifiedAt: modifiedAt.toISOString(),
   } satisfies PresentPathState;
 });
-
-function pathsOverlap(first: string, second: string): boolean {
-  const firstToSecond = relative(first, second);
-  const secondToFirst = relative(second, first);
-  return (
-    firstToSecond === "" ||
-    (!firstToSecond.startsWith(`..${sep}`) && firstToSecond !== "..") ||
-    (!secondToFirst.startsWith(`..${sep}`) && secondToFirst !== "..")
-  );
-}
 
 /** Derives a stable manifest location without invalidating an existing v1 path. */
 export function reviewManifestPath(config: ProjectConfig, report: ReportConfig): string {

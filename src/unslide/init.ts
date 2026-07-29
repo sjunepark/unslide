@@ -1,5 +1,15 @@
-import { lstat, mkdir, open, readFile, rename, rmdir, unlink, writeFile } from "node:fs/promises";
-import { dirname, relative, resolve, sep } from "node:path";
+import {
+  type FileHandle,
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  rename,
+  rmdir,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { Cause, Effect, Exit, FileSystem, Path } from "effect";
 import { validateProjectConfigContents, type ProjectConfig } from "./config.js";
@@ -9,6 +19,7 @@ import {
   InitOperationFailure,
   type CommandFailureContext,
 } from "./failures.js";
+import { canonicalizeThroughExistingAncestor, pathsOverlap } from "./paths.js";
 
 export type Starter = "minimal" | "business-report";
 export type ProjectOperation = "init" | "add";
@@ -211,8 +222,8 @@ Keep licensed report fonts and images here. Inline them with \`inlineAsset(new U
       contents: `${JSON.stringify(
         {
           compilerOptions: {
-            module: "NodeNext",
-            moduleResolution: "NodeNext",
+            module: "ESNext",
+            moduleResolution: "Bundler",
             target: "ES2022",
             jsx: "react-jsx",
             strict: true,
@@ -258,9 +269,22 @@ function ignoresSensitiveOutputs(contents: string): boolean {
     for (const entry of entries) {
       if (entry === "" || entry.startsWith("#")) continue;
       const negated = entry.startsWith("!");
-      const pattern = entry.replace(/^!/, "").replace(/^\//, "").replace(/\/$/, "");
-      if (pattern === root) ignored = !negated;
-      else if (negated && pattern.startsWith(`${root}/`)) ignored = false;
+      const rawPattern = entry.replace(/^!/, "").replace(/^\//, "");
+      const pattern = rawPattern.endsWith("/")
+        ? rawPattern.replace(/^\*\*\//, "").replace(/\/$/, "")
+        : rawPattern.replace(/^\*\*\//, "").replace(/\/(?:\*\*|\*)$/, "");
+      if (!negated && pattern === root) ignored = true;
+      if (
+        negated &&
+        (pattern === root ||
+          pattern.startsWith(`${root}/`) ||
+          rawPattern === "*/" ||
+          rawPattern === "**/" ||
+          rawPattern === "**" ||
+          rawPattern === "**/*")
+      ) {
+        ignored = false;
+      }
     }
     return ignored;
   });
@@ -270,7 +294,13 @@ async function hasUnsafeParent(projectRoot: string, path: string): Promise<boole
   let parent = dirname(path);
   while (parent !== projectRoot) {
     const metadata = await lstat(parent).catch((cause: unknown) => {
-      if (cause instanceof Error && "code" in cause && cause.code === "ENOENT") return undefined;
+      if (
+        cause instanceof Error &&
+        "code" in cause &&
+        (cause.code === "ENOENT" || cause.code === "ENOTDIR")
+      ) {
+        return undefined;
+      }
       throw cause;
     });
     if (metadata && (metadata.isSymbolicLink() || !metadata.isDirectory())) return true;
@@ -466,30 +496,93 @@ async function writeOwnedFile(path: string, contents: string, createdFiles: stri
   }
 }
 
-function pathsOverlap(first: string, second: string): boolean {
-  const firstToSecond = relative(first, second);
-  const secondToFirst = relative(second, first);
-  return (
-    firstToSecond === "" ||
-    (!firstToSecond.startsWith(`..${sep}`) && firstToSecond !== "..") ||
-    (!secondToFirst.startsWith(`..${sep}`) && secondToFirst !== "..")
-  );
-}
-
-function conflictsWithConfiguredPath(
+async function conflictsWithConfiguredPath(
   filePath: string,
   candidateProject: ProjectConfig,
   reportName: string,
-): boolean {
-  return Object.values(candidateProject.reports).some((report) =>
-    [
-      ...(report.name === reportName ? [] : [report.sourcePath]),
-      report.htmlPath,
-      report.pdfPath,
-      report.captureDirectory,
-      report.pdfCaptureDirectory,
-    ].some((configuredPath) => pathsOverlap(filePath, configuredPath)),
+): Promise<boolean> {
+  const canonicalFilePath = await canonicalizeThroughExistingAncestor(filePath);
+  const configuredPaths = Object.values(candidateProject.reports).flatMap((report) => [
+    ...(report.name === reportName ? [] : [report.sourcePath]),
+    report.htmlPath,
+    report.pdfPath,
+    report.captureDirectory,
+    report.pdfCaptureDirectory,
+  ]);
+  const canonicalConfiguredPaths = await Promise.all(
+    configuredPaths.map((configuredPath) => canonicalizeThroughExistingAncestor(configuredPath)),
   );
+  return canonicalConfiguredPaths.some((configuredPath) =>
+    pathsOverlap(canonicalFilePath, configuredPath),
+  );
+}
+
+function processExists(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (cause) {
+    return !(cause instanceof Error && "code" in cause && cause.code === "ESRCH");
+  }
+}
+
+function addLockConflict(lockPath: string): Error {
+  return new Error(
+    `Another add may be in progress (lock: ${lockPath}). If no add is running, remove the add lock files and retry.`,
+  );
+}
+
+async function acquireAddLock(lockPath: string) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await open(lockPath, "wx");
+    } catch (cause) {
+      if (!(cause instanceof Error && "code" in cause && cause.code === "EEXIST")) throw cause;
+      const owner = await readFile(lockPath, "utf8").catch((readCause: unknown) => {
+        if (readCause instanceof Error && "code" in readCause && readCause.code === "ENOENT") {
+          return undefined;
+        }
+        throw readCause;
+      });
+      if (owner === undefined) continue;
+      const pid = /^\s*(\d+)\s*$/.exec(owner)?.[1];
+      if (attempt === 0 && pid !== undefined && !processExists(Number(pid))) {
+        const recoveryPath = `${lockPath}.recovery`;
+        let recoveryLock: FileHandle | undefined;
+        try {
+          recoveryLock = await open(recoveryPath, "wx").catch((recoveryCause: unknown) => {
+            if (
+              recoveryCause instanceof Error &&
+              "code" in recoveryCause &&
+              recoveryCause.code === "EEXIST"
+            ) {
+              throw addLockConflict(lockPath);
+            }
+            throw recoveryCause;
+          });
+          const currentOwner = await readFile(lockPath, "utf8").catch((readCause: unknown) => {
+            if (readCause instanceof Error && "code" in readCause && readCause.code === "ENOENT") {
+              return undefined;
+            }
+            throw readCause;
+          });
+          const currentPid = /^\s*(\d+)\s*$/.exec(currentOwner ?? "")?.[1];
+          if (currentPid === undefined || processExists(Number(currentPid))) {
+            throw addLockConflict(lockPath);
+          }
+          const claimedStaleLock = `${lockPath}.stale-${process.pid}-${randomUUID()}`;
+          await rename(lockPath, claimedStaleLock);
+          await unlink(claimedStaleLock);
+        } finally {
+          await recoveryLock?.close().catch(() => undefined);
+          if (recoveryLock) await unlink(recoveryPath).catch(() => undefined);
+        }
+        continue;
+      }
+      throw addLockConflict(lockPath);
+    }
+  }
+  throw addLockConflict(lockPath);
 }
 
 function parentDirectories(projectRoot: string, filePaths: readonly string[]): string[] {
@@ -566,7 +659,10 @@ export const addReport = Effect.fn("init.addReport")(function* (
     if (
       file.relativePath !== ".gitignore" &&
       file.state !== "conflict" &&
-      conflictsWithConfiguredPath(file.path, candidateProject, reportName)
+      (yield* Effect.tryPromise({
+        try: () => conflictsWithConfiguredPath(file.path, candidateProject, reportName),
+        catch: (cause) => commandFailure(cause, context),
+      }))
     ) {
       file.state = "conflict";
     }
@@ -620,10 +716,13 @@ export const addReport = Effect.fn("init.addReport")(function* (
     try: async () => {
       let lockCreated = false;
       try {
-        const lock = await open(lockPath, "wx");
+        const lock = await acquireAddLock(lockPath);
         lockCreated = true;
-        await lock.writeFile(`${process.pid}\n`);
-        await lock.close();
+        try {
+          await lock.writeFile(`${process.pid}\n`);
+        } finally {
+          await lock.close();
+        }
         if ((await readFile(project.configPath, "utf8")) !== originalConfig) {
           throw new Error("unslide.json changed after the add plan was prepared");
         }

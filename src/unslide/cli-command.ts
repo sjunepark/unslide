@@ -1,6 +1,7 @@
 import type { CliLogLevel } from "./logging.js";
 
 export type OutputFormat = "toon" | "json";
+type Starter = "minimal" | "business-report";
 
 export type CommandName =
   | "home"
@@ -33,13 +34,13 @@ export type ParsedCommand =
       readonly kind: "init";
       readonly name: string;
       readonly nameWasExplicit: boolean;
-      readonly starter: "minimal" | "business-report";
+      readonly starter: Starter;
       readonly write: boolean;
     }
   | {
       readonly kind: "add";
       readonly name: string;
-      readonly starter: "minimal" | "business-report";
+      readonly starter: Starter;
       readonly write: boolean;
     }
   | { readonly kind: "build"; readonly report: string }
@@ -90,6 +91,7 @@ export type CommandParseResult =
 const FORMAT_FLAG = "--format";
 const LOG_LEVEL_FLAG = "--log-level";
 const LOG_LEVEL_ENV = "UNSLIDE_LOG_LEVEL";
+const STARTERS = ["minimal", "business-report"] as const satisfies readonly Starter[];
 const OUTPUT_FORMATS = new Set<OutputFormat>(["toon", "json"]);
 const LOG_LEVELS = new Set<CliLogLevel>(["off", "info", "debug"]);
 const COMMAND_NAMES = new Set<CommandName>([
@@ -381,6 +383,36 @@ function parseFailure(command: CommandName, message: string, help: HelpResult): 
   return { ok: false, command, message, help: [`Run ${help.examples[0] as string}`] };
 }
 
+function parseStarterOption(
+  command: "init" | "add",
+  value: string | undefined,
+  alreadySeen: boolean,
+  help: HelpResult,
+):
+  | { readonly ok: true; readonly starter: Starter }
+  | { readonly ok: false; readonly result: CommandParseResult } {
+  if (alreadySeen) {
+    return {
+      ok: false,
+      result: parseFailure(command, "--starter may be provided only once.", help),
+    };
+  }
+  if (!value || value.startsWith("-")) {
+    return { ok: false, result: parseFailure(command, "--starter requires one value.", help) };
+  }
+  if (!STARTERS.includes(value as Starter)) {
+    return {
+      ok: false,
+      result: parseFailure(
+        command,
+        `Invalid --starter value ${JSON.stringify(value)}; expected ${STARTERS.join(", ")}.`,
+        help,
+      ),
+    };
+  }
+  return { ok: true, starter: value as Starter };
+}
+
 function helpCount(argv: readonly string[]): number {
   return argv.filter((argument) => argument === "--help").length;
 }
@@ -428,7 +460,7 @@ function parseInit(argv: readonly string[], invocation: string): CommandParseRes
   let name = "report";
   let nameSeen = false;
   let yesSeen = false;
-  let starter: "minimal" | "business-report" = "minimal";
+  let starter: Starter = "minimal";
   let starterSeen = false;
   let missingName = false;
   for (let index = 1; index < argv.length; index += 1) {
@@ -452,20 +484,10 @@ function parseInit(argv: readonly string[], invocation: string): CommandParseRes
       continue;
     }
     if (argument === "--starter") {
-      if (starterSeen) return parseFailure("init", "--starter may be provided only once.", help);
+      const parsedStarter = parseStarterOption("init", argv[index + 1], starterSeen, help);
+      if (!parsedStarter.ok) return parsedStarter.result;
       starterSeen = true;
-      const value = argv[index + 1];
-      if (!value || value.startsWith("-")) {
-        return parseFailure("init", "--starter requires one value.", help);
-      }
-      if (value !== "minimal" && value !== "business-report") {
-        return parseFailure(
-          "init",
-          `Invalid --starter value ${JSON.stringify(value)}; expected minimal, business-report.`,
-          help,
-        );
-      }
-      starter = value;
+      starter = parsedStarter.starter;
       index += 1;
       continue;
     }
@@ -490,7 +512,7 @@ function parseInit(argv: readonly string[], invocation: string): CommandParseRes
 function parseAdd(argv: readonly string[], invocation: string): CommandParseResult {
   const help = commandHelp(invocation, "add");
   let name: string | undefined;
-  let starter: "minimal" | "business-report" = "minimal";
+  let starter: Starter = "minimal";
   let starterSeen = false;
   let yesSeen = false;
   for (let index = 1; index < argv.length; index += 1) {
@@ -502,20 +524,10 @@ function parseAdd(argv: readonly string[], invocation: string): CommandParseResu
       continue;
     }
     if (argument === "--starter") {
-      if (starterSeen) return parseFailure("add", "--starter may be provided only once.", help);
+      const parsedStarter = parseStarterOption("add", argv[index + 1], starterSeen, help);
+      if (!parsedStarter.ok) return parsedStarter.result;
       starterSeen = true;
-      const value = argv[index + 1];
-      if (!value || value.startsWith("-")) {
-        return parseFailure("add", "--starter requires one value.", help);
-      }
-      if (value !== "minimal" && value !== "business-report") {
-        return parseFailure(
-          "add",
-          `Invalid --starter value ${JSON.stringify(value)}; expected minimal, business-report.`,
-          help,
-        );
-      }
-      starter = value;
+      starter = parsedStarter.starter;
       index += 1;
       continue;
     }

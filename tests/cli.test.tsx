@@ -1194,8 +1194,17 @@ test("CLI initializes the business starter and transactionally adds reports", as
       await readFile(resolve(projectRoot, "board-review/tsconfig.json"), "utf8"),
     );
     assert.equal(businessTsconfig.compilerOptions.jsx, "react-jsx");
+    assert.equal(businessTsconfig.compilerOptions.module, "ESNext");
+    assert.equal(businessTsconfig.compilerOptions.moduleResolution, "Bundler");
     assert.deepEqual(businessTsconfig.include, ["../board-review.tsx", "./**/*.ts", "./**/*.tsx"]);
     await writeFile(resolve(projectRoot, "unrelated.tsx"), "const invalid: string = 42;\n");
+    businessTsconfig.compilerOptions.paths = {
+      "unslide/react": [resolve(repositoryRoot, "src/unslide/react.ts")],
+    };
+    await writeFile(
+      resolve(projectRoot, "board-review/tsconfig.json"),
+      `${JSON.stringify(businessTsconfig, null, 2)}\n`,
+    );
     await execFileAsync("pnpm", ["exec", "tsc", "--noEmit", "-p", "board-review/tsconfig.json"], {
       cwd: projectRoot,
     });
@@ -1214,6 +1223,20 @@ test("CLI initializes the business starter and transactionally adds reports", as
     await assert.rejects(access(resolve(projectRoot, "reserved-report.tsx")), /ENOENT/);
     await assert.rejects(access(resolve(projectRoot, "reserved-report/report.tsx")), /ENOENT/);
     await writeFile(resolve(projectRoot, "unslide.json"), beforeAdd);
+
+    await symlink(".", resolve(projectRoot, "project-alias"));
+    const aliasedConfig = JSON.parse(beforeAdd);
+    aliasedConfig.reports["board-review"].captures = "project-alias/symlink-report";
+    await writeFile(resolve(projectRoot, "unslide.json"), JSON.stringify(aliasedConfig));
+    const aliasedConflict = await runCli(
+      ["add", "symlink-report", "--starter", "business-report"],
+      projectRoot,
+    );
+    assert.equal(aliasedConflict.exitCode, 1);
+    assert.equal((aliasedConflict.value.result as Record<string, unknown>).status, "conflict");
+    await assert.rejects(access(resolve(projectRoot, "symlink-report.tsx")), /ENOENT/);
+    await writeFile(resolve(projectRoot, "unslide.json"), beforeAdd);
+    await rm(resolve(projectRoot, "project-alias"));
 
     const plan = await runCli(["add", "appendix"], projectRoot);
     assert.equal(plan.exitCode, 0, plan.stdout);
@@ -1237,7 +1260,49 @@ test("CLI initializes the business starter and transactionally adds reports", as
         path: resolve(projectRoot, ".gitignore"),
       },
     ]);
+    await writeFile(resolve(projectRoot, ".gitignore"), "**/artifacts/\n.tmp/*\n");
+    const commonIgnorePlan = await runCli(["add", "safe-review"], projectRoot);
+    assert.deepEqual(commonIgnorePlan.value.warnings, []);
+    await writeFile(resolve(projectRoot, ".gitignore"), "artifacts/*/\n.tmp/**/\n");
+    const directoryOnlyIgnorePlan = await runCli(["add", "directory-only-review"], projectRoot);
+    assert.deepEqual(directoryOnlyIgnorePlan.value.warnings, [
+      {
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(projectRoot, ".gitignore"),
+      },
+    ]);
+    await writeFile(resolve(projectRoot, ".gitignore"), "artifacts/\n.tmp/\n!*/\n!**/*\n");
+    const broadNegationPlan = await runCli(["add", "exposed-review"], projectRoot);
+    assert.deepEqual(broadNegationPlan.value.warnings, [
+      {
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(projectRoot, ".gitignore"),
+      },
+    ]);
+    await writeFile(
+      resolve(projectRoot, ".gitignore"),
+      "artifacts/\n.tmp/\n!**/\n!*.html\n!*.pdf\n",
+    );
+    const reopenedDirectoryPlan = await runCli(["add", "reopened-review"], projectRoot);
+    assert.deepEqual(reopenedDirectoryPlan.value.warnings, [
+      {
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(projectRoot, ".gitignore"),
+      },
+    ]);
     await writeFile(resolve(projectRoot, ".gitignore"), "node_modules/\n");
+
+    await writeFile(resolve(projectRoot, "blocked-report"), "not a directory\n");
+    const blockedParent = await runCli(
+      ["add", "blocked-report", "--starter", "business-report"],
+      projectRoot,
+    );
+    assert.equal(blockedParent.exitCode, 1);
+    assert.equal((blockedParent.value.result as Record<string, unknown>).status, "conflict");
+    await rm(resolve(projectRoot, "blocked-report"));
 
     await writeFile(resolve(projectRoot, "appendix.css"), "consumer-owned\n");
     const conflict = await runCli(["add", "appendix", "--yes"], projectRoot);
@@ -1262,6 +1327,22 @@ test("CLI initializes the business starter and transactionally adds reports", as
     assert.equal(duplicate.exitCode, 1);
     assert.match(JSON.stringify(duplicate.value), /already configured/);
 
+    const lockPath = resolve(projectRoot, ".unslide.json.add.lock");
+    await writeFile(lockPath, "2147483647\n");
+    const staleLockAdd = await runCli(["add", "stale-lock-report", "--yes"], projectRoot);
+    assert.equal(staleLockAdd.exitCode, 0, staleLockAdd.stdout);
+    await assert.rejects(access(lockPath), /ENOENT/);
+
+    const beforeActiveLock = await readFile(resolve(projectRoot, "unslide.json"), "utf8");
+    await writeFile(lockPath, `${process.pid}\n`);
+    const activeLockAdd = await runCli(["add", "active-lock-report", "--yes"], projectRoot);
+    assert.equal(activeLockAdd.exitCode, 1);
+    assert.match(JSON.stringify(activeLockAdd.value), /Another add may be in progress/);
+    assert.equal(await readFile(resolve(projectRoot, "unslide.json"), "utf8"), beforeActiveLock);
+    await assert.rejects(access(resolve(projectRoot, "active-lock-report.tsx")), /ENOENT/);
+    await rm(lockPath);
+
+    // The failure must occur after the top-level file is written so this exercises rollback.
     const rollbackDirectory = resolve(projectRoot, "rollback-report");
     await mkdir(resolve(rollbackDirectory, "assets"), { recursive: true });
     await chmod(rollbackDirectory, 0o500);
