@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { commandFailure, mapCommandFailure } from "./failures.js";
 import { scoped } from "./lifecycle.js";
 import { logDebug, withLogPhase } from "./logging.js";
+import { captureReportConsole } from "./source-console.js";
 
 export interface WriteReportOptions {
   document: ReactElement;
@@ -114,14 +115,17 @@ export const writeReportHtml = Effect.fn("render.writeReportHtml")(function* ({
 }: WriteReportOptions) {
   const context = { command: "build", path: outputPath } as const;
   const html = yield* withLogPhase(
-    Effect.try({
-      try: () => {
-        const markup = renderToStaticMarkup(document);
-        assertCompleteStandaloneDocument(markup);
-        return `<!doctype html>\n${markup}\n`;
-      },
-      catch: (cause) => commandFailure(cause, context),
-    }),
+    captureReportConsole(
+      Effect.try({
+        try: () => {
+          const markup = renderToStaticMarkup(document);
+          assertCompleteStandaloneDocument(markup);
+          return `<!doctype html>\n${markup}\n`;
+        },
+        catch: (cause) => commandFailure(cause, context),
+      }),
+      "render",
+    ),
     "html.render",
     { path: outputPath },
   );

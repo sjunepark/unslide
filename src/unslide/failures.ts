@@ -38,6 +38,17 @@ export class CommandFailure extends Data.TaggedError("CommandFailure")<{
   readonly report?: string;
 }> {}
 
+export class InitOperationFailure extends Data.TaggedError("InitOperationFailure")<{
+  readonly cause: unknown;
+  readonly files: ReadonlyArray<{
+    readonly path: string;
+    readonly state: "created" | "unchanged" | "failed" | "not-started";
+  }>;
+  readonly message: string;
+  readonly projectRoot: string;
+  readonly reportName: string;
+}> {}
+
 export interface CommandFailureContext {
   readonly artifact?: "html" | "pdf";
   readonly code?: OperationalErrorCode;
@@ -133,7 +144,8 @@ export function isCliFailure(error: unknown): error is CliFailure {
     error._tag === "ProjectNotFound" ||
     error._tag === "ProjectConfigFailure" ||
     error._tag === "ReportNotFound" ||
-    error._tag === "CommandFailure"
+    error._tag === "CommandFailure" ||
+    error._tag === "InitOperationFailure"
   );
 }
 
@@ -191,4 +203,9 @@ export function mapCommandFailure<A, E, R>(
   );
 }
 
-export type CliFailure = ProjectNotFound | ProjectConfigFailure | ReportNotFound | CommandFailure;
+export type CliFailure =
+  | ProjectNotFound
+  | ProjectConfigFailure
+  | ReportNotFound
+  | CommandFailure
+  | InitOperationFailure;

@@ -8,7 +8,7 @@ consume stable artifact evidence without reimplementing Unslide's lifecycle.
 The workflow remains headless and preserves report ownership of DOM, geometry,
 visual design, print CSS, numbering, and content fit.
 
-## Current state
+## Starting state
 
 - The adjacent impairment-report consumer proves that the public React and HTML
   seams can deliver a substantial fixed-page report with bespoke layouts,
@@ -62,7 +62,21 @@ visual design, print CSS, numbering, and content fit.
 - `pnpm run check` passes. Independent implementation, system, design, and
   simplification review findings were applied; no unresolved Goal 1 decision
   remains.
-- Goal 1 PR delivery is the current action. Goals 2–5 remain pending.
+- Goal 1 was delivered in PR #13 and merged to `dev` with its individual
+  contract commits preserved.
+- Goal 2 implements the typed existing-command parser, result-schema-v1
+  presenter, TOON/JSON selection, direct artifact evidence, one-based public
+  page numbers, bounded author details, source-console isolation, partial init
+  evidence, collision-aware future manifest paths, and representative PDF text
+  sampling backed by adaptive evidence that distinguishes every authored page.
+- `pnpm run check`, `pnpm test`, and `pnpm run validate` pass, including focused
+  CLI, result, PDF, publication, and packed-consumer regressions. The linked
+  examples consumer passes its own `pnpm run validate` on the supported Node
+  release after migrating orchestration to schema-v1 JSON.
+- Independent code-review findings for strict name parsing, release-safe version
+  assertions, malformed-format fallback, authored output bounds, and per-page
+  PDF substitution were applied. Goal 2 delivery is the next action; Goals 3–5
+  remain pending.
 
 ## Accepted design
 
@@ -289,5 +303,5 @@ findings.
 
 ## Next action
 
-Finish Goal 1 PR review and feedback handling, then execute Goal 2 without
-starting later goals.
+Deliver the Goal 2 package PR, then deliver the linked examples-consumer PR
+before beginning Goal 3.

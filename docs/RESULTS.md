@@ -1,8 +1,9 @@
 # CLI Result and Review Manifest Contract
 
 This document defines result schema v1 for the active consumer-authoring plan.
-It is encoding-independent: TOON and JSON decode to the same value. Until Goal
-2 implements this schema, [README.md](../README.md) describes released output.
+It is encoding-independent: TOON and JSON decode to the same value. Existing
+primitive commands use this schema; later numbered goals add the remaining
+result variants without changing the envelope.
 
 ## Result Envelope
 

@@ -6,7 +6,7 @@ import test from "node:test";
 import * as NodeFileSystem from "@effect/platform-node-shared/NodeFileSystem";
 import * as NodePath from "@effect/platform-node-shared/NodePath";
 import { Effect, Exit, FileSystem, Layer, PlatformError, type Path } from "effect";
-import { commandFailure } from "../src/unslide/failures.js";
+import { commandFailure, InitOperationFailure } from "../src/unslide/failures.js";
 import { initializeProject } from "../src/unslide/init.js";
 import { causeMessage } from "../src/unslide/lifecycle.js";
 import { replacePageImages } from "../src/unslide/page-images.js";
@@ -112,9 +112,26 @@ test("initialization reports partial creation without deleting safe user-visible
           : live.writeFileString(path, data, options),
     };
 
-    await assert.rejects(
-      runWithLayer(initializeProject(directory, "report", true), layerWithFileSystem(injected)),
+    const exit = await runExitWithLayer(
+      initializeProject(directory, "report", true),
+      layerWithFileSystem(injected),
+    );
+    assert.ok(Exit.isFailure(exit));
+    const failure = exit.cause.reasons.find(
+      (reason) => reason._tag === "Fail" && reason.error instanceof InitOperationFailure,
+    );
+    assert.ok(failure?._tag === "Fail" && failure.error instanceof InitOperationFailure);
+    assert.match(
+      failure.error.message,
       /these safely created files remain: unslide\.json.*fixture scaffold write failed/,
+    );
+    assert.deepEqual(
+      failure.error.files.map((file) => ({ path: basename(file.path), state: file.state })),
+      [
+        { path: "unslide.json", state: "created" },
+        { path: "report.tsx", state: "failed" },
+        { path: "report.css", state: "not-started" },
+      ],
     );
     assert.match(await readFile(resolve(directory, "unslide.json"), "utf8"), /"version": 1/);
     assert.deepEqual(await readdir(directory), ["unslide.json"]);

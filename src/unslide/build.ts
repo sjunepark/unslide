@@ -5,24 +5,31 @@ import type { ReportConfig } from "./config.js";
 import { commandFailure } from "./failures.js";
 import { withLogPhase } from "./logging.js";
 import { writeReportHtml } from "./render.js";
+import { captureReportConsole } from "./source-console.js";
 
 export interface BuildResult {
   name: string;
   htmlPath: string;
 }
 
-export const buildReport = Effect.fn("build.buildReport")(function* (report: ReportConfig) {
+const buildReportUncaptured = Effect.fn("build.buildReportUncaptured")(function* (
+  report: ReportConfig,
+) {
   const context = { command: "build", path: report.sourcePath, report: report.name } as const;
   const entryModule = yield* withLogPhase(
-    Effect.tryPromise({
-      try: () => tsImport(report.sourcePath, import.meta.url) as Promise<Record<string, unknown>>,
-      catch: (cause) =>
-        commandFailure(
-          cause,
-          context,
-          `Cannot load source for report "${report.name}": ${cause instanceof Error ? cause.message : String(cause)}`,
-        ),
-    }),
+    captureReportConsole(
+      Effect.tryPromise({
+        try: () => tsImport(report.sourcePath, import.meta.url) as Promise<Record<string, unknown>>,
+        catch: (cause) =>
+          commandFailure(
+            cause,
+            context,
+            `Cannot load source for report "${report.name}": ${cause instanceof Error ? cause.message : String(cause)}`,
+          ),
+      }),
+      "source-evaluation",
+      report.name,
+    ),
     "source.load",
     { path: report.sourcePath, report: report.name },
   );
@@ -39,4 +46,12 @@ export const buildReport = Effect.fn("build.buildReport")(function* (report: Rep
     Effect.mapError((cause) => commandFailure(cause, context)),
   );
   return { name: report.name, htmlPath: report.htmlPath };
+});
+
+export const buildReport = Effect.fn("build.buildReport")(function* (report: ReportConfig) {
+  return yield* captureReportConsole(
+    buildReportUncaptured(report),
+    "source-evaluation",
+    report.name,
+  );
 });

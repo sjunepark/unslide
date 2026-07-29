@@ -81,11 +81,15 @@ configuration.
 ## CLI Automation Contract
 
 With no command, `unslide` discovers the nearest `unslide.json` from the
-current directory or its parents and lists configured reports.
-`htmlStatus: present|missing` reports only whether the configured HTML path
-exists; it does not claim freshness.
+current directory or its parents and lists configured reports. Each report
+includes absolute source, HTML, PDF, capture, PDF-capture, and review-manifest
+path state. Existence and modification time are observations only; they do not
+claim freshness.
 
-Every invocation writes one TOON document to stdout:
+Every invocation writes one result-schema-v1 document followed by one newline.
+TOON is the default; `--format json` selects compact JSON. Both encodings decode
+to the same envelope with `toolVersion`, `command`, `status`, `result` or
+`error`, and always-present `warnings`, `timings`, and `help` arrays.
 
 | Exit | Meaning                        |
 | ---- | ------------------------------ |
@@ -108,6 +112,7 @@ written.
 
 | Option                           | Contract                                                                                     |
 | -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `--format <toon\|json>`          | Selects the result encoding; may appear once before or after the command                     |
 | `--log-level <off\|info\|debug>` | Overrides `UNSLIDE_LOG_LEVEL`; default `off`                                                 |
 | `--full`                         | Available only to `inspect`, `capture`, and `export`; removes authored-diagnostic truncation |
 
@@ -116,10 +121,13 @@ authored message or resource, with exact totals. `--full` never exposes raw
 dependency causes, but it may reveal complete report-authored text and resource
 identifiers.
 
-Enabled logging writes newline-delimited Effect JSON to stderr while leaving
-TOON stdout unchanged. `info` records major phases; `debug` adds detailed
-lifecycle and Effect-cause evidence. Logging and `--full` output can contain
-local paths or authored content and should be handled as sensitive diagnostics.
+Enabled logging writes newline-delimited Effect JSON to stderr without
+changing the selected stdout result. Report-authored console calls and React
+warnings are isolated from both automation channels by default and appear only
+as bounded structured debug records. `info` records major phases; `debug` adds
+detailed lifecycle and Effect-cause evidence. Logging and `--full` output can
+contain local paths or authored content and should be handled as sensitive
+diagnostics.
 
 ## Package Surface and Compatibility
 

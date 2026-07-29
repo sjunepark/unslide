@@ -30,10 +30,10 @@ Every capturable page carries `data-unslide-page="<id>"`:
 - Any capturable HTML element may carry the marker.
 - The marker adds no class, wrapper, styling, geometry, chrome, or numbering.
 
-Validation preserves each page's ID, DOM order, and lowercase tag name. The
-released CLI currently exposes that order as a zero-based `index`; this is
-result presentation, not an HTML protocol field. Goal 2 replaces it with the
-one-based `number` in the versioned result contract described in
+Validation preserves each page's ID, DOM order, and lowercase tag name. Public
+CLI results expose DOM order as one-based `number`; the internal zero-based
+`index` remains an implementation detail, not an HTML protocol field. The
+versioned result contract is described in
 [CLI Result and Review Manifest Contract](RESULTS.md). An artifact with no
 marked pages, an empty ID, or a duplicate ID is invalid.
 

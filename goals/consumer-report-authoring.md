@@ -6,8 +6,8 @@ weakening report ownership or its headless HTML-first architecture.
 ## State
 
 Status: active. [The consumer-authoring plan](../plans/consumer-authoring-ergonomics.md)
-is the current roadmap item. Goal 1's command, result, configuration, review,
-React, and asset contracts are locally complete and awaiting PR delivery.
+is the current roadmap item. Goal 1 is merged; Goal 2 implementation and
+validation are complete, with delivery pending.
 
 ## Included Scope
 
@@ -36,4 +36,5 @@ adapter or plugin seams remain excluded.
 
 ## Next Action
 
-Finish Goal 1 PR review and feedback handling before implementing Goal 2.
+Deliver the Goal 2 package pull request, then its linked examples-consumer pull
+request before beginning Goal 3.

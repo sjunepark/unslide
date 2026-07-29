@@ -6,7 +6,11 @@ import { resolve } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import test from "node:test";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { exportHtmlPdf as exportHtmlPdfEffect } from "../src/unslide/pdf.js";
+import {
+  exportHtmlPdf as exportHtmlPdfEffect,
+  samplePageText,
+  validatePageTextSamples,
+} from "../src/unslide/pdf.js";
 import { runUnslide, type RunOptions } from "./runtime.js";
 
 const exportHtmlPdf = (input: string, output: string, options: RunOptions = {}) =>
@@ -26,6 +30,68 @@ function artifact(styles: string, body: string): string {
   <body>${body}</body>
 </html>`;
 }
+
+test("PDF text evidence samples distinctive beginning, middle, and ending regions", () => {
+  const samples = samplePageText(
+    "Beginning alpha beta gamma middle delta epsilon zeta ending eta theta omega",
+  );
+  assert.deepEqual(
+    samples.map((sample) => sample.region),
+    ["beginning", "middle", "ending"],
+  );
+  assert.deepEqual(samples[0]?.tokens, ["beginning", "alpha", "beta"]);
+  assert.deepEqual(samples.at(-1)?.tokens, ["eta", "theta", "omega"]);
+  assert.deepEqual(samplePageText("same same"), [
+    { region: "beginning", tokens: ["same", "same"] },
+  ]);
+});
+
+test("PDF text evidence validates every page rather than accepting a repeated header", () => {
+  const first =
+    "Shared report header alpha stable content common middle marker stable content common ending footer close";
+  const second =
+    "Shared report header beta stable content common middle marker stable content common ending footer close";
+  assert.deepEqual(samplePageText(first), samplePageText(second));
+  const expected = [
+    {
+      id: "one",
+      index: 1,
+      samples: samplePageText(first, [second]),
+    },
+    {
+      id: "two",
+      index: 2,
+      samples: samplePageText(second, [first]),
+    },
+  ];
+  assert.ok(expected[0]!.samples.length > samplePageText(first).length);
+  const extracted = [first, first];
+  const failure = validatePageTextSamples(expected, extracted, [
+    { textSample: extracted[0] ?? "" },
+    { textSample: extracted[1] ?? "" },
+  ]);
+
+  assert.match(failure ?? "", /PDF page 2 \(two\).*extractable-text sample/);
+  assert.doesNotMatch(failure ?? "", /PDF page 1/);
+
+  const subset = validatePageTextSamples(
+    [
+      {
+        id: "subset",
+        index: 1,
+        samples: samplePageText("a b c d", ["a b c x b c d"]),
+      },
+      {
+        id: "superset",
+        index: 2,
+        samples: samplePageText("a b c x b c d", ["a b c d"]),
+      },
+    ],
+    ["a b c x b c d", "a b c x b c d"],
+    [{ textSample: "a b c x b c d" }, { textSample: "a b c x b c d" }],
+  );
+  assert.match(subset ?? "", /PDF page 1 \(subset\).*extractable-text sample/);
+});
 
 async function temporaryDirectory(prefix: string): Promise<string> {
   await mkdir(resolve(repositoryRoot, ".tmp"), { recursive: true });
@@ -107,6 +173,7 @@ test("exports a readable text PDF with authored common geometry", async () => {
 
     const result = await exportHtmlPdf(inputPath, outputPath);
     assert.equal(result.pages.length, 1);
+    assert.equal(result.pages[0]?.id, "one");
     assert.equal(result.pages[0]?.widthPoints, 288);
     assert.equal(result.pages[0]?.heightPoints, 216);
     assert.match(result.pages[0]?.textSample ?? "", /Searchable delivery text/);
@@ -264,6 +331,66 @@ test("rejects extra printed sheets before publishing a misleading PDF", async ()
       /PDF page count 2 does not match the 1 marked HTML pages/,
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects pages without normalized distinguishing text before replacing prior output", async () => {
+  const directory = await temporaryDirectory("unslide pdf indistinguishable text ");
+  const inputPath = resolve(directory, "report.html");
+  const outputPath = resolve(directory, "report.pdf");
+  try {
+    await writeFile(outputPath, "prior delivery");
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}main{width:4in;height:3in;break-after:page}main:last-child{break-after:auto}",
+        '<main data-unslide-page="one">a bc d</main><main data-unslide-page="two">ab c d</main>',
+      ),
+    );
+
+    await assert.rejects(
+      exportHtmlPdf(inputPath, outputPath),
+      /page 1 \(one\).*no extractable-text sample that distinguishes it/,
+    );
+    assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects per-page text substitution without replacing the prior PDF", async () => {
+  const directory = await temporaryDirectory("unslide pdf text evidence ");
+  const inputPath = resolve(directory, "report.html");
+  const outputPath = resolve(directory, "report.pdf");
+  const firstPageText =
+    "Shared report header alpha stable content common middle marker stable content common ending footer close";
+  try {
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}main{width:4in;height:3in;break-after:page}main:last-child{break-after:auto}",
+        `<main data-unslide-page="one">${firstPageText}</main><main data-unslide-page="two">Shared report header beta stable content common middle marker stable content common ending footer close</main>`,
+      ),
+    );
+    await exportHtmlPdf(inputPath, outputPath);
+    const priorPdf = await readFile(outputPath);
+    const { page: pagePrototype } = await pdfRuntimePrototypes(priorPdf);
+    const prototype = pagePrototype as {
+      getTextContent: (this: { pageNumber: number }) => Promise<unknown>;
+    };
+    const originalGetTextContent = prototype.getTextContent;
+    prototype.getTextContent = async function () {
+      if (this.pageNumber === 2) return { items: [{ str: firstPageText }] };
+      return originalGetTextContent.call(this);
+    };
+    try {
+      await assert.rejects(exportHtmlPdf(inputPath, outputPath), /PDF page 2 \(two\)/);
+      assert.deepEqual(await readFile(outputPath), priorPdf);
+    } finally {
+      prototype.getTextContent = originalGetTextContent;
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
