@@ -80,6 +80,7 @@ test("PDF text evidence validates every page rather than accepting a repeated he
         id: "subset",
         index: 1,
         samples: samplePageText("a b c d", ["a b c x b c d"]),
+        normalizedCoverage: "abcd",
       },
       {
         id: "superset",
@@ -91,6 +92,39 @@ test("PDF text evidence validates every page rather than accepting a repeated he
     [{ textSample: "a b c x b c d" }, { textSample: "a b c x b c d" }],
   );
   assert.match(subset ?? "", /PDF page 1 \(subset\).*extractable-text sample/);
+
+  const normalizedCoverage = validatePageTextSamples(
+    [
+      {
+        id: "subset",
+        index: 1,
+        samples: samplePageText("a b c d", ["a b c x b c d"]),
+        normalizedCoverage: "abcd",
+      },
+      {
+        id: "superset",
+        index: 2,
+        samples: samplePageText("a b c x b c d", ["a b c d"]),
+      },
+    ],
+    ["a b c d", "a b c x b c d"],
+    [{ textSample: "a b c d" }, { textSample: "a b c x b c d" }],
+  );
+  assert.equal(normalizedCoverage, undefined);
+
+  const reorderedCoverage = validatePageTextSamples(
+    [
+      {
+        id: "positioned",
+        index: 1,
+        samples: samplePageText("important message body"),
+        normalizedCoverage: [..."importantmessagebody"].sort().join(""),
+      },
+    ],
+    ["body 1 2 3 important message"],
+    [{ textSample: "body 1 2 3 important message" }],
+  );
+  assert.equal(reorderedCoverage, undefined);
 });
 
 async function temporaryDirectory(prefix: string): Promise<string> {
@@ -336,7 +370,7 @@ test("rejects extra printed sheets before publishing a misleading PDF", async ()
   }
 });
 
-test("rejects pages without normalized distinguishing text before replacing prior output", async () => {
+test("rejects pages with identical normalized text before replacing prior output", async () => {
   const directory = await temporaryDirectory("unslide pdf indistinguishable text ");
   const inputPath = resolve(directory, "report.html");
   const outputPath = resolve(directory, "report.pdf");
@@ -352,9 +386,33 @@ test("rejects pages without normalized distinguishing text before replacing prio
 
     await assert.rejects(
       exportHtmlPdf(inputPath, outputPath),
-      /page 1 \(one\).*no extractable-text sample that distinguishes it/,
+      /page 1 \(one\).*neither a distinctive extractable-text sample nor unique normalized full-page letter coverage/,
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior delivery");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("accepts unique normalized full-page letter coverage when one page is a substring of another", async () => {
+  const directory = await temporaryDirectory("unslide pdf normalized full page ");
+  const inputPath = resolve(directory, "report.html");
+  const outputPath = resolve(directory, "report.pdf");
+  try {
+    await writeFile(
+      inputPath,
+      artifact(
+        "@page{size:4in 3in;margin:0}body{margin:0}main{width:4in;height:3in;break-after:page}main:last-child{break-after:auto}",
+        '<main data-unslide-page="divider">Section 01 Executive Summary 5</main><main data-unslide-page="contents">Contents Section 01 Executive Summary 5 Section 02 Scope 10</main>',
+      ),
+    );
+
+    const result = await exportHtmlPdf(inputPath, outputPath);
+    assert.deepEqual(
+      result.pages.map((page) => page.id),
+      ["divider", "contents"],
+    );
+    await access(outputPath);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
