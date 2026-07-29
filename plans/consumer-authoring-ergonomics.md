@@ -88,8 +88,20 @@ visual design, print CSS, numbering, and content fit.
   HTML/PDF page evidence. Independent review findings covering transaction
   rollback, configured-path conflicts, ignore negations, source-error
   classification, and dependency ownership are resolved. Every generated HTML
-  and PDF proof page was visually inspected. Goal 3 delivery is the next
-  action; Goals 4–5 remain pending.
+  and PDF proof page was visually inspected. Goal 3 was delivered in PR #15
+  and merged to `dev` with its individual commits preserved.
+- Goal 4 implements report state, focused HTML/PDF capture, standalone capture
+  and export, complete review composition, all-report continuation, and
+  transactional review manifests with canonical overlap safety.
+- `pnpm run check`, `pnpm test`, and `pnpm run validate` pass. Focused
+  regressions cover exact managed-image scope, invalid-selector preservation,
+  standalone operation without discovery, symlink overlap, HTML-only and PDF
+  review evidence, unchanged manifests on failure, and lexical all-report
+  continuation. Independent review findings covering parser precedence,
+  resolved manifest state, post-commit cancellation, and page-set rollback are
+  resolved through regression-backed transactional publication. Every
+  configured proof-report HTML and PDF page image was visually inspected. Goal
+  4 delivery remains pending; Goal 5 has not started.
 
 ## Accepted design
 
@@ -316,4 +328,4 @@ findings.
 
 ## Next action
 
-Deliver the reviewed and validated Goal 3 PR, then begin Goal 4.
+Deliver the reviewed Goal 4 PR before beginning Goal 5.

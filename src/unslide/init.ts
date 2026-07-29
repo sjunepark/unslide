@@ -508,6 +508,7 @@ async function conflictsWithConfiguredPath(
     report.pdfPath,
     report.captureDirectory,
     report.pdfCaptureDirectory,
+    report.manifestPath,
   ]);
   const canonicalConfiguredPaths = await Promise.all(
     configuredPaths.map((configuredPath) => canonicalizeThroughExistingAncestor(configuredPath)),

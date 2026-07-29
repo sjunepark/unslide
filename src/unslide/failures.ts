@@ -2,6 +2,7 @@ import { Cause, Data, Effect } from "effect";
 import type { ArtifactDiagnostic } from "./protocol.js";
 
 export type OperationalErrorCode =
+  | "usage"
   | "artifact-invalid"
   | "artifact-not-found"
   | "browser-not-installed"
@@ -101,7 +102,8 @@ function classifiedCode(cause: unknown): OperationalErrorCode | undefined {
     typeof cause === "object" &&
     cause !== null &&
     "cliCode" in cause &&
-    (cause.cliCode === "artifact-invalid" ||
+    (cause.cliCode === "usage" ||
+      cause.cliCode === "artifact-invalid" ||
       cause.cliCode === "artifact-not-found" ||
       cause.cliCode === "browser-not-installed" ||
       cause.cliCode === "source-not-found" ||

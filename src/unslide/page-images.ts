@@ -66,11 +66,11 @@ export function replacePageImages<T extends PageImageOutput>(
 
           const publication = Effect.gen(function* () {
             for (const name of previousNames) {
+              backedUpNames.push(name);
               yield* fs.rename(
                 path.resolve(outputDirectory, name),
                 path.resolve(backupDirectory, name),
               );
-              backedUpNames.push(name);
             }
             for (const page of generated) {
               const fileName = path.basename(page.outputPath);
@@ -84,8 +84,8 @@ export function replacePageImages<T extends PageImageOutput>(
                   `Invalid managed page-image output path: ${page.outputPath}`,
                 );
               }
-              yield* fs.rename(path.resolve(stagingDirectory, fileName), page.outputPath);
               published.push(fileName);
+              yield* fs.rename(path.resolve(stagingDirectory, fileName), page.outputPath);
             }
           });
 
@@ -103,18 +103,34 @@ export function replacePageImages<T extends PageImageOutput>(
             });
             const rollbackErrors: string[] = [];
             for (const name of published) {
-              const rollback = yield* Effect.exit(
-                fs.remove(path.resolve(outputDirectory, name), { force: true }),
-              );
-              if (Exit.isFailure(rollback))
-                rollbackErrors.push(errorMessage(Cause.squash(rollback.cause)));
+              const stagedPath = path.resolve(stagingDirectory, name);
+              const outputPath = path.resolve(outputDirectory, name);
+              const stagingExists = yield* Effect.exit(fs.exists(stagedPath));
+              if (Exit.isFailure(stagingExists)) {
+                rollbackErrors.push(errorMessage(Cause.squash(stagingExists.cause)));
+              } else if (!stagingExists.value) {
+                const outputExists = yield* Effect.exit(fs.exists(outputPath));
+                if (Exit.isFailure(outputExists)) {
+                  rollbackErrors.push(errorMessage(Cause.squash(outputExists.cause)));
+                } else if (outputExists.value) {
+                  const rollback = yield* Effect.exit(fs.remove(outputPath, { force: true }));
+                  if (Exit.isFailure(rollback))
+                    rollbackErrors.push(errorMessage(Cause.squash(rollback.cause)));
+                }
+              }
             }
             for (const name of backedUpNames) {
-              const rollback = yield* Effect.exit(
-                fs.rename(path.resolve(backupDirectory, name), path.resolve(outputDirectory, name)),
-              );
-              if (Exit.isFailure(rollback))
-                rollbackErrors.push(errorMessage(Cause.squash(rollback.cause)));
+              const backupPath = path.resolve(backupDirectory, name);
+              const exists = yield* Effect.exit(fs.exists(backupPath));
+              if (Exit.isFailure(exists)) {
+                rollbackErrors.push(errorMessage(Cause.squash(exists.cause)));
+              } else if (exists.value) {
+                const rollback = yield* Effect.exit(
+                  fs.rename(backupPath, path.resolve(outputDirectory, name)),
+                );
+                if (Exit.isFailure(rollback))
+                  rollbackErrors.push(errorMessage(Cause.squash(rollback.cause)));
+              }
             }
 
             staging.preserve = rollbackErrors.length > 0;

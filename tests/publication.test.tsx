@@ -5,13 +5,15 @@ import { basename, dirname, resolve } from "node:path";
 import test from "node:test";
 import * as NodeFileSystem from "@effect/platform-node-shared/NodeFileSystem";
 import * as NodePath from "@effect/platform-node-shared/NodePath";
-import { Effect, Exit, FileSystem, Layer, PlatformError, type Path } from "effect";
+import { Deferred, Effect, Exit, Fiber, FileSystem, Layer, PlatformError, type Path } from "effect";
 import { commandFailure, InitOperationFailure } from "../src/unslide/failures.js";
 import { initializeProject } from "../src/unslide/init.js";
 import { causeMessage } from "../src/unslide/lifecycle.js";
 import { replacePageImages } from "../src/unslide/page-images.js";
 import { exportHtmlPdf } from "../src/unslide/pdf.js";
 import { writeReportHtml } from "../src/unslide/render.js";
+import { publishReviewManifest } from "../src/unslide/review-manifest.js";
+import type { ReviewManifest } from "../src/unslide/results.js";
 
 type AppLayer = Layer.Layer<FileSystem.FileSystem | Path.Path>;
 
@@ -95,6 +97,141 @@ test("HTML publication keeps the prior artifact when atomic rename fails", async
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior HTML delivery");
     assert.deepEqual(await readdir(directory), ["report.html"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("HTML publication restores the prior artifact after post-commit interruption", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide html interruption "));
+  const outputPath = resolve(directory, "report.html");
+  try {
+    await writeFile(outputPath, "prior HTML delivery");
+    const live = await liveFileSystem();
+    const renamed = Effect.runSync(Deferred.make<void>());
+    const allowRenameReturn = Effect.runSync(Deferred.make<void>());
+    const injected: FileSystem.FileSystem = {
+      ...live,
+      rename: (from, to) =>
+        to === outputPath && !from.endsWith(".previous")
+          ? live.rename(from, to).pipe(
+              Effect.tap(() => Deferred.succeed(renamed, undefined)),
+              Effect.andThen(Deferred.await(allowRenameReturn)),
+            )
+          : live.rename(from, to),
+    };
+
+    const publication = Effect.runFork(
+      writeReportHtml({
+        document: (
+          <html>
+            <body>
+              <main data-unslide-page="one">New report</main>
+            </body>
+          </html>
+        ),
+        outputPath,
+      }).pipe(Effect.provide(layerWithFileSystem(injected))),
+    );
+    await Effect.runPromise(Deferred.await(renamed));
+    const interruption = Effect.runPromise(Fiber.interrupt(publication));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    Effect.runSync(Deferred.succeed(allowRenameReturn, undefined));
+    await interruption;
+    const exit = await Effect.runPromise(Fiber.await(publication));
+    assert.ok(Exit.isFailure(exit));
+    assert.ok(exit.cause.reasons.some((reason) => reason._tag === "Interrupt"));
+    assert.equal(await readFile(outputPath, "utf8"), "prior HTML delivery");
+    assert.deepEqual(await readdir(directory), ["report.html"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("review manifest publication keeps the prior manifest when atomic rename fails", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide manifest publication "));
+  const outputPath = resolve(directory, "report.review.json");
+  const manifest: ReviewManifest = {
+    manifestSchemaVersion: 1,
+    resultSchemaVersion: 1,
+    toolVersion: "0.0.0-test",
+    report: "report",
+    createdAt: "2026-07-29T00:00:00.000Z",
+    scope: { kind: "all" },
+    html: { path: resolve(directory, "report.html"), bytes: 1, sha256: "a".repeat(64) },
+    pages: [],
+    warnings: [],
+    timings: [],
+  };
+  try {
+    await writeFile(outputPath, "prior manifest\n");
+    const live = await liveFileSystem();
+    const injected: FileSystem.FileSystem = {
+      ...live,
+      rename: (from, to) =>
+        to === outputPath
+          ? Effect.fail(systemFailure("rename", from, "fixture manifest rename failed"))
+          : live.rename(from, to),
+    };
+
+    await assert.rejects(
+      runWithLayer(publishReviewManifest(outputPath, manifest), layerWithFileSystem(injected)),
+      /fixture manifest rename failed/,
+    );
+    assert.equal(await readFile(outputPath, "utf8"), "prior manifest\n");
+    assert.deepEqual(await readdir(directory), ["report.review.json"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("review manifest publication cannot be interrupted after its rename commits", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide manifest interruption "));
+  const outputPath = resolve(directory, "report.review.json");
+  const manifest: ReviewManifest = {
+    manifestSchemaVersion: 1,
+    resultSchemaVersion: 1,
+    toolVersion: "0.0.0-test",
+    report: "report",
+    createdAt: "2026-07-29T00:00:00.000Z",
+    scope: { kind: "all" },
+    html: { path: resolve(directory, "report.html"), bytes: 1, sha256: "a".repeat(64) },
+    pages: [],
+    warnings: [],
+    timings: [],
+  };
+  try {
+    await writeFile(outputPath, "prior manifest\n");
+    const live = await liveFileSystem();
+    const renamed = Effect.runSync(Deferred.make<void>());
+    const allowRenameReturn = Effect.runSync(Deferred.make<void>());
+    const injected: FileSystem.FileSystem = {
+      ...live,
+      rename: (from, to) =>
+        to === outputPath
+          ? live.rename(from, to).pipe(
+              Effect.tap(() => Deferred.succeed(renamed, undefined)),
+              Effect.andThen(Deferred.await(allowRenameReturn)),
+            )
+          : live.rename(from, to),
+    };
+
+    const publication = Effect.runFork(
+      publishReviewManifest(outputPath, manifest).pipe(
+        Effect.provide(layerWithFileSystem(injected)),
+      ),
+    );
+    await Effect.runPromise(Deferred.await(renamed));
+    const interruption = Effect.runPromise(Fiber.interrupt(publication));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    Effect.runSync(Deferred.succeed(allowRenameReturn, undefined));
+    await interruption;
+    const exit = await Effect.runPromise(Fiber.await(publication));
+
+    assert.ok(Exit.isFailure(exit));
+    assert.ok(exit.cause.reasons.some((reason) => reason._tag === "Interrupt"));
+    assert.equal(await readFile(outputPath, "utf8"), "prior manifest\n");
+    assert.deepEqual(await readdir(directory), ["report.review.json"]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -309,6 +446,82 @@ test("page-image publication restores prior files without reclassifying interrup
   }
 });
 
+test("page-image rollback restores a prior file after its backup rename commits", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide interrupted backup "));
+  const outputPath = resolve(directory, "page-01.png");
+  try {
+    await writeFile(outputPath, "prior page one");
+    const live = await liveFileSystem();
+    const injected: FileSystem.FileSystem = {
+      ...live,
+      rename: (from, to) =>
+        from === outputPath && basename(dirname(to)) === "previous"
+          ? live.rename(from, to).pipe(Effect.andThen(Effect.interrupt))
+          : live.rename(from, to),
+    };
+
+    const exit = await runExitWithLayer(
+      replacePageImages(directory, "captures", (stagingDirectory) =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          yield* fs.writeFileString(resolve(stagingDirectory, "page-01.png"), "new page one", {
+            flag: "wx",
+          });
+          return [{ outputPath }];
+        }).pipe(
+          Effect.mapError((cause) =>
+            commandFailure(cause, { command: "capture", path: directory }),
+          ),
+        ),
+      ),
+      layerWithFileSystem(injected),
+    );
+    assert.ok(Exit.isFailure(exit));
+    assert.equal(await readFile(outputPath, "utf8"), "prior page one");
+    assert.deepEqual(await readdir(directory), ["page-01.png"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("page-image rollback removes a new page after its publish rename commits", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide interrupted page publish "));
+  const outputPath = resolve(directory, "page-01.png");
+  try {
+    await writeFile(outputPath, "prior page one");
+    const live = await liveFileSystem();
+    const injected: FileSystem.FileSystem = {
+      ...live,
+      rename: (from, to) =>
+        to === outputPath && basename(dirname(from)).startsWith(".unslide-page-images-")
+          ? live.rename(from, to).pipe(Effect.andThen(Effect.interrupt))
+          : live.rename(from, to),
+    };
+
+    const exit = await runExitWithLayer(
+      replacePageImages(directory, "captures", (stagingDirectory) =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          yield* fs.writeFileString(resolve(stagingDirectory, "page-01.png"), "new page one", {
+            flag: "wx",
+          });
+          return [{ outputPath }];
+        }).pipe(
+          Effect.mapError((cause) =>
+            commandFailure(cause, { command: "capture", path: directory }),
+          ),
+        ),
+      ),
+      layerWithFileSystem(injected),
+    );
+    assert.ok(Exit.isFailure(exit));
+    assert.equal(await readFile(outputPath, "utf8"), "prior page one");
+    assert.deepEqual(await readdir(directory), ["page-01.png"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("PDF publication keeps the prior artifact when atomic rename fails", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "unslide pdf publication "));
   const inputPath = resolve(directory, "report.html");
@@ -331,9 +544,48 @@ test("PDF publication keeps the prior artifact when atomic rename fails", async 
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior PDF delivery");
     assert.equal(
-      (await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")),
+      (await readdir(directory)).some((name) => name.startsWith(".report.pdf.tmp-")),
       false,
     );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("PDF publication restores the prior artifact after post-commit interruption", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide pdf interruption "));
+  const inputPath = resolve(directory, "report.html");
+  const outputPath = resolve(directory, "report.pdf");
+  try {
+    await writeFile(inputPath, pdfArtifact("Interrupted PDF publication"));
+    await writeFile(outputPath, "prior PDF delivery");
+    const live = await liveFileSystem();
+    const renamed = Effect.runSync(Deferred.make<void>());
+    const allowRenameReturn = Effect.runSync(Deferred.make<void>());
+    const injected: FileSystem.FileSystem = {
+      ...live,
+      rename: (from, to) =>
+        to === outputPath && !from.endsWith(".previous")
+          ? live.rename(from, to).pipe(
+              Effect.tap(() => Deferred.succeed(renamed, undefined)),
+              Effect.andThen(Deferred.await(allowRenameReturn)),
+            )
+          : live.rename(from, to),
+    };
+
+    const publication = Effect.runFork(
+      exportHtmlPdf(inputPath, outputPath).pipe(Effect.provide(layerWithFileSystem(injected))),
+    );
+    await Effect.runPromise(Deferred.await(renamed));
+    const interruption = Effect.runPromise(Fiber.interrupt(publication));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    Effect.runSync(Deferred.succeed(allowRenameReturn, undefined));
+    await interruption;
+    const exit = await Effect.runPromise(Fiber.await(publication));
+    assert.ok(Exit.isFailure(exit));
+    assert.ok(exit.cause.reasons.some((reason) => reason._tag === "Interrupt"));
+    assert.equal(await readFile(outputPath, "utf8"), "prior PDF delivery");
+    assert.deepEqual((await readdir(directory)).sort(), ["report.html", "report.pdf"]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -354,7 +606,7 @@ test("PDF publication retains cleanup failure evidence with the primary failure"
           ? Effect.fail(systemFailure("rename", from, "fixture PDF rename failed"))
           : live.rename(from, to),
       remove: (path, options) =>
-        basename(path).startsWith(".unslide-pdf-")
+        basename(path).startsWith(".report.pdf.tmp-")
           ? Effect.fail(systemFailure("remove", path, "fixture PDF cleanup failed"))
           : live.remove(path, options),
     };
@@ -365,7 +617,7 @@ test("PDF publication retains cleanup failure evidence with the primary failure"
     );
     assert.equal(await readFile(outputPath, "utf8"), "prior PDF delivery");
     assert.equal(
-      (await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")),
+      (await readdir(directory)).some((name) => name.startsWith(".report.pdf.tmp-")),
       true,
     );
   } finally {

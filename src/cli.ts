@@ -38,11 +38,14 @@ import {
   type ExecutionEvidence,
   type ProjectChangeFailure,
   type ProjectChangeResult,
+  type PartialCommandResult,
+  type ReviewSummary,
   type ResultEnvelope,
   type ResultError,
   withStepTiming,
 } from "./unslide/results.js";
 import { applicationLayer } from "./unslide/runtime.js";
+import { reviewReport } from "./unslide/review.js";
 
 const LOG_LEVEL_ENV = "UNSLIDE_LOG_LEVEL";
 const DEFAULT_DIAGNOSTIC_LIMIT = 10;
@@ -51,7 +54,7 @@ const DEFAULT_DIAGNOSTIC_TEXT_LIMIT = 1_000;
 interface CommandOutcome {
   readonly command: CommandName;
   readonly exitCode: 0 | 1 | 2;
-  readonly result?: CommandResult | ProjectChangeFailure;
+  readonly result?: CommandResult | PartialCommandResult;
   readonly error?: ResultError;
   readonly help: readonly string[];
 }
@@ -127,6 +130,24 @@ function fullDiagnosticCommand(rawArguments: readonly string[], format: OutputFo
   return `Run ${formattedInvocation(format)} ${commandArguments.map(shellArgument).join(" ")} --full`;
 }
 
+function withoutPageSelectorCommand(rawArguments: readonly string[], format: OutputFormat): string {
+  const commandArguments: string[] = [];
+  for (let index = 0; index < rawArguments.length; index += 1) {
+    const argument = rawArguments[index] as string;
+    if (
+      argument === "--format" ||
+      argument === "--log-level" ||
+      argument === "--page-id" ||
+      argument === "--page-number"
+    ) {
+      index += 1;
+      continue;
+    }
+    commandArguments.push(argument);
+  }
+  return `Run ${formattedInvocation(format)} ${commandArguments.map(shellArgument).join(" ")}`;
+}
+
 function truncateText(value: string): { readonly text: string; readonly totalChars?: number } {
   const characters = [...value];
   if (characters.length <= DEFAULT_DIAGNOSTIC_TEXT_LIMIT) return { text: value };
@@ -184,6 +205,16 @@ function commandFailureResult(
     ...(failure.path ? { path: resolve(failure.path) } : {}),
     ...(failure.report ? { report: failure.report } : {}),
   };
+  if (failure.code === "usage") {
+    return {
+      error: {
+        code: "usage",
+        message: failure.message,
+        ...context,
+      },
+      help: [withoutPageSelectorCommand(rawArguments, format)],
+    };
+  }
   if (failure.code === "artifact-not-found") {
     return {
       error: { code: failure.code, message: `${artifact} artifact was not found.`, ...context },
@@ -328,7 +359,7 @@ function cliFailureResult(
     };
   }
   const presented = commandFailureResult(failure, rawArguments, format);
-  return { command, exitCode: 1, ...presented };
+  return { command, exitCode: failure.code === "usage" ? 2 : 1, ...presented };
 }
 
 function projectChange(result: InitResult): ProjectChangeResult {
@@ -370,6 +401,7 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
   parsed: ParsedCommand,
   evidence: ExecutionEvidence,
   format: OutputFormat,
+  rawArguments: readonly string[],
 ) {
   const command = parsedCommandName(parsed);
   if (parsed.kind === "help") {
@@ -382,7 +414,7 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
       evidence,
     );
     const reports = yield* withStepTiming(
-      Effect.all(Object.values(config.reports).map((report) => reportState(config, report))),
+      Effect.all(Object.values(config.reports).map((report) => reportState(report))),
       "reports.scan",
       evidence,
     );
@@ -489,6 +521,72 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
     } satisfies CommandOutcome;
   }
 
+  if (parsed.kind === "capture" && parsed.target.kind === "artifact") {
+    const capture = yield* withStepTiming(
+      captureHtmlPages(parsed.target.path, parsed.target.output, parsed.selector),
+      "html.capture",
+      evidence,
+    );
+    const pages = yield* Effect.forEach(capture.pages, (page) =>
+      fileEvidence(page.outputPath).pipe(
+        Effect.map((file) => ({
+          id: page.id,
+          number: page.index + 1,
+          path: file.path,
+          widthPixels: page.width,
+          heightPixels: page.height,
+          bytes: file.bytes,
+          sha256: file.sha256,
+        })),
+      ),
+    );
+    const selected = pages[0];
+    return {
+      command,
+      exitCode: 0,
+      result: {
+        kind: "capture",
+        html: yield* fileEvidence(capture.inputPath),
+        scope:
+          parsed.selector && selected
+            ? { kind: "page", id: selected.id, number: selected.number }
+            : { kind: "all" },
+        output: yield* pathState(capture.outputDirectory, "directory"),
+        pages,
+      },
+      help: [],
+    } satisfies CommandOutcome;
+  }
+
+  if (parsed.kind === "export" && parsed.target.kind === "artifact") {
+    const target = parsed.target;
+    const { exportHtmlPdf } = yield* Effect.tryPromise({
+      try: () => import("./unslide/pdf.js"),
+      catch: (cause) => commandFailure(cause, { command: "export", path: resolve(target.path) }),
+    });
+    const exported = yield* withStepTiming(
+      exportHtmlPdf(target.path, target.output),
+      "pdf.export",
+      evidence,
+    );
+    return {
+      command,
+      exitCode: 0,
+      result: {
+        kind: "export",
+        html: yield* fileEvidence(exported.inputPath),
+        pdf: yield* fileEvidence(exported.outputPath),
+        pages: exported.pages.map((page) => ({
+          number: page.index,
+          id: page.id,
+          widthPoints: page.widthPoints,
+          heightPoints: page.heightPoints,
+        })),
+      },
+      help: [],
+    } satisfies CommandOutcome;
+  }
+
   if (parsed.kind === "inspect-pdf" && parsed.target.kind === "artifact") {
     const target = parsed.target;
     const { inspectPdfPages } = yield* Effect.tryPromise({
@@ -500,7 +598,7 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
         }),
     });
     const inspection = yield* withStepTiming(
-      inspectPdfPages(target.path, target.output),
+      inspectPdfPages(target.path, target.output, parsed.pageNumber),
       "pdf.inspect",
       evidence,
     );
@@ -523,7 +621,10 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
       result: {
         kind: "inspect-pdf",
         pdf,
-        scope: { kind: "all" },
+        scope:
+          parsed.pageNumber === undefined
+            ? { kind: "all" }
+            : { kind: "page", number: parsed.pageNumber },
         output: yield* pathState(inspection.outputDirectory, "directory"),
         pages,
       },
@@ -536,17 +637,102 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
     "project.load",
     evidence,
   );
+  if (parsed.kind === "review") {
+    const reports =
+      parsed.target.kind === "all"
+        ? [...Object.values(config.reports)].sort((left, right) =>
+            left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+          )
+        : [yield* getReport(config, parsed.target.report)];
+    const summaries: ReviewSummary[] = [];
+    const reviewHelp = new Set<string>();
+    let reviewExitCode: 0 | 1 | 2 = 0;
+    for (const report of reports) {
+      const attempt = yield* reviewReport(report, {
+        pdf: parsed.pdf,
+        ...(parsed.target.kind === "report" && parsed.target.selector
+          ? { selector: parsed.target.selector }
+          : {}),
+      });
+      if (attempt.status === "ok") {
+        summaries.push({
+          status: "ok",
+          report: attempt.report,
+          requestedScope: attempt.requestedScope,
+          scope: attempt.scope,
+          html: attempt.html,
+          ...(attempt.pdf ? { pdf: attempt.pdf } : {}),
+          pages: attempt.pages,
+          steps: attempt.steps,
+          warnings: attempt.evidence.warnings,
+          timings: attempt.evidence.timings,
+          manifest: { status: "published", ...attempt.manifest },
+        });
+        continue;
+      }
+      const failure = cliFailureResult(attempt.failure, "review", rawArguments, format);
+      for (const help of failure.help) reviewHelp.add(help);
+      reviewExitCode = failure.exitCode === 2 ? 2 : (Math.max(reviewExitCode, 1) as 1 | 2);
+      summaries.push({
+        status: "error",
+        report: attempt.report,
+        requestedScope: attempt.requestedScope,
+        ...(attempt.scope ? { scope: attempt.scope } : {}),
+        ...(attempt.html ? { html: attempt.html } : {}),
+        ...(attempt.pdf ? { pdf: attempt.pdf } : {}),
+        pages: attempt.pages,
+        steps: attempt.steps,
+        warnings: attempt.evidence.warnings,
+        timings: attempt.evidence.timings,
+        manifest: { status: "unchanged", state: attempt.manifestState },
+        error: failure.error as ResultError,
+      });
+    }
+    const result = { kind: "review", reports: summaries } as const;
+    if (reviewExitCode !== 0) {
+      return {
+        command,
+        exitCode: reviewExitCode,
+        result,
+        error: {
+          code: reviewExitCode === 2 ? "usage" : "command-failed",
+          message:
+            reviewExitCode === 2
+              ? "A review page selector is invalid."
+              : "One or more reports failed review.",
+        },
+        help: [...reviewHelp],
+      } satisfies CommandOutcome;
+    }
+    return { command, exitCode: 0, result, help: [] } satisfies CommandOutcome;
+  }
+
   const reportName =
-    parsed.kind === "inspect"
-      ? parsed.target.kind === "report"
-        ? parsed.target.report
-        : yield* Effect.die("Artifact inspection already handled")
-      : parsed.kind === "inspect-pdf"
+    parsed.kind === "report" || parsed.kind === "build"
+      ? parsed.report
+      : parsed.kind === "inspect"
         ? parsed.target.kind === "report"
           ? parsed.target.report
-          : yield* Effect.die("Artifact PDF inspection already handled")
-        : parsed.report;
+          : yield* Effect.die("Artifact inspection already handled")
+        : parsed.kind === "capture" || parsed.kind === "export"
+          ? parsed.target.kind === "report"
+            ? parsed.target.report
+            : yield* Effect.die("Artifact workflow already handled")
+          : parsed.kind === "inspect-pdf"
+            ? parsed.target.kind === "report"
+              ? parsed.target.report
+              : yield* Effect.die("Artifact PDF inspection already handled")
+            : yield* Effect.die("Command does not select a report");
   const report = yield* getReport(config, reportName);
+
+  if (parsed.kind === "report") {
+    return {
+      command,
+      exitCode: 0,
+      result: { kind: "report", report: yield* reportState(report) },
+      help: [],
+    } satisfies CommandOutcome;
+  }
 
   if (parsed.kind === "build") {
     const built = yield* withStepTiming(buildReport(report), "report.build", evidence);
@@ -591,7 +777,7 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
   }
   if (parsed.kind === "capture") {
     const capture = yield* withStepTiming(
-      captureHtmlPages(report.htmlPath, report.captureDirectory).pipe(
+      captureHtmlPages(report.htmlPath, report.captureDirectory, parsed.selector).pipe(
         Effect.mapError((cause) =>
           commandFailure(cause, {
             command: "capture",
@@ -616,6 +802,7 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
         })),
       ),
     );
+    const selected = pages[0];
     return {
       command,
       exitCode: 0,
@@ -623,7 +810,10 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
         kind: "capture",
         report: report.name,
         html: yield* fileEvidence(capture.inputPath),
-        scope: { kind: "all" },
+        scope:
+          parsed.selector && selected
+            ? { kind: "page", id: selected.id, number: selected.number }
+            : { kind: "all" },
         output: yield* pathState(capture.outputDirectory, "directory"),
         pages,
       },
@@ -678,7 +868,7 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
       }),
   });
   const inspection = yield* withStepTiming(
-    inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory).pipe(
+    inspectPdfPages(report.pdfPath, report.pdfCaptureDirectory, parsed.pageNumber).pipe(
       Effect.mapError((cause) =>
         commandFailure(cause, {
           command: "inspect-pdf",
@@ -709,7 +899,10 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
       kind: "inspect-pdf",
       report: report.name,
       pdf: yield* fileEvidence(inspection.inputPath),
-      scope: { kind: "all" },
+      scope:
+        parsed.pageNumber === undefined
+          ? { kind: "all" }
+          : { kind: "page", number: parsed.pageNumber },
       output: yield* pathState(inspection.outputDirectory, "directory"),
       pages,
     },
@@ -826,7 +1019,10 @@ async function main(rawArguments: readonly string[]): Promise<InvocationOutput> 
 
   const command = parsedCommandName(parsed.value);
   const program = provideCliLogging(
-    instrumentInvocation(executeCommand(parsed.value, evidence, global.value.format), command),
+    instrumentInvocation(
+      executeCommand(parsed.value, evidence, global.value.format, rawArguments),
+      command,
+    ),
     global.value.logLevel,
   ).pipe(Effect.provide(applicationLayer));
   const exit = await Effect.runPromiseExit(program);
@@ -855,7 +1051,7 @@ async function main(rawArguments: readonly string[]): Promise<InvocationOutput> 
             outcome.error as ResultError,
             evidence,
             outcome.help,
-            outcome.result as ProjectChangeFailure | undefined,
+            outcome.result as PartialCommandResult | undefined,
           ),
   };
 }

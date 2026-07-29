@@ -1,9 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { Effect, FileSystem, Path } from "effect";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { commandFailure, mapCommandFailure } from "./failures.js";
-import { scoped } from "./lifecycle.js";
+import { publishFileAtomically } from "./file-publication.js";
 import { logDebug, withLogPhase } from "./logging.js";
 import { captureReportConsole } from "./source-console.js";
 
@@ -132,26 +131,12 @@ export const writeReportHtml = Effect.fn("render.writeReportHtml")(function* ({
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const resolvedOutputPath = path.resolve(outputPath);
-  const temporaryPath = `${resolvedOutputPath}.tmp-${process.pid}-${randomUUID()}`;
 
   const published = yield* withLogPhase(
     mapCommandFailure(
-      scoped(
-        Effect.gen(function* () {
-          yield* fs.makeDirectory(path.dirname(resolvedOutputPath), { recursive: true });
-          const temporary = yield* Effect.acquireRelease(
-            Effect.succeed({ cleanup: true, path: temporaryPath }),
-            (state) =>
-              state.cleanup
-                ? fs.remove(state.path, { force: true }).pipe(Effect.orDie)
-                : Effect.void,
-          );
-          yield* fs.writeFileString(temporary.path, html, { flag: "wx" });
-          yield* fs.rename(temporary.path, resolvedOutputPath);
-          temporary.cleanup = false;
-          return resolvedOutputPath;
-        }),
-      ),
+      publishFileAtomically(resolvedOutputPath, (stagingPath) =>
+        fs.writeFileString(stagingPath, html, { flag: "wx" }),
+      ).pipe(Effect.as(resolvedOutputPath)),
       context,
     ),
     "html.publish",

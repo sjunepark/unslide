@@ -509,7 +509,7 @@ test("reports an invalid PDF output target and removes staging files", async () 
     await assert.rejects(exportHtmlPdf(inputPath, invalidOutput), /EISDIR|ENOTEMPTY|directory/i);
     await access(invalidOutput);
     assert.equal(
-      (await readdir(directory)).some((name) => name.startsWith(".unslide-pdf-")),
+      (await readdir(directory)).some((name) => name.startsWith(".report.pdf.tmp-")),
       false,
     );
   } finally {

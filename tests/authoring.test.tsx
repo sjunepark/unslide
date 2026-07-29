@@ -34,6 +34,7 @@ function reportConfig(directory: string, name: string): ReportConfig {
     pdfPath: resolve(directory, `${name}.pdf`),
     captureDirectory: resolve(directory, `${name}-captures`),
     pdfCaptureDirectory: resolve(directory, `${name}-pdf-captures`),
+    manifestPath: resolve(directory, `${name}.review.json`),
   };
 }
 

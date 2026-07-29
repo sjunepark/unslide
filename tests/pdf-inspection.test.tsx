@@ -11,8 +11,12 @@ import { runUnslide, type RunOptions } from "./runtime.js";
 
 const exportHtmlPdf = (input: string, output: string, options: RunOptions = {}) =>
   runUnslide(exportHtmlPdfEffect(input, output), options);
-const inspectPdfPages = (input: string, output: string, options: RunOptions = {}) =>
-  runUnslide(inspectPdfPagesEffect(input, output), options);
+const inspectPdfPages = (
+  input: string,
+  output: string,
+  options: RunOptions = {},
+  pageNumber?: number,
+) => runUnslide(inspectPdfPagesEffect(input, output, pageNumber), options);
 
 const repositoryRoot = resolve(".");
 
@@ -101,6 +105,19 @@ test("rasterizes only the existing PDF into deterministic ordered PNG pages", as
       "page-02.png",
       "review-notes.txt",
     ]);
+
+    const focused = await inspectPdfPages(inputPdf, outputDirectory, {}, 2);
+    assert.deepEqual(
+      focused.pages.map((page) => page.index),
+      [2],
+    );
+    assert.deepEqual((await readdir(outputDirectory)).sort(), ["page-02.png", "review-notes.txt"]);
+
+    await assert.rejects(
+      inspectPdfPages(inputPdf, outputDirectory, {}, 3),
+      /PDF page number 3 is outside the artifact's 1-2 range/,
+    );
+    assert.deepEqual((await readdir(outputDirectory)).sort(), ["page-02.png", "review-notes.txt"]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -128,6 +145,43 @@ test("reports corrupt PDFs without replacing prior inspection images", async () 
       false,
     );
   } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("focused PDF inspection validates unselected page structure before rasterization", async () => {
+  const directory = await temporaryDirectory("unslide focused pdf validation ");
+  const inputHtml = resolve(directory, "report.html");
+  const inputPdf = resolve(directory, "report.pdf");
+  const outputDirectory = resolve(directory, "pdf pages");
+  await writeFile(inputHtml, fixtureHtml());
+  await exportHtmlPdf(inputHtml, inputPdf);
+  await mkdir(outputDirectory);
+  await writeFile(resolve(outputDirectory, "page-02.png"), "prior focused inspection");
+
+  const prototypes = await pdfRuntimePrototypes(await readFile(inputPdf));
+  const pagePrototype = prototypes.page as {
+    getViewport: (options: unknown) => { width: number; height: number };
+  };
+  const originalGetViewport = pagePrototype.getViewport;
+  try {
+    pagePrototype.getViewport = function (options) {
+      const viewport = originalGetViewport.call(this, options);
+      return (this as unknown as { pageNumber: number }).pageNumber === 1
+        ? { ...viewport, width: 0 }
+        : viewport;
+    };
+
+    await assert.rejects(
+      inspectPdfPages(inputPdf, outputDirectory, {}, 2),
+      /PDF page 1 has invalid geometry/,
+    );
+    assert.equal(
+      await readFile(resolve(outputDirectory, "page-02.png"), "utf8"),
+      "prior focused inspection",
+    );
+  } finally {
+    pagePrototype.getViewport = originalGetViewport;
     await rm(directory, { recursive: true, force: true });
   }
 });
@@ -206,7 +260,7 @@ test("interrupting PDF rendering cancels and releases every owned resource", asy
       { cancelCalls, cleanupCalls, destroyCalls, zeroHeight, zeroWidth },
       {
         cancelCalls: 1,
-        cleanupCalls: 1,
+        cleanupCalls: 3,
         destroyCalls: 1,
         zeroHeight: 1,
         zeroWidth: 1,
@@ -298,10 +352,13 @@ test("PDF inspection retains render and cleanup failures without replacing prior
   };
   const originalCleanup = pagePrototype.cleanup;
   const originalRender = pagePrototype.render;
+  let cleanupCalls = 0;
   try {
     pagePrototype.cleanup = function () {
-      originalCleanup.call(this);
-      throw new Error("fixture PDF page cleanup failed");
+      cleanupCalls += 1;
+      const cleaned = originalCleanup.call(this);
+      if (cleanupCalls > 2) throw new Error("fixture PDF page cleanup failed");
+      return cleaned;
     };
     pagePrototype.render = function () {
       return {

@@ -4,10 +4,10 @@ import { resolve } from "node:path";
 import { encode } from "@toon-format/toon";
 import { Clock, Effect, Exit, FileSystem, Option } from "effect";
 import type { CommandName, HelpResult, OutputFormat } from "./cli-command.js";
-import type { ProjectConfig, ReportConfig } from "./config.js";
-import { pathsOverlap } from "./paths.js";
+import type { ReportConfig } from "./config.js";
 
 const packageJson = createRequire(import.meta.url)("../../package.json") as { version: string };
+export const toolVersion = packageJson.version;
 
 export interface ResultError {
   readonly code: string;
@@ -136,6 +136,88 @@ export interface ScopeAll {
   readonly kind: "all";
 }
 
+export interface HtmlScopePage {
+  readonly kind: "page";
+  readonly number: number;
+  readonly id: string;
+}
+
+export interface PdfScopePage {
+  readonly kind: "page";
+  readonly number: number;
+}
+
+export type RequestedReviewScope =
+  | ScopeAll
+  | { readonly kind: "page-id"; readonly id: string }
+  | { readonly kind: "page-number"; readonly number: number };
+
+export type PublishedStep =
+  | { readonly step: string; readonly status: "completed"; readonly published: boolean }
+  | { readonly step: string; readonly status: "failed"; readonly published: false };
+
+interface ReviewPageBase {
+  readonly id: string;
+  readonly number: number;
+  readonly pdfGeometry?: {
+    readonly widthPoints: number;
+    readonly heightPoints: number;
+  };
+}
+
+export type ReviewPage =
+  | (ReviewPageBase & { readonly selected: false })
+  | (ReviewPageBase & {
+      readonly selected: true;
+      readonly htmlCapture: FileEvidence & {
+        readonly widthPixels: number;
+        readonly heightPixels: number;
+      };
+      readonly pdfCapture?: FileEvidence & {
+        readonly widthPixels: number;
+        readonly heightPixels: number;
+      };
+    });
+
+interface ReviewSummaryBase {
+  readonly report: string;
+  readonly requestedScope: RequestedReviewScope;
+  readonly pdf?: FileEvidence;
+  readonly pages: ReviewPage[];
+  readonly steps: PublishedStep[];
+  readonly warnings: ResultWarning[];
+  readonly timings: StepTiming[];
+}
+
+export type ReviewSummary =
+  | (ReviewSummaryBase & {
+      readonly status: "ok";
+      readonly scope: ScopeAll | HtmlScopePage;
+      readonly html: FileEvidence;
+      readonly manifest: { readonly status: "published" } & FileEvidence;
+    })
+  | (ReviewSummaryBase & {
+      readonly status: "error";
+      readonly scope?: ScopeAll | HtmlScopePage;
+      readonly html?: FileEvidence;
+      readonly manifest: { readonly status: "unchanged"; readonly state: PathState };
+      readonly error: ResultError;
+    });
+
+export interface ReviewManifest {
+  readonly manifestSchemaVersion: 1;
+  readonly resultSchemaVersion: 1;
+  readonly toolVersion: string;
+  readonly report: string;
+  readonly createdAt: string;
+  readonly scope: ScopeAll | HtmlScopePage;
+  readonly html: FileEvidence;
+  readonly pdf?: FileEvidence;
+  readonly pages: ReviewPage[];
+  readonly warnings: ResultWarning[];
+  readonly timings: StepTiming[];
+}
+
 export interface ReportState {
   readonly name: string;
   readonly source: PathState;
@@ -175,19 +257,20 @@ export type CommandResult =
   | { readonly kind: "home"; readonly projectRoot: string; readonly reports: ReportState[] }
   | HelpResult
   | ProjectChangeResult
+  | { readonly kind: "report"; readonly report: ReportState }
   | { readonly kind: "build"; readonly report: string; readonly html: FileEvidence }
   | { readonly kind: "inspect"; readonly html: FileEvidence; readonly pages: InspectedHtmlPage[] }
   | {
       readonly kind: "capture";
-      readonly report: string;
+      readonly report?: string;
       readonly html: FileEvidence;
-      readonly scope: ScopeAll;
+      readonly scope: ScopeAll | HtmlScopePage;
       readonly output: PathState;
       readonly pages: CapturedHtmlPage[];
     }
   | {
       readonly kind: "export";
-      readonly report: string;
+      readonly report?: string;
       readonly html: FileEvidence;
       readonly pdf: FileEvidence;
       readonly pages: ExportedPdfPage[];
@@ -196,9 +279,17 @@ export type CommandResult =
       readonly kind: "inspect-pdf";
       readonly report?: string;
       readonly pdf: FileEvidence;
-      readonly scope: ScopeAll;
+      readonly scope: ScopeAll | PdfScopePage;
       readonly output: PathState;
       readonly pages: CapturedPdfPage[];
+    }
+  | { readonly kind: "review"; readonly reports: ReviewSummary[] };
+
+export type PartialCommandResult =
+  | ProjectChangeFailure
+  | {
+      readonly kind: "review";
+      readonly reports: ReviewSummary[];
     };
 
 export interface ResultEnvelopeBase {
@@ -215,7 +306,7 @@ export type ResultEnvelope =
   | (ResultEnvelopeBase & {
       readonly status: "error";
       readonly error: ResultError;
-      readonly result?: ProjectChangeFailure;
+      readonly result?: PartialCommandResult;
     });
 
 export function successEnvelope(
@@ -226,7 +317,7 @@ export function successEnvelope(
 ): ResultEnvelope {
   return {
     resultSchemaVersion: 1,
-    toolVersion: packageJson.version,
+    toolVersion,
     command,
     status: "ok",
     result,
@@ -241,11 +332,11 @@ export function errorEnvelope(
   error: ResultError,
   evidence: ExecutionEvidence,
   help: readonly string[] = [],
-  result?: ProjectChangeFailure,
+  result?: PartialCommandResult,
 ): ResultEnvelope {
   return {
     resultSchemaVersion: 1,
-    toolVersion: packageJson.version,
+    toolVersion,
     command,
     status: "error",
     error,
@@ -295,33 +386,14 @@ export const pathState = Effect.fn("results.pathState")(function* (
   } satisfies PresentPathState;
 });
 
-/** Derives a stable manifest location without invalidating an existing v1 path. */
-export function reviewManifestPath(config: ProjectConfig, report: ReportConfig): string {
-  const occupied = Object.values(config.reports).flatMap((entry) => [
-    entry.sourcePath,
-    entry.htmlPath,
-    entry.pdfPath,
-    entry.captureDirectory,
-    entry.pdfCaptureDirectory,
-  ]);
-  const stem = report.htmlPath.replace(/\.html$/, ".review");
-  for (let suffix = 1; ; suffix += 1) {
-    const candidate = `${stem}${suffix === 1 ? "" : `-${suffix}`}.json`;
-    if (occupied.every((path) => !pathsOverlap(candidate, path))) return candidate;
-  }
-}
-
-export const reportState = Effect.fn("results.reportState")(function* (
-  config: ProjectConfig,
-  report: ReportConfig,
-) {
+export const reportState = Effect.fn("results.reportState")(function* (report: ReportConfig) {
   const [source, html, pdf, captures, pdfCaptures, manifest] = yield* Effect.all([
     pathState(report.sourcePath, "file"),
     pathState(report.htmlPath, "file"),
     pathState(report.pdfPath, "file"),
     pathState(report.captureDirectory, "directory"),
     pathState(report.pdfCaptureDirectory, "directory"),
-    pathState(reviewManifestPath(config, report), "file"),
+    pathState(report.manifestPath, "file"),
   ]);
   return { name: report.name, source, html, pdf, captures, pdfCaptures, manifest };
 });

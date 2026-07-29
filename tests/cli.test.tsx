@@ -6,6 +6,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   realpath,
   rm,
   symlink,
@@ -1528,7 +1529,7 @@ test("CLI inspection accepts a standalone artifact without project configuration
   const artifactPath = resolve(directory, "existing report.html");
   await writeFile(
     artifactPath,
-    '<!doctype html><html><body><article data-unslide-page="only">Only</article></body></html>',
+    '<!doctype html><html><head><meta name="unslide-protocol" content="1"><style>@page{size:320px 180px;margin:0}body{margin:0}[data-unslide-page]{width:320px;height:180px}</style></head><body><article data-unslide-page="only">Only</article></body></html>',
   );
 
   try {
@@ -1539,8 +1540,194 @@ test("CLI inspection accepts a standalone artifact without project configuration
       (((result.value.result as Record<string, unknown>).pages as unknown[]) ?? []).length,
       1,
     );
+
+    const aliasPath = resolve(directory, "artifact alias");
+    await symlink(".", aliasPath);
+    const overlapping = await runCli(
+      ["capture", "--artifact", artifactPath, "--output", aliasPath, "--format", "json"],
+      directory,
+    );
+    assert.equal(overlapping.exitCode, 1);
+    assert.match(String((overlapping.value.error as Record<string, unknown>).detail), /overlaps/);
+
+    const captures = resolve(directory, "standalone captures");
+    const capture = await runCli(
+      [
+        "capture",
+        "--artifact",
+        artifactPath,
+        "--output",
+        captures,
+        "--page-id",
+        "only",
+        "--format",
+        "json",
+      ],
+      directory,
+    );
+    assert.equal(capture.exitCode, 0, capture.stdout);
+    assert.deepEqual(await readdir(captures), ["page-01.png"]);
+
+    const pdfPath = resolve(directory, "standalone report.pdf");
+    const exported = await runCli(
+      ["export", "--artifact", artifactPath, "--output", pdfPath, "--format", "json"],
+      directory,
+    );
+    assert.equal(exported.exitCode, 0, exported.stdout);
+    assert.equal((await readFile(pdfPath)).subarray(0, 5).toString(), "%PDF-");
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("Goal 4 report, focused primitives, and review publish trustworthy scoped evidence", async () => {
+  const projectRoot = await createProject("unslide goal 4 review ", 2);
+  const htmlPath = resolve(projectRoot, "generated output", "report file.html");
+  const pdfPath = resolve(projectRoot, "generated output", "report file.pdf");
+  const captures = resolve(projectRoot, "captured pages");
+  const pdfCaptures = resolve(projectRoot, "captured pages-pdf");
+  const manifestPath = resolve(projectRoot, "generated output", "report file.review.json");
+
+  try {
+    const state = await runCli(["report", "fixture", "--format", "json"], projectRoot);
+    assert.equal(state.exitCode, 0, state.stdout);
+    const report = (state.value.result as Record<string, unknown>).report as Record<
+      string,
+      unknown
+    >;
+    assert.equal((report.html as Record<string, unknown>).exists, false);
+    assert.equal((report.manifest as Record<string, unknown>).path, manifestPath);
+
+    assert.equal((await runCli(["build", "fixture"], projectRoot)).exitCode, 0);
+    assert.equal((await runCli(["capture", "fixture"], projectRoot)).exitCode, 0);
+    await writeFile(resolve(captures, "keep.txt"), "unmanaged");
+    const focusedCapture = await runCli(
+      ["capture", "fixture", "--page-number", "2", "--format", "json"],
+      projectRoot,
+    );
+    assert.equal(focusedCapture.exitCode, 0, focusedCapture.stdout);
+    assert.deepEqual((await readdir(captures)).sort(), ["keep.txt", "page-02.png"]);
+    assert.deepEqual(
+      (
+        (focusedCapture.value.result as Record<string, unknown>).pages as Array<
+          Record<string, unknown>
+        >
+      ).map((page) => [page.id, page.number]),
+      [["fixture-2", 2]],
+    );
+
+    assert.equal((await runCli(["export", "fixture"], projectRoot)).exitCode, 0);
+    assert.equal((await runCli(["inspect-pdf", "fixture"], projectRoot)).exitCode, 0);
+    const focusedPdf = await runCli(
+      ["inspect-pdf", "fixture", "--page-number", "2", "--format", "json"],
+      projectRoot,
+    );
+    assert.equal(focusedPdf.exitCode, 0, focusedPdf.stdout);
+    assert.deepEqual(await readdir(pdfCaptures), ["page-02.png"]);
+    const priorPdf = await readFile(pdfPath);
+    const priorPdfCapture = await readFile(resolve(pdfCaptures, "page-02.png"));
+
+    const htmlReview = await runCli(
+      ["review", "fixture", "--page-id", "fixture-2", "--format", "json"],
+      projectRoot,
+    );
+    assert.equal(htmlReview.exitCode, 0, htmlReview.stdout);
+    assert.deepEqual(await readFile(pdfPath), priorPdf);
+    assert.deepEqual(await readFile(resolve(pdfCaptures, "page-02.png")), priorPdfCapture);
+    const htmlManifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(htmlManifest.pdf, undefined);
+    assert.deepEqual(htmlManifest.scope, { kind: "page", id: "fixture-2", number: 2 });
+    const htmlPages = htmlManifest.pages as Array<Record<string, unknown>>;
+    assert.deepEqual(
+      htmlPages.map((page) => page.selected),
+      [false, true],
+    );
+    assert.equal(htmlPages[0]?.htmlCapture, undefined);
+    assert.ok(htmlPages[1]?.htmlCapture);
+
+    const pdfReview = await runCli(
+      ["review", "fixture", "--page-id", "fixture-2", "--pdf", "--format", "json"],
+      projectRoot,
+    );
+    assert.equal(pdfReview.exitCode, 0, pdfReview.stdout);
+    const pdfManifestBytes = await readFile(manifestPath);
+    const pdfManifest = JSON.parse(pdfManifestBytes.toString()) as Record<string, unknown>;
+    assert.ok(pdfManifest.pdf);
+    const pdfPages = pdfManifest.pages as Array<Record<string, unknown>>;
+    assert.ok(pdfPages.every((page) => page.pdfGeometry));
+    assert.ok(pdfPages[1]?.pdfCapture);
+    assert.deepEqual(await readdir(pdfCaptures), ["page-02.png"]);
+
+    const invalid = await runCli(
+      ["review", "fixture", "--page-id", "missing", "--format", "json"],
+      projectRoot,
+    );
+    assert.equal(invalid.exitCode, 2, invalid.stdout);
+    assert.deepEqual(await readFile(manifestPath), pdfManifestBytes);
+    const partial = invalid.value.result as Record<string, unknown>;
+    const failed = (partial.reports as Array<Record<string, unknown>>)[0] as Record<
+      string,
+      unknown
+    >;
+    assert.equal(failed.status, "error");
+    assert.deepEqual(failed.requestedScope, { kind: "page-id", id: "missing" });
+    assert.equal((failed.manifest as Record<string, unknown>).status, "unchanged");
+    assert.deepEqual(
+      (failed.steps as Array<Record<string, unknown>>).map((step) => [
+        step.step,
+        step.status,
+        step.published,
+      ]),
+      [
+        ["report.build", "completed", true],
+        ["html.inspect", "failed", false],
+      ],
+    );
+    assert.match(await readFile(htmlPath, "utf8"), /fixture-2/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("review --all runs reports lexically and continues after a report failure", async () => {
+  const projectRoot = await createProject("unslide goal 4 all reports ", 1);
+  const source = "source files/report.tsx";
+  await writeFile(
+    resolve(projectRoot, "unslide.json"),
+    JSON.stringify({
+      version: 1,
+      reports: {
+        zeta: { source },
+        alpha: { source: "missing.tsx" },
+      },
+    }),
+  );
+
+  try {
+    const reviewed = await runCli(["review", "--all", "--format", "json"], projectRoot);
+    assert.equal(reviewed.exitCode, 1, reviewed.stdout);
+    assert.equal(reviewed.value.status, "error");
+    const summaries = (reviewed.value.result as Record<string, unknown>).reports as Array<
+      Record<string, unknown>
+    >;
+    assert.deepEqual(
+      summaries.map((summary) => [summary.report, summary.status]),
+      [
+        ["alpha", "error"],
+        ["zeta", "ok"],
+      ],
+    );
+    const alpha = summaries[0] as Record<string, unknown>;
+    assert.equal(
+      ((alpha.manifest as Record<string, unknown>).state as Record<string, unknown>).exists,
+      false,
+    );
+    await access(resolve(projectRoot, "artifacts", "zeta.review.json"));
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
   }
 });
 
