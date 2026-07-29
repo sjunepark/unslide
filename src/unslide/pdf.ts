@@ -1,11 +1,12 @@
-import { randomUUID } from "node:crypto";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { Data, Effect, FileSystem, Path } from "effect";
+import { Data, Effect, FileSystem } from "effect";
 import { ArtifactOperationFailure, withLoadedArtifact } from "./browser.js";
 import { errorMessage, mapCommandFailure } from "./failures.js";
+import { publishFileAtomically } from "./file-publication.js";
 import { onceAsync, scoped } from "./lifecycle.js";
 import { logDebug, withLogPhase } from "./logging.js";
 import { PAGE_MARKER_SELECTOR } from "./protocol.js";
+import { validateArtifactOutputPaths } from "./artifact-paths.js";
 
 // Chromium quantizes CSS print geometry below one point; observed absolute
 // lengths can differ from their mathematical conversion by just over 0.5pt.
@@ -409,9 +410,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
   output: string,
 ) {
   const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const inputPath = path.resolve(input);
-  const outputPath = path.resolve(output);
+  const { inputPath, outputPath } = yield* validateArtifactOutputPaths("export", input, output);
   const context = { artifact: "html", command: "export", path: inputPath } as const;
 
   const printed = yield* mapCommandFailure(
@@ -552,27 +551,10 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
     "pdf.validate",
     { pageCount: printed.expectedPageCount, path: outputPath },
   );
-  const outputDirectory = path.dirname(outputPath);
-  const stagingPath = path.resolve(
-    outputDirectory,
-    `.unslide-pdf-${randomUUID()}-${path.basename(outputPath)}`,
-  );
   yield* withLogPhase(
     mapCommandFailure(
-      scoped(
-        Effect.gen(function* () {
-          yield* fs.makeDirectory(outputDirectory, { recursive: true });
-          const staging = yield* Effect.acquireRelease(
-            Effect.succeed({ cleanup: true }),
-            (state) =>
-              state.cleanup
-                ? fs.remove(stagingPath, { force: true }).pipe(Effect.orDie)
-                : Effect.void,
-          );
-          yield* fs.writeFile(stagingPath, printed.bytes, { flag: "wx" });
-          yield* fs.rename(stagingPath, outputPath);
-          staging.cleanup = false;
-        }),
+      publishFileAtomically(outputPath, (stagingPath) =>
+        fs.writeFile(stagingPath, printed.bytes, { flag: "wx" }),
       ),
       context,
     ),

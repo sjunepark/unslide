@@ -29,7 +29,10 @@ export interface ReportConfig {
   pdfPath: string;
   captureDirectory: string;
   pdfCaptureDirectory: string;
+  manifestPath: string;
 }
+
+type ReportConfigWithoutManifest = Omit<ReportConfig, "manifestPath">;
 
 export interface ProjectConfig {
   version: 1;
@@ -159,6 +162,63 @@ const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* 
   return canonicalPath;
 });
 
+interface CanonicalSourcePath {
+  readonly reportName: string;
+  readonly path: string;
+}
+
+interface CanonicalOutputPath extends CanonicalSourcePath {
+  readonly field: string;
+}
+
+const validateReportPathOverlaps = Effect.fn("config.validateReportPathOverlaps")(function* (
+  configPath: string,
+  sources: readonly CanonicalSourcePath[],
+  outputs: readonly CanonicalOutputPath[],
+) {
+  for (const output of outputs) {
+    for (const source of sources) {
+      if (pathsOverlap(output.path, source.path)) {
+        return yield* new ProjectConfigFailure({
+          message: `Report "${output.reportName}" field "${output.field}" overlaps report "${source.reportName}" source: ${source.path}`,
+          path: configPath,
+          phase: "validate",
+        });
+      }
+    }
+  }
+  for (const [index, output] of outputs.entries()) {
+    for (const other of outputs.slice(index + 1)) {
+      if (pathsOverlap(output.path, other.path)) {
+        return yield* new ProjectConfigFailure({
+          message: `Report "${output.reportName}" field "${output.field}" overlaps report "${other.reportName}" field "${other.field}".`,
+          path: configPath,
+          phase: "validate",
+        });
+      }
+    }
+  }
+});
+
+const canonicalManifestCandidate = Effect.fn("config.canonicalManifestCandidate")(function* (
+  configPath: string,
+  projectRoot: string,
+  manifestPath: string,
+) {
+  const canonicalPath = yield* Effect.tryPromise({
+    try: () => canonicalizeThroughExistingAncestor(manifestPath),
+    catch: (cause) => nodeFailure(cause, configPath, "resolve"),
+  });
+  const canonicalRoot = yield* Effect.tryPromise({
+    try: () => realpath(projectRoot),
+    catch: (cause) => nodeFailure(cause, configPath, "resolve"),
+  });
+  const relativePath = relative(canonicalRoot, canonicalPath);
+  return relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)
+    ? undefined
+    : canonicalPath;
+});
+
 export const validateProjectConfigContents = Effect.fn("config.validateProjectConfigContents")(
   function* (configPath: string, configText: string) {
     const projectRoot = dirname(configPath);
@@ -213,8 +273,8 @@ export const validateProjectConfigContents = Effect.fn("config.validateProjectCo
       });
     }
 
-    const reports: Record<string, ReportConfig> = {};
-    const canonicalReports: Record<string, ReportConfig> = {};
+    const reports: Record<string, ReportConfigWithoutManifest> = {};
+    const canonicalReports: Record<string, ReportConfigWithoutManifest> = {};
     for (const [name, report] of Object.entries(configJson.reports)) {
       const html = report.html ?? `artifacts/${name}.html`;
       const captures = report.captures ?? `.tmp/captures/${name}`;
@@ -286,42 +346,64 @@ export const validateProjectConfigContents = Effect.fn("config.validateProjectCo
       };
     }
 
-    const sources = Object.values(canonicalReports).map((report) => ({
+    const versionOneSources = Object.values(canonicalReports).map((report) => ({
       reportName: report.name,
       path: report.sourcePath,
     }));
-    const outputs = Object.values(canonicalReports).flatMap((report) => [
+    const versionOneOutputs = Object.values(canonicalReports).flatMap((report) => [
       { reportName: report.name, field: "html", path: report.htmlPath },
       { reportName: report.name, field: "pdf", path: report.pdfPath },
       { reportName: report.name, field: "captures", path: report.captureDirectory },
       { reportName: report.name, field: "pdfCaptures", path: report.pdfCaptureDirectory },
     ]);
+    yield* validateReportPathOverlaps(configPath, versionOneSources, versionOneOutputs);
 
-    for (const output of outputs) {
-      for (const source of sources) {
-        if (pathsOverlap(output.path, source.path)) {
-          return yield* new ProjectConfigFailure({
-            message: `Report "${output.reportName}" field "${output.field}" overlaps report "${source.reportName}" source: ${source.path}`,
-            path: configPath,
-            phase: "validate",
-          });
+    const occupiedCanonicalPaths = Object.values(canonicalReports).flatMap((report) => [
+      report.sourcePath,
+      report.htmlPath,
+      report.pdfPath,
+      report.captureDirectory,
+      report.pdfCaptureDirectory,
+    ]);
+    const resolvedReports: Record<string, ReportConfig> = {};
+    const resolvedCanonicalReports: Record<string, ReportConfig> = {};
+    for (const report of Object.values(reports)) {
+      const stem = report.htmlPath.replace(/\.html$/, ".review");
+      for (let suffix = 1; ; suffix += 1) {
+        const manifestPath = `${stem}${suffix === 1 ? "" : `-${suffix}`}.json`;
+        const canonicalManifestPath = yield* canonicalManifestCandidate(
+          configPath,
+          projectRoot,
+          manifestPath,
+        );
+        if (!canonicalManifestPath) continue;
+        if (occupiedCanonicalPaths.every((path) => !pathsOverlap(canonicalManifestPath, path))) {
+          resolvedReports[report.name] = { ...report, manifestPath };
+          resolvedCanonicalReports[report.name] = {
+            ...(canonicalReports[report.name] as ReportConfigWithoutManifest),
+            manifestPath: canonicalManifestPath,
+          };
+          occupiedCanonicalPaths.push(canonicalManifestPath);
+          break;
         }
       }
     }
 
-    for (const [index, output] of outputs.entries()) {
-      for (const other of outputs.slice(index + 1)) {
-        if (pathsOverlap(output.path, other.path)) {
-          return yield* new ProjectConfigFailure({
-            message: `Report "${output.reportName}" field "${output.field}" overlaps report "${other.reportName}" field "${other.field}".`,
-            path: configPath,
-            phase: "validate",
-          });
-        }
-      }
-    }
+    const sources = Object.values(resolvedCanonicalReports).map((report) => ({
+      reportName: report.name,
+      path: report.sourcePath,
+    }));
+    const outputs = Object.values(resolvedCanonicalReports).flatMap((report) => [
+      { reportName: report.name, field: "html", path: report.htmlPath },
+      { reportName: report.name, field: "pdf", path: report.pdfPath },
+      { reportName: report.name, field: "captures", path: report.captureDirectory },
+      { reportName: report.name, field: "pdfCaptures", path: report.pdfCaptureDirectory },
+      { reportName: report.name, field: "manifest", path: report.manifestPath },
+    ]);
 
-    return { version: 1 as const, configPath, projectRoot, reports };
+    yield* validateReportPathOverlaps(configPath, sources, outputs);
+
+    return { version: 1 as const, configPath, projectRoot, reports: resolvedReports };
   },
 );
 

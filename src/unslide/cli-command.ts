@@ -8,12 +8,18 @@ export type CommandName =
   | "help"
   | "init"
   | "add"
+  | "report"
   | "build"
   | "inspect"
   | "capture"
   | "export"
   | "inspect-pdf"
+  | "review"
   | "unknown";
+
+export type HtmlPageSelector =
+  | { readonly kind: "page-id"; readonly id: string }
+  | { readonly kind: "page-number"; readonly number: number };
 
 export interface HelpResult {
   readonly kind: "help";
@@ -43,6 +49,7 @@ export type ParsedCommand =
       readonly starter: Starter;
       readonly write: boolean;
     }
+  | { readonly kind: "report"; readonly report: string }
   | { readonly kind: "build"; readonly report: string }
   | {
       readonly kind: "inspect";
@@ -51,16 +58,42 @@ export type ParsedCommand =
         | { readonly kind: "report"; readonly report: string }
         | { readonly kind: "artifact"; readonly path: string };
     }
-  | { readonly kind: "capture"; readonly full: boolean; readonly report: string }
-  | { readonly kind: "export"; readonly full: boolean; readonly report: string }
+  | {
+      readonly kind: "capture";
+      readonly full: boolean;
+      readonly selector?: HtmlPageSelector;
+      readonly target:
+        | { readonly kind: "report"; readonly report: string }
+        | { readonly kind: "artifact"; readonly path: string; readonly output: string };
+    }
+  | {
+      readonly kind: "export";
+      readonly full: boolean;
+      readonly target:
+        | { readonly kind: "report"; readonly report: string }
+        | { readonly kind: "artifact"; readonly path: string; readonly output: string };
+    }
   | {
       readonly kind: "inspect-pdf";
+      readonly pageNumber?: number;
       readonly target:
         | { readonly kind: "report"; readonly report: string }
         | {
             readonly kind: "artifact";
             readonly path: string;
             readonly output: string;
+          };
+    }
+  | {
+      readonly kind: "review";
+      readonly full: boolean;
+      readonly pdf: boolean;
+      readonly target:
+        | { readonly kind: "all" }
+        | {
+            readonly kind: "report";
+            readonly report: string;
+            readonly selector?: HtmlPageSelector;
           };
     };
 
@@ -97,11 +130,13 @@ const LOG_LEVELS = new Set<CliLogLevel>(["off", "info", "debug"]);
 const COMMAND_NAMES = new Set<CommandName>([
   "init",
   "add",
+  "report",
   "build",
   "inspect",
   "capture",
   "export",
   "inspect-pdf",
+  "review",
 ]);
 
 function isReportName(value: string): boolean {
@@ -272,16 +307,27 @@ export function topHelp(invocation: string): HelpResult {
     commands: [
       { command: "init", description: "Plan or create a report project" },
       { command: "add <name>", description: "Plan or add a report to an existing project" },
+      { command: "report <name>", description: "Show resolved state for one report" },
       { command: "build <name>", description: "Build a named report to standalone HTML" },
       { command: "inspect <name>", description: "Validate a named report HTML artifact" },
       { command: "inspect --artifact <html>", description: "Validate standalone HTML" },
       { command: "capture <name>", description: "Capture a named report HTML pages" },
+      {
+        command: "capture --artifact <html> --output <directory>",
+        description: "Capture standalone HTML pages",
+      },
       { command: "export <name>", description: "Export a named report HTML to PDF" },
+      {
+        command: "export --artifact <html> --output <pdf>",
+        description: "Export standalone HTML to PDF",
+      },
       { command: "inspect-pdf <name>", description: "Render a named report PDF to images" },
       {
         command: "inspect-pdf --artifact <pdf> --output <directory>",
         description: "Render a standalone PDF to images",
       },
+      { command: "review <name>", description: "Build and review one configured report" },
+      { command: "review --all", description: "Build and review every configured report" },
     ],
     examples: [`${invocation} init`, `${invocation} build report`, `${invocation} --help`],
   };
@@ -357,6 +403,10 @@ export function commandHelp(
           flag: "--output <directory>",
           description: "Write standalone PDF page images to this directory",
         },
+        {
+          flag: "--page-number <number>",
+          description: "Rasterize one one-based PDF page after validating the complete PDF",
+        },
         helpFlag(),
         ...globals,
       ],
@@ -366,11 +416,59 @@ export function commandHelp(
       ],
     };
   }
-  const flags = [
-    ...(command === "capture" || command === "export" ? [fullFlag()] : []),
-    helpFlag(),
-    ...globals,
-  ];
+  if (command === "capture") {
+    return {
+      kind: "help",
+      usage: `${invocation} capture <name> | ${invocation} capture --artifact <html> --output <directory>`,
+      flags: [
+        { flag: "--artifact <html>", description: "Capture standalone HTML" },
+        { flag: "--output <directory>", description: "Write standalone page images here" },
+        { flag: "--page-id <id>", description: "Capture one page by protocol ID" },
+        { flag: "--page-number <number>", description: "Capture one one-based page" },
+        fullFlag(),
+        helpFlag(),
+        ...globals,
+      ],
+      examples: [
+        `${invocation} capture report`,
+        `${invocation} capture --artifact artifacts/report.html --output .tmp/captures/report`,
+      ],
+    };
+  }
+  if (command === "export") {
+    return {
+      kind: "help",
+      usage: `${invocation} export <name> | ${invocation} export --artifact <html> --output <pdf>`,
+      flags: [
+        { flag: "--artifact <html>", description: "Export standalone HTML" },
+        { flag: "--output <pdf>", description: "Publish the validated PDF here" },
+        fullFlag(),
+        helpFlag(),
+        ...globals,
+      ],
+      examples: [
+        `${invocation} export report`,
+        `${invocation} export --artifact artifacts/report.html --output artifacts/report.pdf`,
+      ],
+    };
+  }
+  if (command === "review") {
+    return {
+      kind: "help",
+      usage: `${invocation} review <name> | ${invocation} review --all`,
+      flags: [
+        { flag: "--all", description: "Review every configured report in lexical order" },
+        { flag: "--page-id <id>", description: "Review one page by protocol ID" },
+        { flag: "--page-number <number>", description: "Review one one-based page" },
+        { flag: "--pdf", description: "Also export, validate, and inspect PDF" },
+        fullFlag(),
+        helpFlag(),
+        ...globals,
+      ],
+      examples: [`${invocation} review report`, `${invocation} review --all --pdf`],
+    };
+  }
+  const flags = [helpFlag(), ...globals];
   return {
     kind: "help",
     usage: `${invocation} ${command} <name>`,
@@ -420,21 +518,17 @@ function helpCount(argv: readonly string[]): number {
 function parseSimpleReportCommand(
   argv: readonly string[],
   invocation: string,
-  command: "build" | "capture" | "export",
+  command: "report" | "build",
 ): CommandParseResult {
   const help = commandHelp(invocation, command);
-  const allowed = new Set(["--help", ...(command === "build" ? [] : ["--full"])]);
+  const allowed = new Set(["--help"]);
   const unknown = argv
     .slice(1)
     .find((argument) => argument.startsWith("-") && !allowed.has(argument));
   if (unknown)
     return parseFailure(command, `Unknown flag ${JSON.stringify(unknown)} for ${command}.`, help);
   if (helpCount(argv) > 1) return parseFailure(command, "--help may be provided only once.", help);
-  const fullCount = argv.filter((argument) => argument === "--full").length;
-  if (fullCount > 1) return parseFailure(command, "--full may be provided only once.", help);
-  const positionals = argv
-    .slice(1)
-    .filter((argument) => argument !== "--help" && argument !== "--full");
+  const positionals = argv.slice(1).filter((argument) => argument !== "--help");
   if (positionals.length > 1) {
     return parseFailure(
       command,
@@ -446,13 +540,7 @@ function parseSimpleReportCommand(
   if (report && !isReportName(report)) return invalidReportName(command, report, help);
   if (argv.includes("--help")) return { ok: true, value: { kind: "help", help } };
   if (!report) return parseFailure(command, `${command} requires exactly one report name.`, help);
-  return {
-    ok: true,
-    value:
-      command === "build"
-        ? { kind: command, report }
-        : { kind: command, report, full: fullCount === 1 },
-  };
+  return { ok: true, value: { kind: command, report } };
 }
 
 function parseInit(argv: readonly string[], invocation: string): CommandParseResult {
@@ -611,71 +699,312 @@ function parseInspect(argv: readonly string[], invocation: string): CommandParse
   };
 }
 
-function parseInspectPdf(argv: readonly string[], invocation: string): CommandParseResult {
-  const help = commandHelp(invocation, "inspect-pdf");
-  const allowed = new Set(["--artifact", "--output", "--help"]);
-  const unknown = argv
-    .slice(1)
-    .find((argument) => argument.startsWith("-") && !allowed.has(argument));
-  if (unknown)
-    return parseFailure(
-      "inspect-pdf",
-      `Unknown flag ${JSON.stringify(unknown)} for inspect-pdf.`,
-      help,
-    );
-  if (helpCount(argv) > 1)
-    return parseFailure("inspect-pdf", "--help may be provided only once.", help);
+interface ScannedCommandArguments {
+  readonly booleans: ReadonlySet<string>;
+  readonly missing: ReadonlySet<string>;
+  readonly positionals: readonly string[];
+  readonly seen: ReadonlySet<string>;
+  readonly values: ReadonlyMap<string, string>;
+}
 
-  const valueFlags = ["--artifact", "--output"] as const;
-  const values = new Map<(typeof valueFlags)[number], string>();
+function scanCommandArguments(
+  argv: readonly string[],
+  command: CommandName,
+  help: HelpResult,
+  valueFlags: ReadonlySet<string>,
+  booleanFlags: ReadonlySet<string>,
+):
+  | { readonly ok: true; readonly value: ScannedCommandArguments }
+  | { readonly ok: false; readonly result: CommandParseResult } {
+  const known = new Set([...valueFlags, ...booleanFlags]);
   const seen = new Set<string>();
   const missing = new Set<string>();
-  const consumed = new Set<number>([0]);
+  const values = new Map<string, string>();
+  const booleans = new Set<string>();
+  const positionals: string[] = [];
   for (let index = 1; index < argv.length; index += 1) {
     const argument = argv[index] as string;
-    if (argument === "--help") {
-      consumed.add(index);
+    if (known.has(argument)) {
+      if (seen.has(argument)) {
+        return {
+          ok: false,
+          result: parseFailure(command, `${argument} may be provided only once.`, help),
+        };
+      }
+      seen.add(argument);
+      if (booleanFlags.has(argument)) {
+        booleans.add(argument);
+        continue;
+      }
+      const value = argv[index + 1];
+      if (value === undefined || known.has(value)) {
+        missing.add(argument);
+        continue;
+      }
+      values.set(argument, value);
+      index += 1;
       continue;
     }
-    if (argument === "--artifact" || argument === "--output") {
-      if (seen.has(argument))
-        return parseFailure("inspect-pdf", `${argument} may be provided only once.`, help);
-      seen.add(argument);
-      consumed.add(index);
-      const value = argv[index + 1];
-      if (!value || value.startsWith("-")) {
-        missing.add(argument);
-      } else {
-        values.set(argument, value);
-        consumed.add(index + 1);
-        index += 1;
-      }
+    if (argument.startsWith("-")) {
+      return {
+        ok: false,
+        result: parseFailure(
+          command,
+          `Unknown flag ${JSON.stringify(argument)} for ${command}.`,
+          help,
+        ),
+      };
     }
+    positionals.push(argument);
   }
-  const positionals = argv.filter((_, index) => !consumed.has(index));
-  if (positionals.length > 1) {
+  return { ok: true, value: { booleans, missing, positionals, seen, values } };
+}
+
+function parsePageNumber(
+  command: CommandName,
+  value: string | undefined,
+  help: HelpResult,
+):
+  | { readonly ok: true; readonly number?: number }
+  | { readonly ok: false; result: CommandParseResult } {
+  if (value === undefined) return { ok: true };
+  if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) {
+    return {
+      ok: false,
+      result: parseFailure(
+        command,
+        `Invalid page number ${JSON.stringify(value)}; expected a positive one-based integer.`,
+        help,
+      ),
+    };
+  }
+  return { ok: true, number: Number(value) };
+}
+
+function parsedHtmlSelector(
+  command: CommandName,
+  scanned: ScannedCommandArguments,
+  help: HelpResult,
+):
+  | { readonly ok: true; readonly selector?: HtmlPageSelector }
+  | { readonly ok: false; readonly result: CommandParseResult } {
+  if (scanned.seen.has("--page-id") && scanned.seen.has("--page-number")) {
+    return {
+      ok: false,
+      result: parseFailure(command, "Use either --page-id or --page-number, not both.", help),
+    };
+  }
+  const pageId = scanned.values.get("--page-id");
+  if (pageId !== undefined) {
+    if (pageId.length === 0) {
+      return {
+        ok: false,
+        result: parseFailure(command, "--page-id requires a non-empty page ID.", help),
+      };
+    }
+    return { ok: true, selector: { kind: "page-id", id: pageId } };
+  }
+  const pageNumber = parsePageNumber(command, scanned.values.get("--page-number"), help);
+  if (!pageNumber.ok) return pageNumber;
+  return pageNumber.number === undefined
+    ? { ok: true }
+    : { ok: true, selector: { kind: "page-number", number: pageNumber.number } };
+}
+
+function firstMissing(scanned: ScannedCommandArguments): string | undefined {
+  return [...scanned.missing][0];
+}
+
+function parseCaptureOrExport(
+  argv: readonly string[],
+  invocation: string,
+  command: "capture" | "export",
+): CommandParseResult {
+  const help = commandHelp(invocation, command);
+  const valueFlags = new Set([
+    "--artifact",
+    "--output",
+    ...(command === "capture" ? ["--page-id", "--page-number"] : []),
+  ]);
+  const scanned = scanCommandArguments(
+    argv,
+    command,
+    help,
+    valueFlags,
+    new Set(["--full", "--help"]),
+  );
+  if (!scanned.ok) return scanned.result;
+  const args = scanned.value;
+  if (args.positionals.length > 1) {
     return parseFailure(
-      "inspect-pdf",
-      `Unexpected argument ${JSON.stringify(positionals[1])} for inspect-pdf.`,
+      command,
+      `Unexpected argument ${JSON.stringify(args.positionals[1])} for ${command}.`,
       help,
     );
   }
-  if (positionals.length === 1 && seen.size > 0) {
+  if (args.positionals.length === 1 && (args.seen.has("--artifact") || args.seen.has("--output"))) {
+    return parseFailure(
+      command,
+      `${command} accepts either one report name or explicit artifact flags, not both.`,
+      help,
+    );
+  }
+  const report = args.positionals[0];
+  if (report && !isReportName(report)) return invalidReportName(command, report, help);
+  const selector = command === "capture" ? parsedHtmlSelector(command, args, help) : undefined;
+  if (selector && !selector.ok) return selector.result;
+  const artifact = args.values.get("--artifact");
+  const output = args.values.get("--output");
+  if (command === "export" && artifact !== undefined && !artifact.toLowerCase().endsWith(".html")) {
+    return parseFailure("export", "Standalone export input must use the .html extension.", help);
+  }
+  if (command === "export" && output !== undefined && !output.toLowerCase().endsWith(".pdf")) {
+    return parseFailure("export", "Standalone export output must use the .pdf extension.", help);
+  }
+  if (args.booleans.has("--help")) return { ok: true, value: { kind: "help", help } };
+  const missing = firstMissing(args);
+  if (missing) return parseFailure(command, `${missing} requires one value.`, help);
+  if (artifact || output) {
+    if (!artifact || !output) {
+      return parseFailure(command, `Explicit ${command} requires --artifact and --output.`, help);
+    }
+    if (command === "capture") {
+      return {
+        ok: true,
+        value: {
+          kind: "capture",
+          full: args.booleans.has("--full"),
+          ...(selector?.ok && selector.selector ? { selector: selector.selector } : {}),
+          target: { kind: "artifact", path: artifact, output },
+        },
+      };
+    }
+    return {
+      ok: true,
+      value: {
+        kind: "export",
+        full: args.booleans.has("--full"),
+        target: { kind: "artifact", path: artifact, output },
+      },
+    };
+  }
+  if (!report)
+    return parseFailure(command, `${command} requires a report name or artifact flags.`, help);
+  if (command === "capture") {
+    return {
+      ok: true,
+      value: {
+        kind: "capture",
+        full: args.booleans.has("--full"),
+        ...(selector?.ok && selector.selector ? { selector: selector.selector } : {}),
+        target: { kind: "report", report },
+      },
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      kind: "export",
+      full: args.booleans.has("--full"),
+      target: { kind: "report", report },
+    },
+  };
+}
+
+function parseReview(argv: readonly string[], invocation: string): CommandParseResult {
+  const help = commandHelp(invocation, "review");
+  const scanned = scanCommandArguments(
+    argv,
+    "review",
+    help,
+    new Set(["--page-id", "--page-number"]),
+    new Set(["--all", "--pdf", "--full", "--help"]),
+  );
+  if (!scanned.ok) return scanned.result;
+  const args = scanned.value;
+  if (args.positionals.length > 1) {
+    return parseFailure(
+      "review",
+      `Unexpected argument ${JSON.stringify(args.positionals[1])} for review.`,
+      help,
+    );
+  }
+  const report = args.positionals[0];
+  if (report && !isReportName(report)) return invalidReportName("review", report, help);
+  const selector = parsedHtmlSelector("review", args, help);
+  if (!selector.ok) return selector.result;
+  if (args.booleans.has("--all") && report) {
+    return parseFailure(
+      "review",
+      "review accepts either one report name or --all, not both.",
+      help,
+    );
+  }
+  if (
+    args.booleans.has("--all") &&
+    (args.seen.has("--page-id") || args.seen.has("--page-number"))
+  ) {
+    return parseFailure("review", "review --all does not accept a page selector.", help);
+  }
+  if (args.booleans.has("--help")) return { ok: true, value: { kind: "help", help } };
+  const missing = firstMissing(args);
+  if (missing) return parseFailure("review", `${missing} requires one value.`, help);
+  const common = {
+    kind: "review" as const,
+    full: args.booleans.has("--full"),
+    pdf: args.booleans.has("--pdf"),
+  };
+  if (args.booleans.has("--all")) {
+    return { ok: true, value: { ...common, target: { kind: "all" } } };
+  }
+  if (!report) return parseFailure("review", "review requires one report name or --all.", help);
+  return {
+    ok: true,
+    value: {
+      ...common,
+      target: {
+        kind: "report",
+        report,
+        ...(selector.selector ? { selector: selector.selector } : {}),
+      },
+    },
+  };
+}
+
+function parseInspectPdf(argv: readonly string[], invocation: string): CommandParseResult {
+  const help = commandHelp(invocation, "inspect-pdf");
+  const scanned = scanCommandArguments(
+    argv,
+    "inspect-pdf",
+    help,
+    new Set(["--artifact", "--output", "--page-number"]),
+    new Set(["--help"]),
+  );
+  if (!scanned.ok) return scanned.result;
+  const args = scanned.value;
+  if (args.positionals.length > 1) {
+    return parseFailure(
+      "inspect-pdf",
+      `Unexpected argument ${JSON.stringify(args.positionals[1])} for inspect-pdf.`,
+      help,
+    );
+  }
+  if (args.positionals.length === 1 && (args.seen.has("--artifact") || args.seen.has("--output"))) {
     return parseFailure(
       "inspect-pdf",
       "inspect-pdf accepts either one report name or explicit artifact flags, not both.",
       help,
     );
   }
-  const report = positionals[0];
+  const report = args.positionals[0];
   if (report && !isReportName(report)) return invalidReportName("inspect-pdf", report, help);
-  if (argv.includes("--help")) return { ok: true, value: { kind: "help", help } };
-  if (missing.size > 0) {
-    const flag = [...missing][0] as string;
-    return parseFailure("inspect-pdf", `${flag} requires one value.`, help);
-  }
-  const artifact = values.get("--artifact");
-  const output = values.get("--output");
+  const pageNumber = parsePageNumber("inspect-pdf", args.values.get("--page-number"), help);
+  if (!pageNumber.ok) return pageNumber.result;
+  if (args.booleans.has("--help")) return { ok: true, value: { kind: "help", help } };
+  const missing = firstMissing(args);
+  if (missing) return parseFailure("inspect-pdf", `${missing} requires one value.`, help);
+  const artifact = args.values.get("--artifact");
+  const output = args.values.get("--output");
   if (artifact || output) {
     if (!artifact || !output) {
       return parseFailure(
@@ -688,6 +1017,7 @@ function parseInspectPdf(argv: readonly string[], invocation: string): CommandPa
       ok: true,
       value: {
         kind: "inspect-pdf",
+        ...(pageNumber.number === undefined ? {} : { pageNumber: pageNumber.number }),
         target: { kind: "artifact", path: artifact, output },
       },
     };
@@ -699,7 +1029,14 @@ function parseInspectPdf(argv: readonly string[], invocation: string): CommandPa
       help,
     );
   }
-  return { ok: true, value: { kind: "inspect-pdf", target: { kind: "report", report } } };
+  return {
+    ok: true,
+    value: {
+      kind: "inspect-pdf",
+      ...(pageNumber.number === undefined ? {} : { pageNumber: pageNumber.number }),
+      target: { kind: "report", report },
+    },
+  };
 }
 
 export function parseCommand(argv: readonly string[], invocation: string): CommandParseResult {
@@ -729,7 +1066,11 @@ export function parseCommand(argv: readonly string[], invocation: string): Comma
   if (command === "init") return parseInit(argv, invocation);
   if (command === "add") return parseAdd(argv, invocation);
   if (command === "inspect") return parseInspect(argv, invocation);
+  if (command === "capture" || command === "export") {
+    return parseCaptureOrExport(argv, invocation, command);
+  }
   if (command === "inspect-pdf") return parseInspectPdf(argv, invocation);
+  if (command === "review") return parseReview(argv, invocation);
   return parseSimpleReportCommand(argv, invocation, command);
 }
 

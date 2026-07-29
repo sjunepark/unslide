@@ -5,6 +5,7 @@ import { commandFailure, errorMessage, isMissingFileError, mapCommandFailure } f
 import { onceAsync, scoped } from "./lifecycle.js";
 import { logDebug, withLogPhase } from "./logging.js";
 import { replacePageImages } from "./page-images.js";
+import { validateArtifactOutputPaths } from "./artifact-paths.js";
 
 const RASTER_DPI = 96;
 const POINTS_PER_INCH = 72;
@@ -25,9 +26,10 @@ export interface PdfInspectionResult {
 class PdfInspectionFailure extends Data.TaggedError("PdfInspectionFailure")<{
   readonly cause?: unknown;
   readonly message: string;
-  readonly phase: "load" | "page" | "render" | "encode" | "write" | "validate";
+  readonly phase: "load" | "page" | "render" | "encode" | "write" | "validate" | "select";
 }> {
-  get cliCode(): "artifact-invalid" | "command-failed" {
+  get cliCode(): "usage" | "artifact-invalid" | "command-failed" {
+    if (this.phase === "select") return "usage";
     return this.phase === "load" || this.phase === "page" || this.phase === "validate"
       ? "artifact-invalid"
       : "command-failed";
@@ -38,11 +40,15 @@ class PdfInspectionFailure extends Data.TaggedError("PdfInspectionFailure")<{
 export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(function* (
   input: string,
   output: string,
+  pageNumber?: number,
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const inputPath = path.resolve(input);
-  const outputDirectory = path.resolve(output);
+  const { inputPath, outputPath: outputDirectory } = yield* validateArtifactOutputPaths(
+    "inspect-pdf",
+    input,
+    output,
+  );
   const context = { command: "inspect-pdf", path: inputPath } as const;
   const bytes = yield* withLogPhase(
     fs.readFile(inputPath).pipe(
@@ -98,9 +104,59 @@ export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(functi
         });
       }
       const digits = Math.max(2, String(document.numPages).length);
-      const rendered: InspectedPdfPage[] = [];
-
+      const dimensions: Array<{ width: number; height: number }> = [];
       for (let index = 1; index <= document.numPages; index += 1) {
+        dimensions.push(
+          yield* scoped(
+            Effect.gen(function* () {
+              const page = yield* Effect.acquireRelease(
+                Effect.tryPromise({
+                  try: (signal) => {
+                    const destroy = () => {
+                      void loading.destroy().catch(() => {});
+                    };
+                    signal.addEventListener("abort", destroy, { once: true });
+                    return document.getPage(index).finally(() => {
+                      signal.removeEventListener("abort", destroy);
+                    });
+                  },
+                  catch: (cause) =>
+                    new PdfInspectionFailure({
+                      cause,
+                      message: `Cannot load PDF page ${index}: ${errorMessage(cause)}`,
+                      phase: "page",
+                    }),
+                }),
+                (loadedPage) => Effect.sync(() => loadedPage.cleanup()),
+                { interruptible: true },
+              );
+              const viewport = page.getViewport({ scale: RASTER_DPI / POINTS_PER_INCH });
+              const width = Math.ceil(viewport.width);
+              const height = Math.ceil(viewport.height);
+              if (width < 1 || height < 1) {
+                return yield* new PdfInspectionFailure({
+                  message: `PDF page ${index} has invalid geometry ${width}×${height} pixels.`,
+                  phase: "validate",
+                });
+              }
+              return { width, height };
+            }),
+          ),
+        );
+      }
+      if (pageNumber !== undefined && (pageNumber < 1 || pageNumber > document.numPages)) {
+        return yield* new PdfInspectionFailure({
+          message: `PDF page number ${pageNumber} is outside the artifact's 1-${document.numPages} range.`,
+          phase: "select",
+        });
+      }
+
+      const selectedIndexes =
+        pageNumber === undefined
+          ? Array.from({ length: document.numPages }, (_, index) => index + 1)
+          : [pageNumber];
+      const rendered: InspectedPdfPage[] = [];
+      for (const index of selectedIndexes) {
         const renderedPage = yield* scoped(
           Effect.gen(function* () {
             const page = yield* Effect.acquireRelease(
@@ -128,14 +184,10 @@ export const inspectPdfPages = Effect.fn("pdfInspection.inspectPdfPages")(functi
               { interruptible: true },
             );
             const viewport = page.getViewport({ scale: RASTER_DPI / POINTS_PER_INCH });
-            const width = Math.ceil(viewport.width);
-            const height = Math.ceil(viewport.height);
-            if (width < 1 || height < 1) {
-              return yield* new PdfInspectionFailure({
-                message: `PDF page ${index} has invalid geometry ${width}×${height} pixels.`,
-                phase: "validate",
-              });
-            }
+            const { width, height } = dimensions[index - 1] as {
+              width: number;
+              height: number;
+            };
 
             const canvas = yield* Effect.acquireRelease(
               Effect.try({

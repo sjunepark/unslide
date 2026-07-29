@@ -21,6 +21,7 @@ const RESOURCE_TIMEOUT_MS = 5_000;
 export class BrowserFailure extends Data.TaggedError("BrowserFailure")<{
   readonly cause?: unknown;
   readonly cliCode?:
+    | "usage"
     | "artifact-invalid"
     | "artifact-not-found"
     | "browser-not-installed"
@@ -360,7 +361,12 @@ export function withLoadedArtifact<T>(
         ];
         return new BrowserFailure({
           cause,
-          cliCode: issues.length > 0 ? "artifact-invalid" : "command-failed",
+          cliCode:
+            cause instanceof ArtifactOperationFailure && cause.code === "page-selector"
+              ? "usage"
+              : issues.length > 0
+                ? "artifact-invalid"
+                : "command-failed",
           issues: issues.length > 0 ? issues : undefined,
           message: errorMessage(cause),
           phase: "operation",

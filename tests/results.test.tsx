@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
 import { decode } from "@toon-format/toon";
-import type { ProjectConfig, ReportConfig } from "../src/unslide/config.js";
+import { validateProjectConfigContents } from "../src/unslide/config.js";
 import {
   createExecutionEvidence,
   encodeEnvelope,
-  reviewManifestPath,
   successEnvelope,
 } from "../src/unslide/results.js";
+import { runUnslide } from "./runtime.js";
 
 test("result encodings share one schema value and exactly one trailing newline", () => {
   const envelope = successEnvelope(
@@ -30,34 +32,53 @@ test("result encodings share one schema value and exactly one trailing newline",
   assert.deepEqual(decode(toon), JSON.parse(json));
 });
 
-test("review manifest derivation is stable and avoids every configured path", () => {
-  const projectRoot = resolve("/tmp/unslide-result-contract");
-  const report: ReportConfig = {
-    name: "report",
-    sourcePath: resolve(projectRoot, "report.tsx"),
-    htmlPath: resolve(projectRoot, "artifacts/report.html"),
-    pdfPath: resolve(projectRoot, "artifacts/report.pdf"),
-    captureDirectory: resolve(projectRoot, "captures/report"),
-    pdfCaptureDirectory: resolve(projectRoot, "pdf-captures/report"),
-  };
-  const occupied: ReportConfig = {
-    name: "occupied",
-    sourcePath: resolve(projectRoot, "occupied.tsx"),
-    htmlPath: resolve(projectRoot, "artifacts/occupied.html"),
-    pdfPath: resolve(projectRoot, "artifacts/occupied.pdf"),
-    captureDirectory: resolve(projectRoot, "artifacts/report.review.json"),
-    pdfCaptureDirectory: resolve(projectRoot, "artifacts/report.review-2.json"),
-  };
-  const config: ProjectConfig = {
-    version: 1,
-    configPath: resolve(projectRoot, "unslide.json"),
-    projectRoot,
-    reports: { occupied, report },
-  };
+test("loaded configuration skips a manifest candidate that aliases an existing output", async () => {
+  const projectRoot = await mkdtemp(resolve(tmpdir(), "unslide-manifest-alias-"));
+  const configPath = resolve(projectRoot, "unslide.json");
+  try {
+    await mkdir(resolve(projectRoot, "artifacts"));
+    await writeFile(resolve(projectRoot, "report.tsx"), "export default null;\n");
+    await writeFile(resolve(projectRoot, "artifacts", "report.pdf"), "existing output");
+    await symlink("report.pdf", resolve(projectRoot, "artifacts", "report.review.json"));
+    const configText = JSON.stringify({
+      version: 1,
+      reports: { report: { source: "report.tsx" } },
+    });
 
-  assert.equal(
-    reviewManifestPath(config, report),
-    resolve(projectRoot, "artifacts/report.review-3.json"),
-  );
-  assert.equal(reviewManifestPath(config, report), reviewManifestPath(config, report));
+    const config = await runUnslide(validateProjectConfigContents(configPath, configText));
+    assert.equal(
+      config.reports.report?.manifestPath,
+      resolve(projectRoot, "artifacts", "report.review-2.json"),
+    );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("loaded configuration skips a derived manifest candidate that resolves outside the project", async () => {
+  const projectRoot = await mkdtemp(resolve(tmpdir(), "unslide-manifest-outside-"));
+  const outsideRoot = await mkdtemp(resolve(tmpdir(), "unslide-manifest-target-"));
+  const configPath = resolve(projectRoot, "unslide.json");
+  try {
+    await mkdir(resolve(projectRoot, "artifacts"));
+    await writeFile(resolve(projectRoot, "report.tsx"), "export default null;\n");
+    await writeFile(resolve(outsideRoot, "manifest.json"), "outside");
+    await symlink(
+      resolve(outsideRoot, "manifest.json"),
+      resolve(projectRoot, "artifacts", "report.review.json"),
+    );
+    const configText = JSON.stringify({
+      version: 1,
+      reports: { report: { source: "report.tsx" } },
+    });
+
+    const config = await runUnslide(validateProjectConfigContents(configPath, configText));
+    assert.equal(
+      config.reports.report?.manifestPath,
+      resolve(projectRoot, "artifacts", "report.review-2.json"),
+    );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+    await rm(outsideRoot, { recursive: true, force: true });
+  }
 });

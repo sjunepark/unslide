@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -11,8 +11,11 @@ import { inlineAsset, readTextAsset } from "../src/unslide/assets.js";
 import { writeReportHtml as writeReportHtmlEffect } from "../src/unslide/render.js";
 import { runUnslide } from "./runtime.js";
 
-const captureHtmlPages = (input: string, output: string) =>
-  runUnslide(captureHtmlPagesEffect(input, output));
+const captureHtmlPages = (
+  input: string,
+  output: string,
+  selector?: Parameters<typeof captureHtmlPagesEffect>[2],
+) => runUnslide(captureHtmlPagesEffect(input, output, selector));
 const writeReportHtml = (options: Parameters<typeof writeReportHtmlEffect>[0]) =>
   runUnslide(writeReportHtmlEffect(options));
 
@@ -334,6 +337,69 @@ test("captures one PNG per page without deleting unrelated output", async () => 
       assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
       assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [480, 300]);
     }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("focused capture validates the artifact and replaces the managed set with its exact scope", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-focused-capture-"));
+  const outputDirectory = resolve(directory, "captures");
+
+  try {
+    const inputPath = await createTestReport(directory);
+    await captureHtmlPages(inputPath, outputDirectory);
+    await writeFile(resolve(outputDirectory, "keep.txt"), "keep this file");
+
+    await assert.rejects(
+      captureHtmlPages(inputPath, outputDirectory, { kind: "page-id", id: "missing" }),
+      /HTML page ID "missing" does not exist/,
+    );
+    assert.deepEqual((await readdir(outputDirectory)).sort(), [
+      "keep.txt",
+      "page-01.png",
+      "page-02.png",
+    ]);
+
+    const focused = await captureHtmlPages(inputPath, outputDirectory, {
+      kind: "page-number",
+      number: 2,
+    });
+    assert.deepEqual(
+      focused.pages.map(({ id, index }) => ({ id, index })),
+      [{ id: "beta", index: 1 }],
+    );
+    assert.deepEqual((await readdir(outputDirectory)).sort(), ["keep.txt", "page-02.png"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("focused capture validates geometry for unselected pages before publishing", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-focused-geometry-"));
+  const outputDirectory = resolve(directory, "captures");
+  try {
+    const inputPath = resolve(directory, "report.html");
+    await writeReportHtml({
+      document: (
+        <TestDocument
+          styles={`
+            body { margin: 0; }
+            [data-unslide-page] { width: 480px; height: 300px; }
+            [data-unslide-page="beta"] { display: none; }
+          `}
+        />
+      ),
+      outputPath: inputPath,
+    });
+    await mkdir(outputDirectory);
+    await writeFile(resolve(outputDirectory, "page-01.png"), "prior evidence");
+
+    await assert.rejects(
+      captureHtmlPages(inputPath, outputDirectory, { kind: "page-id", id: "alpha" }),
+      /Page "beta".*no visible capture area/,
+    );
+    assert.equal(await readFile(resolve(outputDirectory, "page-01.png"), "utf8"), "prior evidence");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
