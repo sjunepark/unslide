@@ -5,6 +5,7 @@ export type OperationalErrorCode =
   | "artifact-invalid"
   | "artifact-not-found"
   | "browser-not-installed"
+  | "source-not-found"
   | "command-failed";
 
 export class ProjectNotFound extends Data.TaggedError("ProjectNotFound")<{
@@ -47,6 +48,7 @@ export class InitOperationFailure extends Data.TaggedError("InitOperationFailure
   readonly message: string;
   readonly projectRoot: string;
   readonly reportName: string;
+  readonly starter: "minimal" | "business-report";
 }> {}
 
 export interface CommandFailureContext {
@@ -58,6 +60,10 @@ export interface CommandFailureContext {
 }
 
 export function errorMessage(error: unknown): string {
+  if (error instanceof AggregateError) {
+    const details = error.errors.map(errorMessage).filter((detail) => detail !== error.message);
+    return details.length === 0 ? error.message : `${error.message}: ${details.join("; ")}`;
+  }
   if (
     error instanceof Error &&
     "_tag" in error &&
@@ -71,7 +77,12 @@ export function errorMessage(error: unknown): string {
 }
 
 export function isMissingFileError(error: unknown): boolean {
-  if (error instanceof Error && "code" in error && error.code === "ENOENT") return true;
+  if (
+    error instanceof Error &&
+    "code" in error &&
+    (error.code === "ENOENT" || error.code === "ENOTDIR")
+  )
+    return true;
   return (
     typeof error === "object" &&
     error !== null &&
@@ -93,6 +104,7 @@ function classifiedCode(cause: unknown): OperationalErrorCode | undefined {
     (cause.cliCode === "artifact-invalid" ||
       cause.cliCode === "artifact-not-found" ||
       cause.cliCode === "browser-not-installed" ||
+      cause.cliCode === "source-not-found" ||
       cause.cliCode === "command-failed")
   ) {
     return cause.cliCode;

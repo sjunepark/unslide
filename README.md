@@ -24,7 +24,9 @@ allowBuilds:
 ```
 
 ```sh
-pnpm add unslide
+pnpm pkg set type=module
+pnpm add unslide react react-dom
+pnpm add -D typescript @types/node @types/react
 pnpm dlx playwright@1.61.1 install chromium
 ```
 
@@ -35,9 +37,22 @@ pnpm exec unslide init
 pnpm exec unslide init --yes
 ```
 
-The first command is a dry run. The confirmed command creates
-`unslide.json`, `report.tsx`, and removable starter `report.css`; it never
-overwrites files with different contents.
+The first command is a dry run. The confirmed command creates a source-only
+`unslide.json`, `report.tsx`, removable starter `report.css`, and a safe
+`.gitignore` when one does not exist. It never overwrites files with different
+contents.
+
+Choose the multi-page teaching starter or add a report to an existing project:
+
+```sh
+pnpm exec unslide init --starter business-report --yes
+pnpm exec unslide add quarterly-review --starter business-report
+pnpm exec unslide add quarterly-review --starter business-report --yes
+pnpm exec tsc --noEmit -p quarterly-review/tsconfig.json
+```
+
+`init` and `add` are dry runs without `--yes`. `add` reports every starter-file
+conflict before writing and leaves the existing project unchanged on failure.
 
 Build and inspect the report:
 
@@ -58,11 +73,14 @@ validation can reveal unintended print fragmentation.
 
 ## Authoring Contract
 
-A report exports a complete React `<html>` document and marks each page with
-the versioned [HTML artifact protocol](docs/PROTOCOL.md). Ordinary values and
-collections flow into report source without a Unslide data model. Local assets
-can be explicitly inlined through `unslide/react`; recognized unresolved
-resource dependencies are rejected by the first-party writer.
+A report exports a complete React `<html>` document as either a created element
+or a synchronous zero-prop component and marks each page with the versioned
+[HTML artifact protocol](docs/PROTOCOL.md). Ordinary values and collections
+flow into report source without a Unslide data model. `unslide/react` publishes
+the `ReportSource` type plus `readTextAsset` and `inlineAsset`; the helpers
+accept paths or source-relative `file:` URLs, and binary inlining supports
+common image, WOFF, WOFF2, TTF, and OTF formats. Recognized unresolved resource
+dependencies are rejected by the first-party writer.
 
 HTML remains independently viewable without React, Node.js, Playwright, or a
 server. PDF and inspection images are derived delivery evidence, not parallel
@@ -74,9 +92,12 @@ supported inputs. Print color adjustment is report-owned CSS, and exact color
 reproduction across rendering environments is not guaranteed.
 
 The project [JSON Schema](schema/unslide.schema.json) rejects unknown fields.
+Each report requires only `source`; conventional HTML, PDF, capture, and
+PDF-capture paths are derived by report name unless explicitly overridden.
 Configuration loading additionally rejects paths that escape the project root
-and overlapping source and output paths. Visual choices do not belong in
-configuration.
+and overlapping source and output paths. A missing source is report state and
+does not block discovery or work on another report. Visual choices do not
+belong in configuration.
 
 ## CLI Automation Contract
 
@@ -101,7 +122,7 @@ Default stderr is empty. Operational failures use an `error` record with a
 stable `code`, a concise `message`, and relevant structured context. The
 current operational codes are `project-not-found`,
 `project-config-unreadable`, `project-config-invalid`,
-`report-not-found`, `artifact-not-found`, `artifact-invalid`,
+`report-not-found`, `source-not-found`, `artifact-not-found`, `artifact-invalid`,
 `browser-not-installed`, and `command-failed`. Usage errors use
 `code: usage` with exit 2.
 
@@ -173,11 +194,12 @@ See the
 for proof-report commands, generated artifacts, packed-consumer testing, and
 visual inspection requirements.
 
-The active consumer-authoring plan's accepted target contracts are documented
+The active consumer-authoring plan's accepted contracts are documented
 in [CLI Commands](docs/COMMANDS.md), [Result and Manifest Model](docs/RESULTS.md),
-and [React Authoring](docs/AUTHORING.md). These describe roadmap work; the
-released command list and support contract above remain authoritative until the
-corresponding goals are implemented and validated.
+and [React Authoring](docs/AUTHORING.md). The configuration, setup, React, asset,
+and existing-command result sections are implemented; review, focused-page,
+and standalone capture/export sections remain roadmap work until their goals
+are implemented and validated.
 
 Repository-only documentation has one responsibility per file:
 

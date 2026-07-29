@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const mediaTypes: Record<string, string> = {
   ".avif": "image/avif",
@@ -11,11 +12,28 @@ const mediaTypes: Record<string, string> = {
   ".webp": "image/webp",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
 };
 
+function resolveAssetSource(source: string | URL): string {
+  if (typeof source === "string") return resolve(source);
+  if (source.protocol !== "file:") {
+    throw new Error(`Local asset URLs must use the file: scheme: ${source.href}`);
+  }
+
+  try {
+    return fileURLToPath(source);
+  } catch (error) {
+    throw new Error(
+      `Cannot resolve local asset URL ${source.href}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 /** Read report-owned text such as CSS without making it runtime-owned policy. */
-export async function readTextAsset(path: string): Promise<string> {
-  const resolvedPath = resolve(path);
+export async function readTextAsset(source: string | URL): Promise<string> {
+  const resolvedPath = resolveAssetSource(source);
   try {
     return await readFile(resolvedPath, "utf8");
   } catch (error) {
@@ -26,8 +44,8 @@ export async function readTextAsset(path: string): Promise<string> {
 }
 
 /** Inline a local binary asset so the completed HTML has no file dependency. */
-export async function inlineAsset(path: string): Promise<string> {
-  const resolvedPath = resolve(path);
+export async function inlineAsset(source: string | URL): Promise<string> {
+  const resolvedPath = resolveAssetSource(source);
   const mediaType = mediaTypes[extname(resolvedPath).toLowerCase()];
 
   if (!mediaType) {

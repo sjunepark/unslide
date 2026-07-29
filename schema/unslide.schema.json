@@ -21,7 +21,7 @@
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["source", "html", "captures"],
+        "required": ["source"],
         "properties": {
           "source": {
             "type": "string",

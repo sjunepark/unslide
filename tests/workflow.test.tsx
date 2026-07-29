@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { chromium } from "playwright";
@@ -99,6 +99,8 @@ test("inlines report-owned raster, SVG, and font assets and reads CSS", async ()
     const pngPath = resolve(directory, "pixel.png");
     const svgPath = resolve(directory, "mark.svg");
     const fontPath = resolve(directory, "report.woff2");
+    const ttfPath = resolve(directory, "report.ttf");
+    const otfPath = resolve(directory, "report.OTF");
     await writeFile(cssPath, ".mark { width: 20px; }");
     await writeFile(
       pngPath,
@@ -115,12 +117,16 @@ test("inlines report-owned raster, SVG, and font assets and reads CSS", async ()
       resolve("tests/fixtures/assets/codicon-subset.woff2.b64"),
     );
     await writeFile(fontPath, Buffer.from(fontFixture.trim(), "base64"));
+    await writeFile(ttfPath, "ttf fixture");
+    await writeFile(otfPath, "otf fixture");
 
-    const [css, png, svg, font] = await Promise.all([
-      readTextAsset(cssPath),
-      inlineAsset(pngPath),
+    const [css, png, svg, font, ttf, otf] = await Promise.all([
+      readTextAsset(relative(process.cwd(), cssPath)),
+      inlineAsset(pathToFileURL(pngPath)),
       inlineAsset(svgPath),
       inlineAsset(fontPath),
+      inlineAsset(pathToFileURL(ttfPath)),
+      inlineAsset(pathToFileURL(otfPath)),
     ]);
     const outputPath = resolve(directory, "report.html");
     await writeReportHtml({
@@ -148,6 +154,8 @@ test("inlines report-owned raster, SVG, and font assets and reads CSS", async ()
     assert.match(html, /data:image\/png;base64,/);
     assert.match(html, /data:image\/svg\+xml;base64,/);
     assert.match(html, /data:font\/woff2;base64,/);
+    assert.match(ttf, /^data:font\/ttf;base64,/);
+    assert.match(otf, /^data:font\/otf;base64,/);
     assert.match(html, /<svg aria-label="inline vector">/);
     assert.match(html, /\.mark \{ width: 20px; \}/);
 
@@ -211,6 +219,14 @@ test("rejects unresolved local and network resource dependencies", async () => {
     await assert.rejects(
       inlineAsset(resolve(directory, "asset.txt")),
       /unsupported local asset type/,
+    );
+    await assert.rejects(
+      readTextAsset(new URL("https://example.invalid/report.css")),
+      /must use the file: scheme/,
+    );
+    await assert.rejects(
+      inlineAsset(new URL("https://example.invalid/report.png")),
+      /must use the file: scheme/,
     );
   } finally {
     await rm(directory, { recursive: true, force: true });

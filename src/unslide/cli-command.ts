@@ -1,11 +1,13 @@
 import type { CliLogLevel } from "./logging.js";
 
 export type OutputFormat = "toon" | "json";
+type Starter = "minimal" | "business-report";
 
 export type CommandName =
   | "home"
   | "help"
   | "init"
+  | "add"
   | "build"
   | "inspect"
   | "capture"
@@ -32,6 +34,13 @@ export type ParsedCommand =
       readonly kind: "init";
       readonly name: string;
       readonly nameWasExplicit: boolean;
+      readonly starter: Starter;
+      readonly write: boolean;
+    }
+  | {
+      readonly kind: "add";
+      readonly name: string;
+      readonly starter: Starter;
       readonly write: boolean;
     }
   | { readonly kind: "build"; readonly report: string }
@@ -82,10 +91,12 @@ export type CommandParseResult =
 const FORMAT_FLAG = "--format";
 const LOG_LEVEL_FLAG = "--log-level";
 const LOG_LEVEL_ENV = "UNSLIDE_LOG_LEVEL";
+const STARTERS = ["minimal", "business-report"] as const satisfies readonly Starter[];
 const OUTPUT_FORMATS = new Set<OutputFormat>(["toon", "json"]);
 const LOG_LEVELS = new Set<CliLogLevel>(["off", "info", "debug"]);
 const COMMAND_NAMES = new Set<CommandName>([
   "init",
+  "add",
   "build",
   "inspect",
   "capture",
@@ -259,7 +270,8 @@ export function topHelp(invocation: string): HelpResult {
     description: "Build and inspect explicit-page HTML and PDF reports",
     flags: [formatFlag(), logLevelFlag(), helpFlag()],
     commands: [
-      { command: "init", description: "Plan or create a minimal report project" },
+      { command: "init", description: "Plan or create a report project" },
+      { command: "add <name>", description: "Plan or add a report to an existing project" },
       { command: "build <name>", description: "Build a named report to standalone HTML" },
       { command: "inspect <name>", description: "Validate a named report HTML artifact" },
       { command: "inspect --artifact <html>", description: "Validate standalone HTML" },
@@ -280,20 +292,36 @@ export function commandHelp(
   command: Exclude<CommandName, "home" | "help" | "unknown">,
 ): HelpResult {
   const globals = [formatFlag(), logLevelFlag()];
-  if (command === "init") {
+  if (command === "init" || command === "add") {
+    const isInit = command === "init";
     return {
       kind: "help",
-      usage: `${invocation} init [--name <name>] [--yes]`,
+      usage: isInit
+        ? `${invocation} init [--name <name>] [--starter <minimal|business-report>] [--yes]`
+        : `${invocation} add <name> [--starter <minimal|business-report>] [--yes]`,
       flags: [
-        { flag: "--name <name>", description: "Set the report name (default: report)" },
+        ...(isInit
+          ? [{ flag: "--name <name>", description: "Set the report name (default: report)" }]
+          : []),
+        {
+          flag: "--starter <minimal|business-report>",
+          description: "Select the report starter (default: minimal)",
+        },
         { flag: "--yes", description: "Create the planned files without prompting" },
         helpFlag(),
         ...globals,
       ],
       examples: [
-        `${invocation} init`,
-        `${invocation} init --yes`,
-        `${invocation} init --name quarterly-review --yes`,
+        ...(isInit
+          ? [
+              `${invocation} init`,
+              `${invocation} init --yes`,
+              `${invocation} init --name quarterly-review --starter business-report --yes`,
+            ]
+          : [
+              `${invocation} add quarterly-review`,
+              `${invocation} add quarterly-review --starter business-report --yes`,
+            ]),
       ],
     };
   }
@@ -355,6 +383,36 @@ function parseFailure(command: CommandName, message: string, help: HelpResult): 
   return { ok: false, command, message, help: [`Run ${help.examples[0] as string}`] };
 }
 
+function parseStarterOption(
+  command: "init" | "add",
+  value: string | undefined,
+  alreadySeen: boolean,
+  help: HelpResult,
+):
+  | { readonly ok: true; readonly starter: Starter }
+  | { readonly ok: false; readonly result: CommandParseResult } {
+  if (alreadySeen) {
+    return {
+      ok: false,
+      result: parseFailure(command, "--starter may be provided only once.", help),
+    };
+  }
+  if (!value || value.startsWith("-")) {
+    return { ok: false, result: parseFailure(command, "--starter requires one value.", help) };
+  }
+  if (!STARTERS.includes(value as Starter)) {
+    return {
+      ok: false,
+      result: parseFailure(
+        command,
+        `Invalid --starter value ${JSON.stringify(value)}; expected ${STARTERS.join(", ")}.`,
+        help,
+      ),
+    };
+  }
+  return { ok: true, starter: value as Starter };
+}
+
 function helpCount(argv: readonly string[]): number {
   return argv.filter((argument) => argument === "--help").length;
 }
@@ -402,6 +460,8 @@ function parseInit(argv: readonly string[], invocation: string): CommandParseRes
   let name = "report";
   let nameSeen = false;
   let yesSeen = false;
+  let starter: Starter = "minimal";
+  let starterSeen = false;
   let missingName = false;
   for (let index = 1; index < argv.length; index += 1) {
     const argument = argv[index] as string;
@@ -423,6 +483,14 @@ function parseInit(argv: readonly string[], invocation: string): CommandParseRes
       index += 1;
       continue;
     }
+    if (argument === "--starter") {
+      const parsedStarter = parseStarterOption("init", argv[index + 1], starterSeen, help);
+      if (!parsedStarter.ok) return parsedStarter.result;
+      starterSeen = true;
+      starter = parsedStarter.starter;
+      index += 1;
+      continue;
+    }
     return parseFailure(
       "init",
       argument.startsWith("-")
@@ -437,8 +505,45 @@ function parseInit(argv: readonly string[], invocation: string): CommandParseRes
   if (missingName) return parseFailure("init", "--name requires one value.", help);
   return {
     ok: true,
-    value: { kind: "init", name, nameWasExplicit: nameSeen, write: yesSeen },
+    value: { kind: "init", name, nameWasExplicit: nameSeen, starter, write: yesSeen },
   };
+}
+
+function parseAdd(argv: readonly string[], invocation: string): CommandParseResult {
+  const help = commandHelp(invocation, "add");
+  let name: string | undefined;
+  let starter: Starter = "minimal";
+  let starterSeen = false;
+  let yesSeen = false;
+  for (let index = 1; index < argv.length; index += 1) {
+    const argument = argv[index] as string;
+    if (argument === "--help") continue;
+    if (argument === "--yes") {
+      if (yesSeen) return parseFailure("add", "--yes may be provided only once.", help);
+      yesSeen = true;
+      continue;
+    }
+    if (argument === "--starter") {
+      const parsedStarter = parseStarterOption("add", argv[index + 1], starterSeen, help);
+      if (!parsedStarter.ok) return parsedStarter.result;
+      starterSeen = true;
+      starter = parsedStarter.starter;
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith("-")) {
+      return parseFailure("add", `Unknown flag ${JSON.stringify(argument)} for add.`, help);
+    }
+    if (name !== undefined) {
+      return parseFailure("add", `Unexpected argument ${JSON.stringify(argument)} for add.`, help);
+    }
+    name = argument;
+  }
+  if (helpCount(argv) > 1) return parseFailure("add", "--help may be provided only once.", help);
+  if (name !== undefined && !isReportName(name)) return invalidReportName("add", name, help);
+  if (argv.includes("--help")) return { ok: true, value: { kind: "help", help } };
+  if (name === undefined) return parseFailure("add", "add requires exactly one report name.", help);
+  return { ok: true, value: { kind: "add", name, starter, write: yesSeen } };
 }
 
 function parseInspect(argv: readonly string[], invocation: string): CommandParseResult {
@@ -622,6 +727,7 @@ export function parseCommand(argv: readonly string[], invocation: string): Comma
   }
   const command = rawCommand as Exclude<CommandName, "home" | "help" | "unknown">;
   if (command === "init") return parseInit(argv, invocation);
+  if (command === "add") return parseAdd(argv, invocation);
   if (command === "inspect") return parseInspect(argv, invocation);
   if (command === "inspect-pdf") return parseInspectPdf(argv, invocation);
   return parseSimpleReportCommand(argv, invocation, command);

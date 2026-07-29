@@ -75,8 +75,21 @@ visual design, print CSS, numbering, and content fit.
   release after migrating orchestration to schema-v1 JSON.
 - Independent code-review findings for strict name parsing, release-safe version
   assertions, malformed-format fallback, authored output bounds, and per-page
-  PDF substitution were applied. Goal 2 delivery is the next action; Goals 3–5
-  remain pending.
+  PDF substitution were applied. Goal 2 was delivered in package PR #14 and
+  linked examples-consumer PR #7.
+- Goal 3 implements derived artifact paths, isolated missing-source state,
+  dry-run-first transactional report addition, safe starter conflicts and
+  ignores, element/component source exports, matching consumer-owned React and
+  React DOM peers, URL and common font asset inputs, and the multi-page business
+  starter.
+- `pnpm run validate` and the packed clean-consumer lifecycle pass for Goal 3.
+  The packed consumer proves both starters, report-local TypeScript isolation,
+  one React identity on an accepted newer renderer pair, hook rendering, and
+  HTML/PDF page evidence. Independent review findings covering transaction
+  rollback, configured-path conflicts, ignore negations, source-error
+  classification, and dependency ownership are resolved. Every generated HTML
+  and PDF proof page was visually inspected. Goal 3 delivery is the next
+  action; Goals 4–5 remain pending.
 
 ## Accepted design
 
@@ -303,5 +316,4 @@ findings.
 
 ## Next action
 
-Deliver the Goal 2 package PR, then deliver the linked examples-consumer PR
-before beginning Goal 3.
+Deliver the reviewed and validated Goal 3 PR, then begin Goal 4.

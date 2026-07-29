@@ -5,11 +5,7 @@ consumer-authoring plan. It preserves report ownership: every DOM, geometry,
 style, print, numbering, and content-fit decision remains ordinary report
 source.
 
-This is a target contract, not the released configuration behavior. Goal 3
-must change the schema, loader, and tests together before the examples below
-are usable. Until then, the packaged schema still requires `html` and
-`captures`, and the loader rejects the whole project when any configured source
-is missing.
+This is the released configuration and React authoring contract.
 
 ## Project Configuration
 
@@ -37,7 +33,7 @@ For a newly minimal report `<name>`, omitted artifact fields resolve to:
 | `captures`    | `.tmp/captures/<name>`     |
 | `pdfCaptures` | `.tmp/pdf-captures/<name>` |
 
-The review manifest is normally derived from the resolved HTML path by
+The future review manifest is derived from the resolved HTML path by
 replacing its `.html` suffix with `.review.json`; it is not configurable
 separately. If that candidate overlaps a version-1 source or artifact path,
 append `-2`, then the next positive integer as needed, before `.json` and use
@@ -50,13 +46,13 @@ behavior, an omitted `pdf` next to an explicit `html` replaces that HTML path's
 also omitted, the name-based defaults in the table apply. Loading never
 rewrites or upgrades a configuration.
 
-In the Goal 3 implementation, schema, lexical confinement, canonical symlink
-confinement, source/output separation, and cross-report output separation will
-be validated after defaults are applied. Visual fields remain invalid. Source
-existence will be observed only after structural and path validation: a missing
-source will be reported by home and `report`, fail build or review of that
-report, and not block read-only discovery or artifact operations for other
-reports.
+Schema, lexical confinement, canonical symlink confinement, source/output
+separation, and cross-report output separation are validated after defaults
+are applied. Visual fields remain invalid. Source existence is observed only
+after structural and path validation: a missing
+source is reported by home (and by the forthcoming `report` command), fails a
+build of that report, and does not block discovery or artifact operations for
+other reports.
 
 ## Source Export
 
@@ -78,6 +74,9 @@ Missing, primitive, promise, class, memo, lazy, and other object exports are
 invalid. Async or suspending components are unsupported by the static renderer.
 Source modules are trusted code and may use top-level await. Unslide evaluates
 TSX and renders static markup but does not run the caller's TypeScript checker.
+The containing package must use ESM (`"type": "module"` in `package.json`) so
+Node evaluates `.tsx` sources with the module semantics required by top-level
+await and source-relative `import.meta.url` assets.
 
 The existing default React re-export from `unslide/react` remains available
 during 0.x compatibility. New code may use the automatic JSX runtime directly.
@@ -85,13 +84,14 @@ No Unslide-specific JSX runtime is introduced.
 
 ## React Dependency
 
-React is a required consumer peer in the supported range `>=19.1.0 <20`.
-Unslide's internal React DOM renderer resolves that same peer, so report source,
-`react/jsx-runtime`, and `unslide/react` share one React instance. The package
-does not install a second private React copy.
+React and React DOM are required consumer peers in the supported range
+`>=19.1.0 <20` and must use the same version. Report source,
+`react/jsx-runtime`, `unslide/react`, and the static renderer therefore share
+the consumer's React installation instead of private copies.
 
 ```sh
-pnpm add unslide react
+pnpm pkg set type=module
+pnpm add unslide react react-dom
 pnpm add -D typescript @types/node @types/react
 ```
 

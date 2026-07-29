@@ -21,7 +21,7 @@ import {
   type CliFailure,
   type CommandFailure,
 } from "./unslide/failures.js";
-import { initializeProject, type InitResult } from "./unslide/init.js";
+import { addReport, initializeProject, type InitResult } from "./unslide/init.js";
 import { inspectHtmlArtifact } from "./unslide/inspect.js";
 import { provideCliLogging, withLogPhase } from "./unslide/logging.js";
 import type { ArtifactDiagnostic } from "./unslide/protocol.js";
@@ -222,6 +222,17 @@ function commandFailureResult(
       help: ["Run pnpm dlx playwright@1.61.1 install chromium"],
     };
   }
+  if (failure.code === "source-not-found") {
+    return {
+      error: {
+        code: failure.code,
+        message: "Report source was not found.",
+        ...context,
+        ...(failure.message ? { detail: authorDetail(failure.message) } : {}),
+      },
+      help: [],
+    };
+  }
   return {
     error: {
       code: "command-failed",
@@ -300,14 +311,20 @@ function cliFailureResult(
         operation: "init",
         projectRoot: resolve(failure.projectRoot),
         report: failure.reportName,
-        starter: "minimal",
+        starter: failure.starter,
         status: "failed",
         files: failure.files.map((file) => ({
           path: resolve(file.path),
           status: file.state,
         })),
       },
-      help: [recoveryCommand(format, "init", `--name ${shellArgument(failure.reportName)} --yes`)],
+      help: [
+        recoveryCommand(
+          format,
+          "init",
+          `--name ${shellArgument(failure.reportName)}${failure.starter === "minimal" ? "" : ` --starter ${failure.starter}`} --yes`,
+        ),
+      ],
     };
   }
   const presented = commandFailureResult(failure, rawArguments, format);
@@ -317,10 +334,10 @@ function cliFailureResult(
 function projectChange(result: InitResult): ProjectChangeResult {
   const base = {
     kind: "project-change",
-    operation: "init",
+    operation: result.operation,
     projectRoot: resolve(result.projectRoot),
     report: result.reportName,
-    starter: "minimal",
+    starter: result.starter,
   } as const;
   if (result.status === "planned") {
     return {
@@ -387,53 +404,65 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
       ],
     } satisfies CommandOutcome;
   }
-  if (parsed.kind === "init") {
+  if (parsed.kind === "init" || parsed.kind === "add") {
+    const change = Effect.gen(function* () {
+      if (parsed.kind === "init") {
+        return yield* initializeProject(process.cwd(), parsed.name, parsed.write, parsed.starter);
+      }
+      const project = yield* loadProjectConfig();
+      return yield* addReport(project, parsed.name, parsed.write, parsed.starter);
+    });
     const init = yield* withStepTiming(
-      withLogPhase(
-        initializeProject(process.cwd(), parsed.name, parsed.write),
-        parsed.write ? "project.initialize" : "project.plan",
-        { report: parsed.name },
-      ),
-      parsed.write ? "project.initialize" : "project.plan",
+      withLogPhase(change, parsed.write ? `project.${parsed.kind}` : "project.plan", {
+        report: parsed.name,
+      }),
+      parsed.write ? `project.${parsed.kind}` : "project.plan",
       evidence,
     );
+    if (!init.sensitiveOutputsIgnored) {
+      evidence.warnings.push({
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(init.projectRoot, ".gitignore"),
+      });
+    }
+    const name =
+      parsed.kind === "init" && parsed.nameWasExplicit
+        ? ` --name ${shellArgument(parsed.name)}`
+        : "";
+    const retryCommand = `${formattedInvocation(format)} ${
+      parsed.kind === "init" ? `init${name}` : `add ${shellArgument(parsed.name)}`
+    }${parsed.starter === "minimal" ? "" : ` --starter ${parsed.starter}`} --yes`;
     if (init.status === "conflict") {
       const result = {
         kind: "project-change",
-        operation: "init",
+        operation: init.operation,
         projectRoot: resolve(init.projectRoot),
         report: init.reportName,
-        starter: "minimal",
+        starter: init.starter,
         status: "conflict",
         files: init.files.map((file) => ({
           path: resolve(file.path),
           status: file.state as "create" | "unchanged" | "conflict",
         })),
       } satisfies ProjectChangeFailure;
-      const name = parsed.nameWasExplicit ? ` --name ${shellArgument(parsed.name)}` : "";
       return {
         command,
         exitCode: 1,
         result,
         error: {
           code: "command-failed",
-          message: "Initialization would overwrite files with different contents.",
+          message: `${parsed.kind === "init" ? "Initialization" : "Addition"} would overwrite files with different contents.`,
         },
-        help: [
-          `Run ${formattedInvocation(format)} init${name} --yes after reconciling the conflicting files`,
-        ],
+        help: [`Run ${retryCommand} after reconciling the conflicting files`],
       } satisfies CommandOutcome;
     }
     const result = projectChange(init as InitResult);
-    const name = parsed.nameWasExplicit ? ` --name ${shellArgument(parsed.name)}` : "";
     return {
       command,
       exitCode: 0,
       result,
-      help:
-        init.status === "planned"
-          ? [`Run ${formattedInvocation(format)} init${name} --yes to create these files`]
-          : [],
+      help: init.status === "planned" ? [`Run ${retryCommand} to create these files`] : [],
     } satisfies CommandOutcome;
   }
 

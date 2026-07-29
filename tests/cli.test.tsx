@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
+  access,
   chmod,
   mkdir,
   mkdtemp,
@@ -193,7 +194,7 @@ test("CLI help and usage errors are structured, noninteractive, and stable", asy
     /inspect-pdf/,
   );
 
-  for (const command of ["build", "inspect", "capture", "export", "inspect-pdf", "init"]) {
+  for (const command of ["build", "inspect", "capture", "export", "inspect-pdf", "init", "add"]) {
     const result = await runCli([command, "--help"], repositoryRoot, stableCliEnvironment);
     assert.equal(result.exitCode, 0);
     assert.equal(result.stderr, "");
@@ -1134,6 +1135,12 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
     const starterCss = await readFile(resolve(projectRoot, "quarterly-review.css"), "utf8");
     assert.match(starterCss, /Optional starter styling/);
     assert.match(starterCss, /print-color-adjust:\s*exact/);
+    assert.deepEqual(JSON.parse(await readFile(resolve(projectRoot, "unslide.json"), "utf8")), {
+      $schema: "./node_modules/unslide/schema/unslide.schema.json",
+      version: 1,
+      reports: { "quarterly-review": { source: "quarterly-review.tsx" } },
+    });
+    assert.equal(await readFile(resolve(projectRoot, ".gitignore"), "utf8"), "artifacts/\n.tmp/\n");
 
     const repeat = await runCli(["init", "--name", "quarterly-review", "--yes"], projectRoot);
     assert.equal(repeat.exitCode, 0);
@@ -1156,12 +1163,227 @@ test("CLI init plans writes, applies explicit confirmation, and refuses conflict
   }
 });
 
+test("CLI initializes the business starter and transactionally adds reports", async () => {
+  const projectRoot = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide starter project "));
+  const outsideRoot = await mkdtemp(resolve(repositoryRoot, ".tmp", "unslide starter outside "));
+  try {
+    const initialized = await runCli(
+      ["init", "--name", "board-review", "--starter", "business-report", "--yes"],
+      projectRoot,
+    );
+    assert.equal(initialized.exitCode, 0, initialized.stdout);
+    const initResult = initialized.value.result as Record<string, unknown>;
+    assert.equal(initResult.operation, "init");
+    assert.equal(initResult.starter, "business-report");
+    for (const path of [
+      "board-review.tsx",
+      "board-review/report.tsx",
+      "board-review/data.ts",
+      "board-review/pages.tsx",
+      "board-review/styles.css",
+      "board-review/assets/README.md",
+      "board-review/tsconfig.json",
+    ]) {
+      await access(resolve(projectRoot, path));
+    }
+    assert.match(
+      await readFile(resolve(projectRoot, "board-review/report.tsx"), "utf8"),
+      /ReportComponent/,
+    );
+    const businessTsconfig = JSON.parse(
+      await readFile(resolve(projectRoot, "board-review/tsconfig.json"), "utf8"),
+    );
+    assert.equal(businessTsconfig.compilerOptions.jsx, "react-jsx");
+    assert.equal(businessTsconfig.compilerOptions.module, "ESNext");
+    assert.equal(businessTsconfig.compilerOptions.moduleResolution, "Bundler");
+    assert.deepEqual(businessTsconfig.include, ["../board-review.tsx", "./**/*.ts", "./**/*.tsx"]);
+    await writeFile(resolve(projectRoot, "unrelated.tsx"), "const invalid: string = 42;\n");
+    businessTsconfig.compilerOptions.paths = {
+      "unslide/react": [resolve(repositoryRoot, "src/unslide/react.ts")],
+    };
+    await writeFile(
+      resolve(projectRoot, "board-review/tsconfig.json"),
+      `${JSON.stringify(businessTsconfig, null, 2)}\n`,
+    );
+    await execFileAsync("pnpm", ["exec", "tsc", "--noEmit", "-p", "board-review/tsconfig.json"], {
+      cwd: projectRoot,
+    });
+
+    const beforeAdd = await readFile(resolve(projectRoot, "unslide.json"), "utf8");
+    await writeFile(resolve(projectRoot, ".gitignore"), "node_modules/\n");
+    const overlapConfig = JSON.parse(beforeAdd);
+    overlapConfig.reports["board-review"].captures = "reserved-report";
+    await writeFile(resolve(projectRoot, "unslide.json"), JSON.stringify(overlapConfig));
+    const reservedConflict = await runCli(
+      ["add", "reserved-report", "--starter", "business-report", "--yes"],
+      projectRoot,
+    );
+    assert.equal(reservedConflict.exitCode, 1);
+    assert.equal((reservedConflict.value.result as Record<string, unknown>).status, "conflict");
+    await assert.rejects(access(resolve(projectRoot, "reserved-report.tsx")), /ENOENT/);
+    await assert.rejects(access(resolve(projectRoot, "reserved-report/report.tsx")), /ENOENT/);
+    await writeFile(resolve(projectRoot, "unslide.json"), beforeAdd);
+
+    await symlink(".", resolve(projectRoot, "project-alias"));
+    const aliasedConfig = JSON.parse(beforeAdd);
+    aliasedConfig.reports["board-review"].captures = "project-alias/symlink-report";
+    await writeFile(resolve(projectRoot, "unslide.json"), JSON.stringify(aliasedConfig));
+    const aliasedConflict = await runCli(
+      ["add", "symlink-report", "--starter", "business-report"],
+      projectRoot,
+    );
+    assert.equal(aliasedConflict.exitCode, 1);
+    assert.equal((aliasedConflict.value.result as Record<string, unknown>).status, "conflict");
+    await assert.rejects(access(resolve(projectRoot, "symlink-report.tsx")), /ENOENT/);
+    await writeFile(resolve(projectRoot, "unslide.json"), beforeAdd);
+    await rm(resolve(projectRoot, "project-alias"));
+
+    const plan = await runCli(["add", "appendix"], projectRoot);
+    assert.equal(plan.exitCode, 0, plan.stdout);
+    assert.equal((plan.value.result as Record<string, unknown>).status, "planned");
+    assert.deepEqual(plan.value.warnings, [
+      {
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(projectRoot, ".gitignore"),
+      },
+    ]);
+    assert.equal(await readFile(resolve(projectRoot, "unslide.json"), "utf8"), beforeAdd);
+    await assert.rejects(access(resolve(projectRoot, "appendix.tsx")), /ENOENT/);
+
+    await writeFile(resolve(projectRoot, ".gitignore"), "artifacts/\n.tmp/\n!artifacts/\n!.tmp/\n");
+    const negatedIgnorePlan = await runCli(["add", "risk-review"], projectRoot);
+    assert.deepEqual(negatedIgnorePlan.value.warnings, [
+      {
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(projectRoot, ".gitignore"),
+      },
+    ]);
+    await writeFile(resolve(projectRoot, ".gitignore"), "**/artifacts/\n.tmp/*\n");
+    const commonIgnorePlan = await runCli(["add", "safe-review"], projectRoot);
+    assert.deepEqual(commonIgnorePlan.value.warnings, []);
+    await writeFile(resolve(projectRoot, ".gitignore"), "artifacts/*/\n.tmp/**/\n");
+    const directoryOnlyIgnorePlan = await runCli(["add", "directory-only-review"], projectRoot);
+    assert.deepEqual(directoryOnlyIgnorePlan.value.warnings, [
+      {
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(projectRoot, ".gitignore"),
+      },
+    ]);
+    await writeFile(resolve(projectRoot, ".gitignore"), "artifacts/\n.tmp/\n!*/\n!**/*\n");
+    const broadNegationPlan = await runCli(["add", "exposed-review"], projectRoot);
+    assert.deepEqual(broadNegationPlan.value.warnings, [
+      {
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(projectRoot, ".gitignore"),
+      },
+    ]);
+    await writeFile(
+      resolve(projectRoot, ".gitignore"),
+      "artifacts/\n.tmp/\n!**/\n!*.html\n!*.pdf\n",
+    );
+    const reopenedDirectoryPlan = await runCli(["add", "reopened-review"], projectRoot);
+    assert.deepEqual(reopenedDirectoryPlan.value.warnings, [
+      {
+        code: "sensitive-output-not-ignored",
+        message: "Conventional report outputs are not covered by the existing .gitignore.",
+        path: resolve(projectRoot, ".gitignore"),
+      },
+    ]);
+    await writeFile(resolve(projectRoot, ".gitignore"), "node_modules/\n");
+
+    await writeFile(resolve(projectRoot, "blocked-report"), "not a directory\n");
+    const blockedParent = await runCli(
+      ["add", "blocked-report", "--starter", "business-report"],
+      projectRoot,
+    );
+    assert.equal(blockedParent.exitCode, 1);
+    assert.equal((blockedParent.value.result as Record<string, unknown>).status, "conflict");
+    await rm(resolve(projectRoot, "blocked-report"));
+
+    await writeFile(resolve(projectRoot, "appendix.css"), "consumer-owned\n");
+    const conflict = await runCli(["add", "appendix", "--yes"], projectRoot);
+    assert.equal(conflict.exitCode, 1);
+    assert.equal((conflict.value.result as Record<string, unknown>).status, "conflict");
+    assert.equal(await readFile(resolve(projectRoot, "unslide.json"), "utf8"), beforeAdd);
+    await assert.rejects(access(resolve(projectRoot, "appendix.tsx")), /ENOENT/);
+    await rm(resolve(projectRoot, "appendix.css"));
+
+    const added = await runCli(["add", "appendix", "--yes"], projectRoot);
+    assert.equal(added.exitCode, 0, added.stdout);
+    const addResult = added.value.result as Record<string, unknown>;
+    assert.equal(addResult.operation, "add");
+    assert.equal(addResult.starter, "minimal");
+    assert.equal(addResult.status, "created");
+    const config = JSON.parse(await readFile(resolve(projectRoot, "unslide.json"), "utf8"));
+    assert.deepEqual(config.reports.appendix, { source: "appendix.tsx" });
+    assert.deepEqual(config.reports["board-review"], { source: "board-review.tsx" });
+    assert.equal(await readFile(resolve(projectRoot, ".gitignore"), "utf8"), "node_modules/\n");
+
+    const duplicate = await runCli(["add", "appendix", "--yes"], projectRoot);
+    assert.equal(duplicate.exitCode, 1);
+    assert.match(JSON.stringify(duplicate.value), /already configured/);
+
+    const lockPath = resolve(projectRoot, ".unslide.json.add.lock");
+    await writeFile(lockPath, "2147483647\n");
+    const staleLockAdd = await runCli(["add", "stale-lock-report", "--yes"], projectRoot);
+    assert.equal(staleLockAdd.exitCode, 0, staleLockAdd.stdout);
+    await assert.rejects(access(lockPath), /ENOENT/);
+
+    const beforeActiveLock = await readFile(resolve(projectRoot, "unslide.json"), "utf8");
+    await writeFile(lockPath, `${process.pid}\n`);
+    const activeLockAdd = await runCli(["add", "active-lock-report", "--yes"], projectRoot);
+    assert.equal(activeLockAdd.exitCode, 1);
+    assert.match(JSON.stringify(activeLockAdd.value), /Another add may be in progress/);
+    assert.equal(await readFile(resolve(projectRoot, "unslide.json"), "utf8"), beforeActiveLock);
+    await assert.rejects(access(resolve(projectRoot, "active-lock-report.tsx")), /ENOENT/);
+    await rm(lockPath);
+
+    // The failure must occur after the top-level file is written so this exercises rollback.
+    const rollbackDirectory = resolve(projectRoot, "rollback-report");
+    await mkdir(resolve(rollbackDirectory, "assets"), { recursive: true });
+    await chmod(rollbackDirectory, 0o500);
+    const beforeRollback = await readFile(resolve(projectRoot, "unslide.json"), "utf8");
+    const rolledBack = await runCli(
+      ["add", "rollback-report", "--starter", "business-report", "--yes"],
+      projectRoot,
+    );
+    await chmod(rollbackDirectory, 0o700);
+    assert.equal(rolledBack.exitCode, 1);
+    assert.equal(await readFile(resolve(projectRoot, "unslide.json"), "utf8"), beforeRollback);
+    await assert.rejects(access(resolve(projectRoot, "rollback-report.tsx")), /ENOENT/);
+    await assert.rejects(access(resolve(rollbackDirectory, "report.tsx")), /ENOENT/);
+
+    await symlink(outsideRoot, resolve(projectRoot, "linked-report"));
+    const linkedConflict = await runCli(
+      ["add", "linked-report", "--starter", "business-report", "--yes"],
+      projectRoot,
+    );
+    assert.equal(linkedConflict.exitCode, 1);
+    assert.equal((linkedConflict.value.result as Record<string, unknown>).status, "conflict");
+    await assert.rejects(access(resolve(projectRoot, "linked-report.tsx")), /ENOENT/);
+    await assert.rejects(access(resolve(outsideRoot, "report.tsx")), /ENOENT/);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+    await rm(outsideRoot, { recursive: true, force: true });
+  }
+});
+
 test("CLI rejects unsupported arguments and invalid report names", async () => {
   const invalid = [
     await runCli(["init", "--name"]),
     await runCli(["init", "--name", "Quarterly Review"]),
     await runCli(["init", "--yes", "--yes"]),
     await runCli(["init", "--unknown"]),
+    await runCli(["init", "--starter"]),
+    await runCli(["init", "--starter", "unknown"]),
+    await runCli(["add"]),
+    await runCli(["add", "Bad_Name"]),
+    await runCli(["add", "report", "--starter", "unknown"]),
+    await runCli(["add", "report", "--starter", "minimal", "--starter", "minimal"]),
   ];
   for (const command of ["build", "capture", "export", "inspect", "inspect-pdf"]) {
     invalid.push(await runCli([command, "Bad_Name"]));
@@ -1469,6 +1691,7 @@ test("CLI rejects missing reports, visual fields, and unsafe output paths", asyn
       JSON.stringify({
         version: 1,
         reports: {
+          available: { source: "source files/report.tsx" },
           fixture: {
             source: "source files/missing.tsx",
             html: "generated/report.html",
@@ -1478,8 +1701,87 @@ test("CLI rejects missing reports, visual fields, and unsafe output paths", asyn
       }),
     );
     const missingSource = await runCli([], projectRoot);
-    assert.equal(missingSource.exitCode, 1);
-    assert.match(JSON.stringify(missingSource.value), /source does not exist/);
+    assert.equal(missingSource.exitCode, 0);
+    const missingReport = (
+      (missingSource.value.result as Record<string, unknown>).reports as Array<
+        Record<string, unknown>
+      >
+    ).find((report) => report.name === "fixture");
+    assert.deepEqual(missingReport?.source, {
+      kind: "file",
+      path: resolve(projectRoot, "source files/missing.tsx"),
+      exists: false,
+    });
+    const missingSourceBuild = await runCli(["build", "fixture"], projectRoot);
+    assert.equal(missingSourceBuild.exitCode, 1);
+    assert.equal(
+      (missingSourceBuild.value.error as Record<string, unknown>).code,
+      "source-not-found",
+    );
+    const availableBuild = await runCli(["build", "available"], projectRoot);
+    assert.equal(availableBuild.exitCode, 0, availableBuild.stdout);
+
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: { fixture: { source: "source files/report.tsx" } },
+      }),
+    );
+    const derived = await runCli([], projectRoot);
+    assert.equal(derived.exitCode, 0);
+    const sourceOnlyConfig = await readFile(configPath, "utf8");
+    const derivedReport = (
+      (derived.value.result as Record<string, unknown>).reports as Array<Record<string, unknown>>
+    )[0];
+    assert.ok(derivedReport);
+    assert.equal(
+      (derivedReport.html as Record<string, unknown>).path,
+      resolve(projectRoot, "artifacts/fixture.html"),
+    );
+    assert.equal(
+      (derivedReport.pdf as Record<string, unknown>).path,
+      resolve(projectRoot, "artifacts/fixture.pdf"),
+    );
+    assert.equal(
+      (derivedReport.captures as Record<string, unknown>).path,
+      resolve(projectRoot, ".tmp/captures/fixture"),
+    );
+    assert.equal(
+      (derivedReport.pdfCaptures as Record<string, unknown>).path,
+      resolve(projectRoot, ".tmp/pdf-captures/fixture"),
+    );
+    assert.equal(await readFile(configPath, "utf8"), sourceOnlyConfig);
+
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 1,
+        reports: {
+          fixture: {
+            source: "source files/report.tsx",
+            html: "custom/report.html",
+            captures: "custom/captures",
+          },
+        },
+      }),
+    );
+    const compatibleDefaults = await runCli([], projectRoot);
+    assert.equal(compatibleDefaults.exitCode, 0);
+    const compatibleReport = (
+      (compatibleDefaults.value.result as Record<string, unknown>).reports as Array<
+        Record<string, unknown>
+      >
+    )[0];
+    assert.ok(compatibleReport);
+    assert.equal(
+      (compatibleReport.pdf as Record<string, unknown>).path,
+      resolve(projectRoot, "custom/report.pdf"),
+    );
+    assert.equal(
+      (compatibleReport.pdfCaptures as Record<string, unknown>).path,
+      resolve(projectRoot, "custom/captures-pdf"),
+    );
   } finally {
     await rm(projectRoot, { recursive: true, force: true });
     await rm(outsideDirectory, { recursive: true, force: true });

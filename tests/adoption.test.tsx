@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
@@ -109,7 +109,7 @@ async function pixelAt(path: string, x: number, y: number): Promise<number[]> {
 
 test(
   "packed tooling initializes and runs from a clean external consumer",
-  { timeout: 90_000 },
+  { timeout: 180_000 },
   async () => {
     const packageDirectory = await mkdtemp(resolve(tmpdir(), "unslide-adoption-package-"));
     const consumerRoot = await mkdtemp(resolve(tmpdir(), "unslide-adoption-consumer-"));
@@ -157,7 +157,16 @@ test(
             private: true,
             type: "module",
             packageManager: "pnpm@11.12.0",
-            dependencies: { unslide: `file:${tarballPath}` },
+            dependencies: {
+              react: "19.2.0",
+              "react-dom": "19.2.0",
+              unslide: `file:${tarballPath}`,
+            },
+            devDependencies: {
+              "@types/node": "24.0.13",
+              "@types/react": "19.1.8",
+              typescript: "5.8.3",
+            },
           },
           null,
           2,
@@ -169,6 +178,24 @@ test(
       );
       await execFileAsync("pnpm", ["install"], { cwd: consumerRoot });
       await execFileAsync("pnpm", ["install", "--frozen-lockfile"], { cwd: consumerRoot });
+
+      const commonJsTypecheckRoot = resolve(consumerRoot, "commonjs-typecheck");
+      await mkdir(commonJsTypecheckRoot);
+      await writeFile(
+        resolve(commonJsTypecheckRoot, "package.json"),
+        `${JSON.stringify({ private: true }, null, 2)}\n`,
+      );
+      await runConsumerCli(commonJsTypecheckRoot, [
+        "init",
+        "--name",
+        "typed-review",
+        "--starter",
+        "business-report",
+        "--yes",
+      ]);
+      await execFileAsync("pnpm", ["exec", "tsc", "--noEmit", "-p", "typed-review/tsconfig.json"], {
+        cwd: commonJsTypecheckRoot,
+      });
 
       const installedPackage = await realpath(resolve(consumerRoot, "node_modules", "unslide"));
       assert.ok(installedPackage.startsWith(await realpath(consumerRoot)));
@@ -182,6 +209,7 @@ test(
         engines: { node: string };
         exports: Record<string, unknown>;
         dependencies: Record<string, string>;
+        peerDependencies: Record<string, string>;
       };
       assert.equal(installedManifest.version, repositoryManifest.version);
       assert.equal(installedManifest.engines.node, ">=24.15 <25");
@@ -194,6 +222,19 @@ test(
       assert.equal(installedManifest.dependencies["pdfjs-dist"], "6.1.200");
       assert.equal(installedManifest.dependencies["@napi-rs/canvas"], "1.0.2");
       assert.equal(installedManifest.dependencies.effect, "4.0.0-beta.97");
+      assert.equal(installedManifest.dependencies.react, undefined);
+      assert.equal(installedManifest.dependencies["react-dom"], undefined);
+      assert.equal(installedManifest.peerDependencies.react, ">=19.1.0 <20");
+      assert.equal(installedManifest.peerDependencies["react-dom"], ">=19.1.0 <20");
+      await execFileAsync(
+        "node",
+        [
+          "--input-type=module",
+          "--eval",
+          'import React from "react"; import UnslideReact from "unslide/react"; if (React !== UnslideReact) process.exit(1);',
+        ],
+        { cwd: consumerRoot },
+      );
 
       const help = await runConsumerCli(consumerRoot, ["--help"]);
       assert.equal(help.resultSchemaVersion, 1);
@@ -227,12 +268,74 @@ test(
       await assert.rejects(access(resolve(consumerRoot, "src", "unslide")), /ENOENT/);
       await assert.rejects(access(resolve(consumerRoot, "scripts", "capture.ts")), /ENOENT/);
 
+      const businessPlan = await runConsumerCli(consumerRoot, [
+        "add",
+        "business-review",
+        "--starter",
+        "business-report",
+      ]);
+      assert.equal((businessPlan.result as Record<string, unknown>).status, "planned");
+      await assert.rejects(access(resolve(consumerRoot, "business-review.tsx")), /ENOENT/);
+      const businessCreation = await runConsumerCli(consumerRoot, [
+        "add",
+        "business-review",
+        "--starter",
+        "business-report",
+        "--yes",
+      ]);
+      assert.equal((businessCreation.result as Record<string, unknown>).status, "created");
+      await execFileAsync(
+        "pnpm",
+        ["exec", "tsc", "--noEmit", "-p", "business-review/tsconfig.json"],
+        { cwd: consumerRoot },
+      );
+      const starterElementBuild = await runConsumerCli(consumerRoot, ["build", "report"]);
+      assert.equal((starterElementBuild.result as Record<string, unknown>).kind, "build");
+      const businessBuild = await runConsumerCli(consumerRoot, ["build", "business-review"]);
+      assert.equal((businessBuild.result as Record<string, unknown>).kind, "build");
+      const businessCapture = await runConsumerCli(consumerRoot, ["capture", "business-review"]);
+      const businessExport = await runConsumerCli(consumerRoot, ["export", "business-review"]);
+      const businessPdfInspection = await runConsumerCli(consumerRoot, [
+        "inspect-pdf",
+        "business-review",
+      ]);
+      for (const result of [businessCapture, businessExport, businessPdfInspection]) {
+        const pages = (result.result as Record<string, unknown>).pages as Array<
+          Record<string, unknown>
+        >;
+        assert.equal(pages.length, 3);
+      }
+      for (const result of [businessCapture, businessPdfInspection]) {
+        const pages = (result.result as Record<string, unknown>).pages as Array<
+          Record<string, unknown>
+        >;
+        for (const page of pages) {
+          assert.equal(typeof page.path, "string");
+          await access(page.path as string);
+        }
+      }
+      const businessExportPages = (businessExport.result as Record<string, unknown>).pages as Array<
+        Record<string, unknown>
+      >;
+      assert.deepEqual(
+        businessExportPages.map((page) => page.id),
+        ["cover", "contents", "highlights"],
+      );
+
       const fontFixture = await readFile(
         resolve(repositoryRoot, "tests/fixtures/assets/codicon-subset.woff2.b64"),
         "utf8",
       );
       await writeFile(
         resolve(consumerRoot, "report.woff2"),
+        Buffer.from(fontFixture.trim(), "base64"),
+      );
+      await writeFile(
+        resolve(consumerRoot, "report.ttf"),
+        Buffer.from(fontFixture.trim(), "base64"),
+      );
+      await writeFile(
+        resolve(consumerRoot, "report.otf"),
         Buffer.from(fontFixture.trim(), "base64"),
       );
       await writeFile(
@@ -249,6 +352,8 @@ test(
       await writeFile(
         resolve(consumerRoot, "report.css"),
         `@font-face { font-family: FixtureIcon; src: url(FONT_DATA); }
+@font-face { font-family: FixtureTtf; src: url(TTF_DATA); }
+@font-face { font-family: FixtureOtf; src: url(OTF_DATA); }
 @page { size: 10in 5.625in; margin: 0; }
 * { box-sizing: border-box; }
 :root { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -264,28 +369,31 @@ a { color: #ff8b73; }
       );
       await writeFile(
         resolve(consumerRoot, "report.tsx"),
-        `import { fileURLToPath } from "node:url";
-import React, { inlineAsset, readTextAsset } from "unslide/react";
+        `import { useId } from "react";
+import React, { inlineAsset, readTextAsset, type ReportComponent } from "unslide/react";
 
-const local = (name: string) => fileURLToPath(new URL(name, import.meta.url));
-const [styles, font, raster, mark] = await Promise.all([
-  readTextAsset(local("./report.css")),
-  inlineAsset(local("./report.woff2")),
-  inlineAsset(local("./pixel.png")),
-  inlineAsset(local("./mark.svg")),
+const [styles, font, ttf, otf, raster, mark] = await Promise.all([
+  readTextAsset(new URL("./report.css", import.meta.url)),
+  inlineAsset(new URL("./report.woff2", import.meta.url)),
+  inlineAsset(new URL("./report.ttf", import.meta.url)),
+  inlineAsset(new URL("./report.otf", import.meta.url)),
+  inlineAsset(new URL("./pixel.png", import.meta.url)),
+  inlineAsset(new URL("./mark.svg", import.meta.url)),
 ]);
 
-export default (
+const Report: ReportComponent = () => {
+  const headingId = useId();
+  return (
   <html lang="ko">
     <head>
       <meta charSet="utf-8" />
       <meta name="unslide-protocol" content="1" />
       <title>소비자 전달 보고서 / Consumer Delivery Report</title>
-      <style>{styles.replace("FONT_DATA", font)}</style>
+      <style>{styles.replace("FONT_DATA", font).replace("TTF_DATA", ttf).replace("OTF_DATA", otf)}</style>
     </head>
     <body>
       <main data-unslide-page="delivery">
-        <h1>소비자 전달 보고서<br />Consumer delivery report</h1>
+        <h1 id={headingId}>소비자 전달 보고서<br />Consumer delivery report</h1>
         <p>한국어와 English text, local assets, semantic links, and authored print color survive the packaged workflow.</p>
         <div className="assets">
           <img src={raster} alt="Raster fixture" />
@@ -297,7 +405,9 @@ export default (
       </main>
     </body>
   </html>
-);
+  );
+};
+export default Report;
 console.log("authored consumer output must not escape");
 `,
       );
@@ -324,6 +434,8 @@ console.log("authored consumer output must not escape");
       assert.match(html, /data:image\/png;base64,/);
       assert.match(html, /data:image\/svg\+xml;base64,/);
       assert.match(html, /data:font\/woff2;base64,/);
+      assert.match(html, /data:font\/ttf;base64,/);
+      assert.match(html, /data:font\/otf;base64,/);
       assert.match(html, /print-color-adjust:\s*exact/);
       assert.match(html, /<svg[^>]+aria-label="Inline SVG"/);
       assert.match(html, /href="https:\/\/example\.com\/delivery"/);

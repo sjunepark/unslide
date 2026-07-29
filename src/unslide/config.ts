@@ -1,17 +1,18 @@
 import { access, readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Ajv, type ErrorObject } from "ajv";
+import { Ajv, type ErrorObject, type ValidateFunction } from "ajv";
 import { Effect } from "effect";
 import { ProjectConfigFailure, ProjectNotFound, ReportNotFound } from "./failures.js";
+import { canonicalizeThroughExistingAncestor, pathsOverlap } from "./paths.js";
 
 export const CONFIG_FILE_NAME = "unslide.json";
 
 interface ReportConfigJson {
   source: string;
-  html: string;
+  html?: string;
   pdf?: string;
-  captures: string;
+  captures?: string;
   pdfCaptures?: string;
 }
 
@@ -38,6 +39,7 @@ export interface ProjectConfig {
 }
 
 const schemaPath = fileURLToPath(new URL("../../schema/unslide.schema.json", import.meta.url));
+let projectConfigValidator: ValidateFunction<ProjectConfigJson> | undefined;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -130,16 +132,6 @@ function resolveProjectPath(
   return Effect.succeed(resolvedPath);
 }
 
-function pathsOverlap(first: string, second: string): boolean {
-  const firstToSecond = relative(first, second);
-  const secondToFirst = relative(second, first);
-  return (
-    firstToSecond === "" ||
-    (!firstToSecond.startsWith(`..${sep}`) && firstToSecond !== "..") ||
-    (!secondToFirst.startsWith(`..${sep}`) && secondToFirst !== "..")
-  );
-}
-
 const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* (
   configPath: string,
   projectRoot: string,
@@ -147,42 +139,10 @@ const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* 
   field: string,
   reportName: string,
 ) {
-  let existingAncestor = inputPath;
-  let canonicalPath: string;
-
-  while (true) {
-    const result = yield* Effect.promise(() =>
-      realpath(existingAncestor).then(
-        (path) => ({ _tag: "Found" as const, path }),
-        (cause) => {
-          if (!isNodeError(cause)) throw cause;
-          return { _tag: "Failed" as const, cause };
-        },
-      ),
-    );
-    if (result._tag === "Found") {
-      canonicalPath = resolve(result.path, relative(existingAncestor, inputPath));
-      break;
-    }
-    if (result.cause.code !== "ENOENT" && result.cause.code !== "ENOTDIR") {
-      return yield* new ProjectConfigFailure({
-        cause: result.cause,
-        message: result.cause.message,
-        path: configPath,
-        phase: "resolve",
-      });
-    }
-    const parent = dirname(existingAncestor);
-    if (parent === existingAncestor) {
-      return yield* new ProjectConfigFailure({
-        cause: result.cause,
-        message: result.cause.message,
-        path: configPath,
-        phase: "resolve",
-      });
-    }
-    existingAncestor = parent;
-  }
+  const canonicalPath = yield* Effect.tryPromise({
+    try: () => canonicalizeThroughExistingAncestor(inputPath),
+    catch: (cause) => nodeFailure(cause, configPath, "resolve"),
+  });
 
   const canonicalRoot = yield* Effect.tryPromise({
     try: () => realpath(projectRoot),
@@ -199,12 +159,176 @@ const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* 
   return canonicalPath;
 });
 
+export const validateProjectConfigContents = Effect.fn("config.validateProjectConfigContents")(
+  function* (configPath: string, configText: string) {
+    const projectRoot = dirname(configPath);
+    const configJson: unknown = yield* Effect.try({
+      try: () => JSON.parse(configText),
+      catch: (cause) => {
+        if (!(cause instanceof SyntaxError)) throw cause;
+        return new ProjectConfigFailure({
+          cause,
+          detail: cause.message,
+          message: `Cannot parse ${configPath}: ${cause.message}`,
+          path: configPath,
+          phase: "parse",
+        });
+      },
+    });
+
+    if (
+      typeof configJson === "object" &&
+      configJson !== null &&
+      Object.hasOwn(configJson, "version")
+    ) {
+      const version = (configJson as { version?: unknown }).version;
+      if (version !== 1) {
+        return yield* new ProjectConfigFailure({
+          message: `Unsupported ${CONFIG_FILE_NAME} version ${JSON.stringify(version)}. This release supports version 1; update the configuration manually because automatic migration is not available.`,
+          path: configPath,
+          phase: "validate",
+        });
+      }
+    }
+
+    const validate = yield* Effect.tryPromise({
+      try: async () => {
+        if (projectConfigValidator) return projectConfigValidator;
+        const schemaText = await readFile(schemaPath, "utf8");
+        const schema = JSON.parse(schemaText) as object;
+        projectConfigValidator = new Ajv({
+          allErrors: true,
+          strict: true,
+        }).compile<ProjectConfigJson>(schema);
+        return projectConfigValidator;
+      },
+      catch: (cause) =>
+        nodeFailure(cause, schemaPath, "read", errorMessage(cause), "command-failed"),
+    });
+    if (!validate(configJson)) {
+      return yield* new ProjectConfigFailure({
+        message: `Invalid ${configPath}: ${formatSchemaErrors(validate.errors ?? [])}`,
+        path: configPath,
+        phase: "validate",
+      });
+    }
+
+    const reports: Record<string, ReportConfig> = {};
+    const canonicalReports: Record<string, ReportConfig> = {};
+    for (const [name, report] of Object.entries(configJson.reports)) {
+      const html = report.html ?? `artifacts/${name}.html`;
+      const captures = report.captures ?? `.tmp/captures/${name}`;
+      const sourcePath = yield* resolveProjectPath(
+        configPath,
+        projectRoot,
+        report.source,
+        "source",
+        name,
+      );
+      const htmlPath = yield* resolveProjectPath(configPath, projectRoot, html, "html", name);
+      const pdfPath = yield* resolveProjectPath(
+        configPath,
+        projectRoot,
+        report.pdf ??
+          (report.html === undefined ? `artifacts/${name}.pdf` : html.replace(/\.html$/, ".pdf")),
+        "pdf",
+        name,
+      );
+      const captureDirectory = yield* resolveProjectPath(
+        configPath,
+        projectRoot,
+        captures,
+        "captures",
+        name,
+      );
+      const pdfCaptureDirectory = yield* resolveProjectPath(
+        configPath,
+        projectRoot,
+        report.pdfCaptures ??
+          (report.captures === undefined ? `.tmp/pdf-captures/${name}` : `${captures}-pdf`),
+        "pdfCaptures",
+        name,
+      );
+
+      reports[name] = {
+        name,
+        sourcePath,
+        htmlPath,
+        pdfPath,
+        captureDirectory,
+        pdfCaptureDirectory,
+      };
+      canonicalReports[name] = {
+        name,
+        sourcePath: yield* canonicalProjectPath(
+          configPath,
+          projectRoot,
+          sourcePath,
+          "source",
+          name,
+        ),
+        htmlPath: yield* canonicalProjectPath(configPath, projectRoot, htmlPath, "html", name),
+        pdfPath: yield* canonicalProjectPath(configPath, projectRoot, pdfPath, "pdf", name),
+        captureDirectory: yield* canonicalProjectPath(
+          configPath,
+          projectRoot,
+          captureDirectory,
+          "captures",
+          name,
+        ),
+        pdfCaptureDirectory: yield* canonicalProjectPath(
+          configPath,
+          projectRoot,
+          pdfCaptureDirectory,
+          "pdfCaptures",
+          name,
+        ),
+      };
+    }
+
+    const sources = Object.values(canonicalReports).map((report) => ({
+      reportName: report.name,
+      path: report.sourcePath,
+    }));
+    const outputs = Object.values(canonicalReports).flatMap((report) => [
+      { reportName: report.name, field: "html", path: report.htmlPath },
+      { reportName: report.name, field: "pdf", path: report.pdfPath },
+      { reportName: report.name, field: "captures", path: report.captureDirectory },
+      { reportName: report.name, field: "pdfCaptures", path: report.pdfCaptureDirectory },
+    ]);
+
+    for (const output of outputs) {
+      for (const source of sources) {
+        if (pathsOverlap(output.path, source.path)) {
+          return yield* new ProjectConfigFailure({
+            message: `Report "${output.reportName}" field "${output.field}" overlaps report "${source.reportName}" source: ${source.path}`,
+            path: configPath,
+            phase: "validate",
+          });
+        }
+      }
+    }
+
+    for (const [index, output] of outputs.entries()) {
+      for (const other of outputs.slice(index + 1)) {
+        if (pathsOverlap(output.path, other.path)) {
+          return yield* new ProjectConfigFailure({
+            message: `Report "${output.reportName}" field "${output.field}" overlaps report "${other.reportName}" field "${other.field}".`,
+            path: configPath,
+            phase: "validate",
+          });
+        }
+      }
+    }
+
+    return { version: 1 as const, configPath, projectRoot, reports };
+  },
+);
+
 export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function* (
   startDirectory: string = process.cwd(),
 ) {
   const configPath = yield* findProjectConfig(startDirectory);
-  const projectRoot = dirname(configPath);
-
   const configText = yield* Effect.tryPromise({
     try: () => readFile(configPath, "utf8"),
     catch: (cause) =>
@@ -216,149 +340,7 @@ export const loadProjectConfig = Effect.fn("config.loadProjectConfig")(function*
         "project-config-unreadable",
       ),
   });
-  const configJson: unknown = yield* Effect.try({
-    try: () => JSON.parse(configText),
-    catch: (cause) => {
-      if (!(cause instanceof SyntaxError)) throw cause;
-      return new ProjectConfigFailure({
-        cause,
-        detail: cause.message,
-        message: `Cannot parse ${configPath}: ${cause.message}`,
-        path: configPath,
-        phase: "parse",
-      });
-    },
-  });
-
-  if (
-    typeof configJson === "object" &&
-    configJson !== null &&
-    Object.hasOwn(configJson, "version")
-  ) {
-    const version = (configJson as { version?: unknown }).version;
-    if (version !== 1) {
-      return yield* new ProjectConfigFailure({
-        message: `Unsupported ${CONFIG_FILE_NAME} version ${JSON.stringify(version)}. This release supports version 1; update the configuration manually because automatic migration is not available.`,
-        path: configPath,
-        phase: "validate",
-      });
-    }
-  }
-
-  const schemaText = yield* Effect.tryPromise({
-    try: () => readFile(schemaPath, "utf8"),
-    catch: (cause) => nodeFailure(cause, schemaPath, "read", errorMessage(cause), "command-failed"),
-  });
-  const schema = JSON.parse(schemaText) as object;
-  const ajv = new Ajv({ allErrors: true, strict: true });
-  const validate = ajv.compile<ProjectConfigJson>(schema);
-  if (!validate(configJson)) {
-    return yield* new ProjectConfigFailure({
-      message: `Invalid ${configPath}: ${formatSchemaErrors(validate.errors ?? [])}`,
-      path: configPath,
-      phase: "validate",
-    });
-  }
-
-  const reports: Record<string, ReportConfig> = {};
-  const canonicalReports: Record<string, ReportConfig> = {};
-  for (const [name, report] of Object.entries(configJson.reports)) {
-    const sourcePath = yield* resolveProjectPath(
-      configPath,
-      projectRoot,
-      report.source,
-      "source",
-      name,
-    );
-    const htmlPath = yield* resolveProjectPath(configPath, projectRoot, report.html, "html", name);
-    const pdfPath = yield* resolveProjectPath(
-      configPath,
-      projectRoot,
-      report.pdf ?? report.html.replace(/\.html$/, ".pdf"),
-      "pdf",
-      name,
-    );
-    const captureDirectory = yield* resolveProjectPath(
-      configPath,
-      projectRoot,
-      report.captures,
-      "captures",
-      name,
-    );
-    const pdfCaptureDirectory = yield* resolveProjectPath(
-      configPath,
-      projectRoot,
-      report.pdfCaptures ?? `${report.captures}-pdf`,
-      "pdfCaptures",
-      name,
-    );
-
-    yield* Effect.tryPromise({
-      try: () => access(sourcePath),
-      catch: (cause) => {
-        const detail = `Report "${name}" source does not exist: ${sourcePath}`;
-        return nodeFailure(cause, sourcePath, "resolve", detail, "project-config-invalid", detail);
-      },
-    });
-    reports[name] = { name, sourcePath, htmlPath, pdfPath, captureDirectory, pdfCaptureDirectory };
-    canonicalReports[name] = {
-      name,
-      sourcePath: yield* canonicalProjectPath(configPath, projectRoot, sourcePath, "source", name),
-      htmlPath: yield* canonicalProjectPath(configPath, projectRoot, htmlPath, "html", name),
-      pdfPath: yield* canonicalProjectPath(configPath, projectRoot, pdfPath, "pdf", name),
-      captureDirectory: yield* canonicalProjectPath(
-        configPath,
-        projectRoot,
-        captureDirectory,
-        "captures",
-        name,
-      ),
-      pdfCaptureDirectory: yield* canonicalProjectPath(
-        configPath,
-        projectRoot,
-        pdfCaptureDirectory,
-        "pdfCaptures",
-        name,
-      ),
-    };
-  }
-
-  const sources = Object.values(canonicalReports).map((report) => ({
-    reportName: report.name,
-    path: report.sourcePath,
-  }));
-  const outputs = Object.values(canonicalReports).flatMap((report) => [
-    { reportName: report.name, field: "html", path: report.htmlPath },
-    { reportName: report.name, field: "pdf", path: report.pdfPath },
-    { reportName: report.name, field: "captures", path: report.captureDirectory },
-    { reportName: report.name, field: "pdfCaptures", path: report.pdfCaptureDirectory },
-  ]);
-
-  for (const output of outputs) {
-    for (const source of sources) {
-      if (pathsOverlap(output.path, source.path)) {
-        return yield* new ProjectConfigFailure({
-          message: `Report "${output.reportName}" field "${output.field}" overlaps report "${source.reportName}" source: ${source.path}`,
-          path: configPath,
-          phase: "validate",
-        });
-      }
-    }
-  }
-
-  for (const [index, output] of outputs.entries()) {
-    for (const other of outputs.slice(index + 1)) {
-      if (pathsOverlap(output.path, other.path)) {
-        return yield* new ProjectConfigFailure({
-          message: `Report "${output.reportName}" field "${output.field}" overlaps report "${other.reportName}" field "${other.field}".`,
-          path: configPath,
-          phase: "validate",
-        });
-      }
-    }
-  }
-
-  return { version: 1 as const, configPath, projectRoot, reports };
+  return yield* validateProjectConfigContents(configPath, configText);
 });
 
 export function getReport(config: ProjectConfig, name: string) {
