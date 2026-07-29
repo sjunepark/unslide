@@ -131,6 +131,7 @@ test("initialization reports partial creation without deleting safe user-visible
         { path: "unslide.json", state: "created" },
         { path: "report.tsx", state: "failed" },
         { path: "report.css", state: "not-started" },
+        { path: ".gitignore", state: "not-started" },
       ],
     );
     assert.match(await readFile(resolve(directory, "unslide.json"), "utf8"), /"version": 1/);

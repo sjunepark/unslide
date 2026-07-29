@@ -102,6 +102,12 @@ HTML and PDF outputs are written to same-directory staging paths and renamed
 only after successful generation and validation, so a failure cannot replace a
 prior delivery.
 
+Project setup derives conventional artifact paths after schema validation.
+`init` preserves truthful partial-creation evidence; `add` preflights every
+starter file, validates the merged configuration, stages the complete change,
+atomically replaces `unslide.json`, and rolls back files created by a failed
+publication.
+
 Page-image commands generate a complete staged set before replacing managed
 files. Publication preserves unrelated files, restores prior managed images
 when possible, and retains recovery staging when rollback cannot finish.
@@ -130,6 +136,11 @@ when possible, and retains recovery staging when rollback cannot finish.
 - PDF inspection renders the produced PDF, never source HTML.
 - Business calculations and domain models stay outside Unslide.
 - Project configuration remains operational and nonvisual.
+- Missing report source is observable report state and does not invalidate an
+  otherwise safe project.
+- Report source and rendering resolve matching consumer-owned React 19 and
+  React DOM peers; sources may export a created element or a synchronous
+  zero-prop component.
 - Canonical deliveries are replaced atomically; page-image replacement
   preserves unrelated files and recovery evidence.
 - Effect services, failures, Layers, and scopes remain internal; public React

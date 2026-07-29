@@ -30,13 +30,13 @@ pnpm dlx playwright@1.61.1 install chromium
 
 | Area                | Contract                                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Authoring           | Complete report-owned React/TSX documents producing standalone HTML                                                                            |
+| Authoring           | Complete report-owned React 19/TSX elements or synchronous zero-prop components producing standalone HTML                                      |
 | Artifact            | Protocol v1 ordered unique page markers and static resource readiness                                                                          |
 | HTML capture        | One screen-media Chromium PNG per marked page                                                                                                  |
 | PDF export          | Chromium print media, bounded readiness for print-active static resources, authored common geometry, backgrounds, and no browser header/footer |
 | PDF validation      | Structural checks for a readable nonempty file, marker/page-count parity, authored/common geometry, and extractable text                       |
 | PDF inspection      | One ordered 96-DPI PNG per actual PDF page, using no HTML or browser state                                                                     |
-| Content exercised   | Local WOFF2, raster and SVG images, inline SVG, links, Korean and English text, and authored exact print-color adjustment                      |
+| Content exercised   | Source-relative assets; local WOFF2, TTF, OTF, raster and SVG images; inline SVG; links; Korean and English text; authored print color         |
 | Semantics exercised | Document title and language, heading outline, marked structure tree, and link annotation                                                       |
 | Publication         | Atomic HTML/PDF replacement and recoverable managed page-image replacement                                                                     |
 
@@ -85,8 +85,8 @@ Each requires separate evidence and an explicit scope decision.
 
 ## Accepted Work Not Yet Claimed
 
-The current consumer-authoring plan has accepted command, result, manifest,
-configuration, React, and asset contracts in
+The current consumer-authoring plan has accepted composite review,
+focused-page, manifest, and symmetric artifact-workflow contracts in
 [D7](decisions/0007-consumer-authoring-contracts.md). They do not enter this
 verified delivery boundary until their implementation and packed-consumer
 proof pass the plan's completion criteria.

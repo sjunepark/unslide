@@ -48,7 +48,8 @@ The main choices are:
 - add dry-run-first, rollback-safe report addition without absorbing package or
   compiler configuration;
 - accept created elements or synchronous zero-prop function components and use
-  consumer-owned React as one shared peer instance; and
+  matching consumer-owned React and React DOM peers as one renderer
+  installation; and
 - extend path helpers to file URLs and common font types while leaving every
   visual asset decision in report source.
 
@@ -66,10 +67,11 @@ default. The result-envelope and page-identity correction are an intentional
 pre-1.0 public change and require a feature release with migration notes;
 linked consumer evidence changes in the same implementation slice.
 
-React moves from a private package copy to a required consumer peer in the
-supported React 19 range. Packed-consumer validation must prove one React
-instance, automatic JSX runtime use, caller type checking, both source-export
-forms, and the asset contract before this is released.
+React and React DOM move from private package copies to matching required
+consumer peers in the supported React 19 range. Packed-consumer validation must
+prove one React identity with an accepted newer pair, automatic JSX runtime
+use, caller type checking, both source-export forms, and the asset contract
+before this is released.
 
 ## Consequences
 

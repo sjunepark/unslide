@@ -145,12 +145,15 @@ export interface ReportState {
   readonly manifest: PathState;
 }
 
-interface ProjectChangeBase<FileStatus extends string> {
+interface ProjectChangeBase<
+  FileStatus extends string,
+  Operation extends "init" | "add" = "init" | "add",
+> {
   readonly kind: "project-change";
-  readonly operation: "init";
+  readonly operation: Operation;
   readonly projectRoot: string;
   readonly report: string;
-  readonly starter: "minimal";
+  readonly starter: "minimal" | "business-report";
   readonly files: ReadonlyArray<{ readonly path: string; readonly status: FileStatus }>;
 }
 
@@ -163,7 +166,7 @@ export type ProjectChangeFailure =
   | (ProjectChangeBase<"create" | "unchanged" | "conflict"> & {
       readonly status: "conflict";
     })
-  | (ProjectChangeBase<"created" | "unchanged" | "failed" | "not-started"> & {
+  | (ProjectChangeBase<"created" | "unchanged" | "failed" | "not-started", "init"> & {
       readonly status: "failed";
     });
 
