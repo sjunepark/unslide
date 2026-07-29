@@ -795,7 +795,15 @@ function parsedHtmlSelector(
     };
   }
   const pageId = scanned.values.get("--page-id");
-  if (pageId !== undefined) return { ok: true, selector: { kind: "page-id", id: pageId } };
+  if (pageId !== undefined) {
+    if (pageId.length === 0) {
+      return {
+        ok: false,
+        result: parseFailure(command, "--page-id requires a non-empty page ID.", help),
+      };
+    }
+    return { ok: true, selector: { kind: "page-id", id: pageId } };
+  }
   const pageNumber = parsePageNumber(command, scanned.values.get("--page-number"), help);
   if (!pageNumber.ok) return pageNumber;
   return pageNumber.number === undefined
@@ -843,11 +851,8 @@ function parseCaptureOrExport(
   }
   const report = args.positionals[0];
   if (report && !isReportName(report)) return invalidReportName(command, report, help);
-  const selector =
-    command === "capture"
-      ? parsedHtmlSelector(command, args, help)
-      : ({ ok: true, selector: undefined } as const);
-  if (!selector.ok) return selector.result;
+  const selector = command === "capture" ? parsedHtmlSelector(command, args, help) : undefined;
+  if (selector && !selector.ok) return selector.result;
   const artifact = args.values.get("--artifact");
   const output = args.values.get("--output");
   if (command === "export" && artifact !== undefined && !artifact.toLowerCase().endsWith(".html")) {
@@ -863,31 +868,47 @@ function parseCaptureOrExport(
     if (!artifact || !output) {
       return parseFailure(command, `Explicit ${command} requires --artifact and --output.`, help);
     }
+    if (command === "capture") {
+      return {
+        ok: true,
+        value: {
+          kind: "capture",
+          full: args.booleans.has("--full"),
+          ...(selector?.ok && selector.selector ? { selector: selector.selector } : {}),
+          target: { kind: "artifact", path: artifact, output },
+        },
+      };
+    }
     return {
       ok: true,
       value: {
-        kind: command,
+        kind: "export",
         full: args.booleans.has("--full"),
-        ...(command === "capture" && "selector" in selector && selector.selector
-          ? { selector: selector.selector }
-          : {}),
         target: { kind: "artifact", path: artifact, output },
       },
-    } as CommandParseResult;
+    };
   }
   if (!report)
     return parseFailure(command, `${command} requires a report name or artifact flags.`, help);
+  if (command === "capture") {
+    return {
+      ok: true,
+      value: {
+        kind: "capture",
+        full: args.booleans.has("--full"),
+        ...(selector?.ok && selector.selector ? { selector: selector.selector } : {}),
+        target: { kind: "report", report },
+      },
+    };
+  }
   return {
     ok: true,
     value: {
-      kind: command,
+      kind: "export",
       full: args.booleans.has("--full"),
-      ...(command === "capture" && "selector" in selector && selector.selector
-        ? { selector: selector.selector }
-        : {}),
       target: { kind: "report", report },
     },
-  } as CommandParseResult;
+  };
 }
 
 function parseReview(argv: readonly string[], invocation: string): CommandParseResult {

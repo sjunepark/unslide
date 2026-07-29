@@ -1547,8 +1547,10 @@ test("CLI inspection accepts a standalone artifact without project configuration
       ["capture", "--artifact", artifactPath, "--output", aliasPath, "--format", "json"],
       directory,
     );
-    assert.equal(overlapping.exitCode, 1);
-    assert.match(String((overlapping.value.error as Record<string, unknown>).detail), /overlaps/);
+    assert.equal(overlapping.exitCode, 2);
+    const overlapError = overlapping.value.error as Record<string, unknown>;
+    assert.equal(overlapError.code, "usage");
+    assert.match(String(overlapError.message), /overlaps/);
 
     const captures = resolve(directory, "standalone captures");
     const capture = await runCli(

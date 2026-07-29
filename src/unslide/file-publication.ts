@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Effect, Exit, FileSystem, Path } from "effect";
+import { Cause, Effect, Exit, FileSystem, Path } from "effect";
 import { scoped } from "./lifecycle.js";
 
 /**
@@ -29,16 +29,38 @@ export function publishFileAtomically<A, E, R>(
             Effect.succeed({ previousCopied: false, published: false }),
             (state, exit) =>
               Effect.gen(function* () {
-                if (Exit.isFailure(exit) && state.published) {
+                const rollback = Effect.gen(function* () {
+                  if (!state.published) return;
                   if (state.previousCopied) {
                     yield* fs.rename(backupPath, outputPath);
                     state.previousCopied = false;
                   } else {
                     yield* fs.remove(outputPath, { force: true });
                   }
+                  state.published = false;
+                });
+                const cleanup = Effect.gen(function* () {
+                  // Keep the backup until every other cleanup step succeeds so a
+                  // cleanup failure can still restore the prior destination.
+                  yield* fs.remove(stagingPath, { force: true });
+                  yield* fs.remove(backupPath, { force: true });
+                  state.previousCopied = false;
+                });
+
+                if (Exit.isFailure(exit)) {
+                  yield* rollback;
+                  yield* cleanup;
+                  return;
                 }
-                if (state.previousCopied) yield* fs.remove(backupPath, { force: true });
-                yield* fs.remove(stagingPath, { force: true });
+
+                const cleanupExit = yield* Effect.exit(cleanup);
+                if (Exit.isSuccess(cleanupExit)) return;
+                const rollbackExit = yield* Effect.exit(rollback);
+                return yield* Effect.failCause(
+                  Exit.isFailure(rollbackExit)
+                    ? Cause.combine(cleanupExit.cause, rollbackExit.cause)
+                    : cleanupExit.cause,
+                );
               }).pipe(Effect.orDie),
           );
 

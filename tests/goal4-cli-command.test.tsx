@@ -27,6 +27,12 @@ test("Goal 4 command grammar models report, artifact, selector, and review targe
     selector: { kind: "page-id", id: "2" },
     target: { kind: "report", report: "board-review" },
   });
+  assert.deepEqual(parsed(["capture", "board-review", "--page-id", " "]), {
+    kind: "capture",
+    full: false,
+    selector: { kind: "page-id", id: " " },
+    target: { kind: "report", report: "board-review" },
+  });
   assert.deepEqual(
     parsed([
       "capture",
@@ -81,6 +87,7 @@ test("Goal 4 command grammar rejects ambiguous targets and unsafe selectors", ()
     ["export", "--artifact", "report.txt", "--output", "report.pdf"],
     ["export", "--artifact", "report.html", "--output", "report.txt"],
     ["capture", "report", "--page-id", "one", "--page-number", "1"],
+    ["capture", "report", "--page-id", ""],
     ["capture", "report", "--page-number", "0"],
     ["capture", "report", "--page-number", "1.5"],
     ["capture", "report", "--page-number", "9007199254740992"],

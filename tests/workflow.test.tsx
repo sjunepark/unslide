@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -370,6 +370,36 @@ test("focused capture validates the artifact and replaces the managed set with i
       [{ id: "beta", index: 1 }],
     );
     assert.deepEqual((await readdir(outputDirectory)).sort(), ["keep.txt", "page-02.png"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("focused capture validates geometry for unselected pages before publishing", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide-focused-geometry-"));
+  const outputDirectory = resolve(directory, "captures");
+  try {
+    const inputPath = resolve(directory, "report.html");
+    await writeReportHtml({
+      document: (
+        <TestDocument
+          styles={`
+            body { margin: 0; }
+            [data-unslide-page] { width: 480px; height: 300px; }
+            [data-unslide-page="beta"] { display: none; }
+          `}
+        />
+      ),
+      outputPath: inputPath,
+    });
+    await mkdir(outputDirectory);
+    await writeFile(resolve(outputDirectory, "page-01.png"), "prior evidence");
+
+    await assert.rejects(
+      captureHtmlPages(inputPath, outputDirectory, { kind: "page-id", id: "alpha" }),
+      /Page "beta".*no visible capture area/,
+    );
+    assert.equal(await readFile(resolve(outputDirectory, "page-01.png"), "utf8"), "prior evidence");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

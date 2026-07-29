@@ -162,6 +162,63 @@ const canonicalProjectPath = Effect.fn("config.canonicalProjectPath")(function* 
   return canonicalPath;
 });
 
+interface CanonicalSourcePath {
+  readonly reportName: string;
+  readonly path: string;
+}
+
+interface CanonicalOutputPath extends CanonicalSourcePath {
+  readonly field: string;
+}
+
+const validateReportPathOverlaps = Effect.fn("config.validateReportPathOverlaps")(function* (
+  configPath: string,
+  sources: readonly CanonicalSourcePath[],
+  outputs: readonly CanonicalOutputPath[],
+) {
+  for (const output of outputs) {
+    for (const source of sources) {
+      if (pathsOverlap(output.path, source.path)) {
+        return yield* new ProjectConfigFailure({
+          message: `Report "${output.reportName}" field "${output.field}" overlaps report "${source.reportName}" source: ${source.path}`,
+          path: configPath,
+          phase: "validate",
+        });
+      }
+    }
+  }
+  for (const [index, output] of outputs.entries()) {
+    for (const other of outputs.slice(index + 1)) {
+      if (pathsOverlap(output.path, other.path)) {
+        return yield* new ProjectConfigFailure({
+          message: `Report "${output.reportName}" field "${output.field}" overlaps report "${other.reportName}" field "${other.field}".`,
+          path: configPath,
+          phase: "validate",
+        });
+      }
+    }
+  }
+});
+
+const canonicalManifestCandidate = Effect.fn("config.canonicalManifestCandidate")(function* (
+  configPath: string,
+  projectRoot: string,
+  manifestPath: string,
+) {
+  const canonicalPath = yield* Effect.tryPromise({
+    try: () => canonicalizeThroughExistingAncestor(manifestPath),
+    catch: (cause) => nodeFailure(cause, configPath, "resolve"),
+  });
+  const canonicalRoot = yield* Effect.tryPromise({
+    try: () => realpath(projectRoot),
+    catch: (cause) => nodeFailure(cause, configPath, "resolve"),
+  });
+  const relativePath = relative(canonicalRoot, canonicalPath);
+  return relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)
+    ? undefined
+    : canonicalPath;
+});
+
 export const validateProjectConfigContents = Effect.fn("config.validateProjectConfigContents")(
   function* (configPath: string, configText: string) {
     const projectRoot = dirname(configPath);
@@ -299,28 +356,7 @@ export const validateProjectConfigContents = Effect.fn("config.validateProjectCo
       { reportName: report.name, field: "captures", path: report.captureDirectory },
       { reportName: report.name, field: "pdfCaptures", path: report.pdfCaptureDirectory },
     ]);
-    for (const output of versionOneOutputs) {
-      for (const source of versionOneSources) {
-        if (pathsOverlap(output.path, source.path)) {
-          return yield* new ProjectConfigFailure({
-            message: `Report "${output.reportName}" field "${output.field}" overlaps report "${source.reportName}" source: ${source.path}`,
-            path: configPath,
-            phase: "validate",
-          });
-        }
-      }
-    }
-    for (const [index, output] of versionOneOutputs.entries()) {
-      for (const other of versionOneOutputs.slice(index + 1)) {
-        if (pathsOverlap(output.path, other.path)) {
-          return yield* new ProjectConfigFailure({
-            message: `Report "${output.reportName}" field "${output.field}" overlaps report "${other.reportName}" field "${other.field}".`,
-            path: configPath,
-            phase: "validate",
-          });
-        }
-      }
-    }
+    yield* validateReportPathOverlaps(configPath, versionOneSources, versionOneOutputs);
 
     const occupiedCanonicalPaths = Object.values(canonicalReports).flatMap((report) => [
       report.sourcePath,
@@ -335,13 +371,12 @@ export const validateProjectConfigContents = Effect.fn("config.validateProjectCo
       const stem = report.htmlPath.replace(/\.html$/, ".review");
       for (let suffix = 1; ; suffix += 1) {
         const manifestPath = `${stem}${suffix === 1 ? "" : `-${suffix}`}.json`;
-        const canonicalManifestPath = yield* canonicalProjectPath(
+        const canonicalManifestPath = yield* canonicalManifestCandidate(
           configPath,
           projectRoot,
           manifestPath,
-          "manifest",
-          report.name,
         );
+        if (!canonicalManifestPath) continue;
         if (occupiedCanonicalPaths.every((path) => !pathsOverlap(canonicalManifestPath, path))) {
           resolvedReports[report.name] = { ...report, manifestPath };
           resolvedCanonicalReports[report.name] = {
@@ -366,29 +401,7 @@ export const validateProjectConfigContents = Effect.fn("config.validateProjectCo
       { reportName: report.name, field: "manifest", path: report.manifestPath },
     ]);
 
-    for (const output of outputs) {
-      for (const source of sources) {
-        if (pathsOverlap(output.path, source.path)) {
-          return yield* new ProjectConfigFailure({
-            message: `Report "${output.reportName}" field "${output.field}" overlaps report "${source.reportName}" source: ${source.path}`,
-            path: configPath,
-            phase: "validate",
-          });
-        }
-      }
-    }
-
-    for (const [index, output] of outputs.entries()) {
-      for (const other of outputs.slice(index + 1)) {
-        if (pathsOverlap(output.path, other.path)) {
-          return yield* new ProjectConfigFailure({
-            message: `Report "${output.reportName}" field "${output.field}" overlaps report "${other.reportName}" field "${other.field}".`,
-            path: configPath,
-            phase: "validate",
-          });
-        }
-      }
-    }
+    yield* validateReportPathOverlaps(configPath, sources, outputs);
 
     return { version: 1 as const, configPath, projectRoot, reports: resolvedReports };
   },

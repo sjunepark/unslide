@@ -8,18 +8,18 @@ export const validateArtifactOutputPaths = Effect.fn("artifactPaths.validateArti
     const path = yield* Path.Path;
     const inputPath = path.resolve(input);
     const outputPath = path.resolve(output);
-    const [canonicalInput, canonicalOutput] = yield* Effect.tryPromise({
-      try: () =>
-        Promise.all([
-          canonicalizeThroughExistingAncestor(inputPath),
-          canonicalizeThroughExistingAncestor(outputPath),
-        ]),
+    const canonicalInput = yield* Effect.tryPromise({
+      try: () => canonicalizeThroughExistingAncestor(inputPath),
       catch: (cause) => commandFailure(cause, { command, path: inputPath }),
+    });
+    const canonicalOutput = yield* Effect.tryPromise({
+      try: () => canonicalizeThroughExistingAncestor(outputPath),
+      catch: (cause) => commandFailure(cause, { command, path: outputPath }),
     });
     if (pathsOverlap(canonicalInput, canonicalOutput)) {
       return yield* commandFailure(
         new Error("Artifact input and output overlap"),
-        { command, path: inputPath },
+        { command, code: "usage", path: inputPath },
         `Artifact input ${inputPath} overlaps output ${outputPath} after resolving symlinks.`,
       );
     }

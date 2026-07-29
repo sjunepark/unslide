@@ -54,3 +54,31 @@ test("loaded configuration skips a manifest candidate that aliases an existing o
     await rm(projectRoot, { recursive: true, force: true });
   }
 });
+
+test("loaded configuration skips a derived manifest candidate that resolves outside the project", async () => {
+  const projectRoot = await mkdtemp(resolve(tmpdir(), "unslide-manifest-outside-"));
+  const outsideRoot = await mkdtemp(resolve(tmpdir(), "unslide-manifest-target-"));
+  const configPath = resolve(projectRoot, "unslide.json");
+  try {
+    await mkdir(resolve(projectRoot, "artifacts"));
+    await writeFile(resolve(projectRoot, "report.tsx"), "export default null;\n");
+    await writeFile(resolve(outsideRoot, "manifest.json"), "outside");
+    await symlink(
+      resolve(outsideRoot, "manifest.json"),
+      resolve(projectRoot, "artifacts", "report.review.json"),
+    );
+    const configText = JSON.stringify({
+      version: 1,
+      reports: { report: { source: "report.tsx" } },
+    });
+
+    const config = await runUnslide(validateProjectConfigContents(configPath, configText));
+    assert.equal(
+      config.reports.report?.manifestPath,
+      resolve(projectRoot, "artifacts", "report.review-2.json"),
+    );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+    await rm(outsideRoot, { recursive: true, force: true });
+  }
+});

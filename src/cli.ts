@@ -647,6 +647,7 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
     const summaries: ReviewSummary[] = [];
     const reviewHelp = new Set<string>();
     let reviewExitCode: 0 | 1 | 2 = 0;
+    let hasCommandFailure = false;
     for (const report of reports) {
       const attempt = yield* reviewReport(report, {
         pdf: parsed.pdf,
@@ -672,6 +673,7 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
       }
       const failure = cliFailureResult(attempt.failure, "review", rawArguments, format);
       for (const help of failure.help) reviewHelp.add(help);
+      hasCommandFailure ||= failure.exitCode === 1;
       reviewExitCode = failure.exitCode === 2 ? 2 : (Math.max(reviewExitCode, 1) as 1 | 2);
       summaries.push({
         status: "error",
@@ -698,7 +700,9 @@ const executeCommand = Effect.fn("cli.executeCommand")(function* (
           code: reviewExitCode === 2 ? "usage" : "command-failed",
           message:
             reviewExitCode === 2
-              ? "A review page selector is invalid."
+              ? hasCommandFailure
+                ? "One or more reports were rejected by invalid review input, and one or more reports failed review."
+                : "One or more reports were rejected by invalid review input."
               : "One or more reports failed review.",
         },
         help: [...reviewHelp],

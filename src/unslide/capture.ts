@@ -24,6 +24,22 @@ export type HtmlPageSelector =
   | { readonly kind: "page-id"; readonly id: string }
   | { readonly kind: "page-number"; readonly number: number };
 
+export function matchesHtmlPageSelector(
+  page: { readonly id: string; readonly index: number },
+  selector: HtmlPageSelector,
+): boolean {
+  return selector.kind === "page-id" ? page.id === selector.id : page.index + 1 === selector.number;
+}
+
+export function htmlPageSelectorFailureMessage(
+  selector: HtmlPageSelector,
+  pageCount: number,
+): string {
+  return selector.kind === "page-id"
+    ? `HTML page ID ${JSON.stringify(selector.id)} does not exist.`
+    : `HTML page number ${selector.number} is outside the artifact's 1-${pageCount} range.`;
+}
+
 export const captureHtmlPages = Effect.fn("capture.captureHtmlPages")(function* (
   input: string,
   output: string,
@@ -42,27 +58,12 @@ export const captureHtmlPages = Effect.fn("capture.captureHtmlPages")(function* 
         withLoadedArtifact(inputPath, async ({ page, pages }) => {
           const digits = Math.max(2, String(pages.length).length);
           const pageElements = page.locator(PAGE_MARKER_SELECTOR);
-          const selectedPages = selector
-            ? pages.filter((metadata) =>
-                selector.kind === "page-id"
-                  ? metadata.id === selector.id
-                  : metadata.index + 1 === selector.number,
-              )
-            : pages;
-          if (selectedPages.length === 0) {
-            throw new ArtifactOperationFailure({
-              code: "page-selector",
-              message:
-                selector?.kind === "page-id"
-                  ? `HTML page ID ${JSON.stringify(selector.id)} does not exist.`
-                  : `HTML page number ${selector?.number} is outside the artifact's 1-${pages.length} range.`,
-            });
-          }
-
-          const captures: CapturedPage[] = [];
-          for (const metadata of selectedPages) {
-            const element = pageElements.nth(metadata.index);
-            const bounds = await element.boundingBox();
+          const validatedPages: Array<{
+            metadata: (typeof pages)[number];
+            bounds: { width: number; height: number };
+          }> = [];
+          for (const metadata of pages) {
+            const bounds = await pageElements.nth(metadata.index).boundingBox();
             if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
               throw new ArtifactOperationFailure({
                 code: "page-geometry",
@@ -70,6 +71,22 @@ export const captureHtmlPages = Effect.fn("capture.captureHtmlPages")(function* 
                 pageId: metadata.id,
               });
             }
+            validatedPages.push({ metadata, bounds });
+          }
+
+          const selectedPages = selector
+            ? validatedPages.filter(({ metadata }) => matchesHtmlPageSelector(metadata, selector))
+            : validatedPages;
+          if (selector && selectedPages.length === 0) {
+            throw new ArtifactOperationFailure({
+              code: "page-selector",
+              message: htmlPageSelectorFailureMessage(selector, pages.length),
+            });
+          }
+
+          const captures: CapturedPage[] = [];
+          for (const { metadata, bounds } of selectedPages) {
+            const element = pageElements.nth(metadata.index);
 
             const fileName = `page-${String(metadata.index + 1).padStart(digits, "0")}.png`;
             const stagedPath = path.resolve(stagingDirectory, fileName);

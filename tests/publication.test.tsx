@@ -65,6 +65,21 @@ function pdfArtifact(text: string): string {
 </html>`;
 }
 
+function reviewManifestFixture(directory: string): ReviewManifest {
+  return {
+    manifestSchemaVersion: 1,
+    resultSchemaVersion: 1,
+    toolVersion: "0.0.0-test",
+    report: "report",
+    createdAt: "2026-07-29T00:00:00.000Z",
+    scope: { kind: "all" },
+    html: { path: resolve(directory, "report.html"), bytes: 1, sha256: "a".repeat(64) },
+    pages: [],
+    warnings: [],
+    timings: [],
+  };
+}
+
 test("HTML publication keeps the prior artifact when atomic rename fails", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "unslide html publication "));
   const outputPath = resolve(directory, "report.html");
@@ -148,21 +163,88 @@ test("HTML publication restores the prior artifact after post-commit interruptio
   }
 });
 
+test("HTML publication restores the prior artifact when post-commit cleanup fails", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide html cleanup "));
+  const outputPath = resolve(directory, "report.html");
+  try {
+    await writeFile(outputPath, "prior HTML delivery");
+    const live = await liveFileSystem();
+    const injected: FileSystem.FileSystem = {
+      ...live,
+      remove: (path, options) =>
+        basename(path).startsWith(".report.html.tmp-") && !path.endsWith(".previous")
+          ? Effect.fail(systemFailure("remove", path, "fixture post-commit cleanup failed"))
+          : live.remove(path, options),
+    };
+
+    await assert.rejects(
+      runWithLayer(
+        writeReportHtml({
+          document: (
+            <html>
+              <body>
+                <main data-unslide-page="one">New report</main>
+              </body>
+            </html>
+          ),
+          outputPath,
+        }),
+        layerWithFileSystem(injected),
+      ),
+      /fixture post-commit cleanup failed/,
+    );
+    assert.equal(await readFile(outputPath, "utf8"), "prior HTML delivery");
+    assert.deepEqual(await readdir(directory), ["report.html"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("HTML publication removes a partial backup after copy failure", async () => {
+  const directory = await mkdtemp(resolve(tmpdir(), "unslide html backup cleanup "));
+  const outputPath = resolve(directory, "report.html");
+  try {
+    await writeFile(outputPath, "prior HTML delivery");
+    const live = await liveFileSystem();
+    const injected: FileSystem.FileSystem = {
+      ...live,
+      copyFile: (_from, to) =>
+        live
+          .writeFileString(to, "partial backup")
+          .pipe(
+            Effect.andThen(
+              Effect.fail(systemFailure("copyFile", to, "fixture backup copy failed")),
+            ),
+          ),
+    };
+
+    await assert.rejects(
+      runWithLayer(
+        writeReportHtml({
+          document: (
+            <html>
+              <body>
+                <main data-unslide-page="one">New report</main>
+              </body>
+            </html>
+          ),
+          outputPath,
+        }),
+        layerWithFileSystem(injected),
+      ),
+      /fixture backup copy failed/,
+    );
+    assert.equal(await readFile(outputPath, "utf8"), "prior HTML delivery");
+    assert.deepEqual(await readdir(directory), ["report.html"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("review manifest publication keeps the prior manifest when atomic rename fails", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "unslide manifest publication "));
   const outputPath = resolve(directory, "report.review.json");
-  const manifest: ReviewManifest = {
-    manifestSchemaVersion: 1,
-    resultSchemaVersion: 1,
-    toolVersion: "0.0.0-test",
-    report: "report",
-    createdAt: "2026-07-29T00:00:00.000Z",
-    scope: { kind: "all" },
-    html: { path: resolve(directory, "report.html"), bytes: 1, sha256: "a".repeat(64) },
-    pages: [],
-    warnings: [],
-    timings: [],
-  };
+  const manifest = reviewManifestFixture(directory);
   try {
     await writeFile(outputPath, "prior manifest\n");
     const live = await liveFileSystem();
@@ -188,18 +270,7 @@ test("review manifest publication keeps the prior manifest when atomic rename fa
 test("review manifest publication cannot be interrupted after its rename commits", async () => {
   const directory = await mkdtemp(resolve(tmpdir(), "unslide manifest interruption "));
   const outputPath = resolve(directory, "report.review.json");
-  const manifest: ReviewManifest = {
-    manifestSchemaVersion: 1,
-    resultSchemaVersion: 1,
-    toolVersion: "0.0.0-test",
-    report: "report",
-    createdAt: "2026-07-29T00:00:00.000Z",
-    scope: { kind: "all" },
-    html: { path: resolve(directory, "report.html"), bytes: 1, sha256: "a".repeat(64) },
-    pages: [],
-    warnings: [],
-    timings: [],
-  };
+  const manifest = reviewManifestFixture(directory);
   try {
     await writeFile(outputPath, "prior manifest\n");
     const live = await liveFileSystem();

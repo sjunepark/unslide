@@ -1,6 +1,11 @@
 import { Cause, Clock, Effect, Exit } from "effect";
 import { buildReport } from "./build.js";
-import { captureHtmlPages, type HtmlPageSelector } from "./capture.js";
+import {
+  captureHtmlPages,
+  htmlPageSelectorFailureMessage,
+  matchesHtmlPageSelector,
+  type HtmlPageSelector,
+} from "./capture.js";
 import type { ReportConfig } from "./config.js";
 import {
   combineCliFailures,
@@ -107,17 +112,13 @@ function resolveScope(
   report: ReportConfig,
 ): Effect.Effect<ScopeAll | HtmlScopePage, ReturnType<typeof commandFailure>> {
   if (!selector) return Effect.succeed({ kind: "all" });
-  const page = pages.find((entry) =>
-    selector.kind === "page-id" ? entry.id === selector.id : entry.index + 1 === selector.number,
-  );
+  const page = pages.find((entry) => matchesHtmlPageSelector(entry, selector));
   if (!page) {
     return Effect.fail(
       commandFailure(
         new Error("Review page selector does not match the HTML artifact"),
         { command: "review", code: "usage", path: report.htmlPath, report: report.name },
-        selector.kind === "page-id"
-          ? `HTML page ID ${JSON.stringify(selector.id)} does not exist.`
-          : `HTML page number ${selector.number} is outside the artifact's 1-${pages.length} range.`,
+        htmlPageSelectorFailureMessage(selector, pages.length),
       ),
     );
   }
@@ -148,35 +149,48 @@ function reviewPages(
   inspected: readonly { readonly id: string; readonly index: number }[],
   scope: ScopeAll | HtmlScopePage,
   htmlCaptures: readonly CapturedHtmlPage[],
+  report: ReportConfig,
   pdfPages: readonly ExportedPdfPage[] = [],
   pdfCaptures: readonly CapturedPdfPage[] = [],
-): ReviewPage[] {
-  return inspected.map((page) => {
-    const number = page.index + 1;
-    const selected = scope.kind === "all" || scope.number === number;
-    const geometry = pdfPages.find((entry) => entry.number === number);
-    const base = {
-      id: page.id,
-      number,
-      ...(geometry
-        ? {
-            pdfGeometry: {
-              widthPoints: geometry.widthPoints,
-              heightPoints: geometry.heightPoints,
-            },
-          }
-        : {}),
-    };
-    if (!selected) return { ...base, selected: false };
-    const htmlCapture = htmlCaptures.find((entry) => entry.number === number);
-    if (!htmlCapture) throw new Error(`Missing HTML capture evidence for page ${number}`);
-    const pdfCapture = pdfCaptures.find((entry) => entry.number === number);
-    return {
-      ...base,
-      selected: true,
-      htmlCapture: capturedHtmlEvidence(htmlCapture),
-      ...(pdfCapture ? { pdfCapture: capturedPdfEvidence(pdfCapture) } : {}),
-    };
+): Effect.Effect<ReviewPage[], ReturnType<typeof commandFailure>> {
+  return Effect.gen(function* () {
+    const reviewed: ReviewPage[] = [];
+    for (const page of inspected) {
+      const number = page.index + 1;
+      const selected = scope.kind === "all" || scope.number === number;
+      const geometry = pdfPages.find((entry) => entry.number === number);
+      const base = {
+        id: page.id,
+        number,
+        ...(geometry
+          ? {
+              pdfGeometry: {
+                widthPoints: geometry.widthPoints,
+                heightPoints: geometry.heightPoints,
+              },
+            }
+          : {}),
+      };
+      if (!selected) {
+        reviewed.push({ ...base, selected: false });
+        continue;
+      }
+      const htmlCapture = htmlCaptures.find((entry) => entry.number === number);
+      if (!htmlCapture) {
+        return yield* commandFailure(
+          new Error(`Missing HTML capture evidence for page ${number}`),
+          { command: "review", path: report.captureDirectory, report: report.name },
+        );
+      }
+      const pdfCapture = pdfCaptures.find((entry) => entry.number === number);
+      reviewed.push({
+        ...base,
+        selected: true,
+        htmlCapture: capturedHtmlEvidence(htmlCapture),
+        ...(pdfCapture ? { pdfCapture: capturedPdfEvidence(pdfCapture) } : {}),
+      });
+    }
+    return reviewed;
   });
 }
 
@@ -254,7 +268,12 @@ export const reviewReport = Effect.fn("review.reviewReport")(function* (
         })),
       ),
     );
-    pages = reviewPages(inspected.pages, scope as ScopeAll | HtmlScopePage, htmlCaptures);
+    pages = yield* reviewPages(
+      inspected.pages,
+      scope as ScopeAll | HtmlScopePage,
+      htmlCaptures,
+      report,
+    );
 
     let exportedPages: ExportedPdfPage[] = [];
     let pdfCaptures: CapturedPdfPage[] = [];
@@ -291,10 +310,11 @@ export const reviewReport = Effect.fn("review.reviewReport")(function* (
         widthPoints: page.widthPoints,
         heightPoints: page.heightPoints,
       }));
-      pages = reviewPages(
+      pages = yield* reviewPages(
         inspected.pages,
         scope as ScopeAll | HtmlScopePage,
         htmlCaptures,
+        report,
         exportedPages,
       );
 
@@ -319,22 +339,31 @@ export const reviewReport = Effect.fn("review.reviewReport")(function* (
         steps,
       );
       pdfCaptures = yield* Effect.forEach(inspectedPdf.pages, (page) =>
-        fileEvidence(page.outputPath).pipe(
-          Effect.map((file) => ({
+        Effect.gen(function* () {
+          const file = yield* fileEvidence(page.outputPath);
+          const id = inspected.pages[page.index - 1]?.id;
+          if (!id) {
+            return yield* commandFailure(
+              new Error(`Missing HTML page metadata for PDF page ${page.index}`),
+              { command: "review", path: report.pdfPath, report: report.name },
+            );
+          }
+          return {
             number: page.index,
-            id: inspected.pages[page.index - 1]?.id,
+            id,
             path: file.path,
             widthPixels: page.width,
             heightPixels: page.height,
             bytes: file.bytes,
             sha256: file.sha256,
-          })),
-        ),
+          };
+        }),
       );
-      pages = reviewPages(
+      pages = yield* reviewPages(
         inspected.pages,
         scope as ScopeAll | HtmlScopePage,
         htmlCaptures,
+        report,
         exportedPages,
         pdfCaptures,
       );
