@@ -26,6 +26,11 @@ not judge the report. See the [CLI command contract](COMMANDS.md),
 [result and manifest contract](RESULTS.md), and
 [React authoring contract](AUTHORING.md).
 
+The packaged [authoring guide](GUIDE.md) teaches the workflow through editable
+business-report source. It keeps the page manifest, repeated page families,
+numbering, contents, assets, fit debugging, and visual acceptance inside the
+report while the [CLI workflow reference](CLI.md) explains lifecycle freshness.
+
 ## Vocabulary
 
 | Term                | Meaning                                                                                        |

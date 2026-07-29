@@ -1,9 +1,7 @@
 # CLI Result and Review Manifest Contract
 
-This document defines result schema v1 for the active consumer-authoring plan.
-It is encoding-independent: TOON and JSON decode to the same value. Existing
-primitive commands use this schema; later numbered goals add the remaining
-result variants without changing the envelope.
+This document defines released result schema v1. It is encoding-independent:
+TOON and JSON decode to the same value.
 
 ## Result Envelope
 

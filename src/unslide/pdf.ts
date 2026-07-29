@@ -30,6 +30,7 @@ interface ExpectedPageText {
   id: string;
   index: number;
   samples: ReadonlyArray<PageTextSample>;
+  normalizedCoverage?: string;
 }
 
 interface PageTextSample {
@@ -199,6 +200,10 @@ function compactText(value: string): string {
   ).join("");
 }
 
+function normalizedLetterCoverage(value: string): string {
+  return [...compactText(value).replace(/\p{N}/gu, "")].sort().join("");
+}
+
 export function validatePageTextSamples(
   expectedText: readonly ExpectedPageText[],
   extractedText: readonly string[],
@@ -206,10 +211,19 @@ export function validatePageTextSamples(
 ): string | undefined {
   for (const expected of expectedText) {
     const actual = compactText(extractedText[expected.index - 1] ?? "");
+    let failedSample: PageTextSample | undefined;
     for (const sample of expected.samples) {
       if (!actual.includes(compactText(sample.tokens.join(" ")))) {
-        return `PDF page ${expected.index} (${expected.id}) does not preserve its ${sample.region} extractable-text sample (${sample.tokens.join(" ")}). Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`;
+        failedSample = sample;
+        break;
       }
+    }
+    if (
+      failedSample !== undefined &&
+      (expected.normalizedCoverage === undefined ||
+        normalizedLetterCoverage(actual) !== expected.normalizedCoverage)
+    ) {
+      return `PDF page ${expected.index} (${expected.id}) does not preserve its ${failedSample.region} extractable-text sample (${failedSample.tokens.join(" ")}). Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`;
     }
   }
   return undefined;
@@ -495,11 +509,21 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         const expectedText = pageText.map((text, index) => {
           const otherPageText = pageText.filter((_, otherIndex) => otherIndex !== index);
           const distinctive = distinctivePageSample(text, otherPageText);
+          const coverage = normalizedLetterCoverage(text);
+          const normalizedCoverage =
+            coverage !== "" &&
+            otherPageText.every((other) => normalizedLetterCoverage(other) !== coverage)
+              ? coverage
+              : undefined;
           return {
             id: pages[index]?.id ?? String(index + 1),
             index: index + 1,
             samples: pageTextSamples(text, distinctive),
-            distinguishable: pageText.length === 1 || distinctive !== undefined,
+            normalizedCoverage,
+            distinguishable:
+              pageText.length === 1 ||
+              distinctive !== undefined ||
+              normalizedCoverage !== undefined,
           };
         });
         if (expectedText.every((pageText) => pageText.samples.length === 0)) {
@@ -513,7 +537,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         if (indistinguishable) {
           throw new ArtifactOperationFailure({
             code: "extractable-text",
-            message: `Artifact page ${indistinguishable.index} (${indistinguishable.id}) has no extractable-text sample that distinguishes it from every other marked page. Add page-specific text before PDF export.`,
+            message: `Artifact page ${indistinguishable.index} (${indistinguishable.id}) has neither a distinctive extractable-text sample nor unique normalized full-page letter coverage. Add page-specific text before PDF export.`,
           });
         }
 

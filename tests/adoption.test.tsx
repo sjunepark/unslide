@@ -132,6 +132,8 @@ test(
         "package/dist/unslide/pdf-inspection.js",
         "package/dist/unslide/react.js",
         "package/dist/unslide/react.d.ts",
+        "package/docs/CLI.md",
+        "package/docs/GUIDE.md",
         "package/docs/PROTOCOL.md",
         "package/docs/SUPPORT.md",
         "package/schema/unslide.schema.json",
@@ -214,6 +216,8 @@ test(
       assert.equal(installedManifest.version, repositoryManifest.version);
       assert.equal(installedManifest.engines.node, ">=24.15 <25");
       assert.deepEqual(Object.keys(installedManifest.exports).sort(), [
+        "./cli.md",
+        "./guide.md",
         "./protocol.md",
         "./react",
         "./schema/unslide.json",
@@ -226,6 +230,14 @@ test(
       assert.equal(installedManifest.dependencies["react-dom"], undefined);
       assert.equal(installedManifest.peerDependencies.react, ">=19.1.0 <20");
       assert.equal(installedManifest.peerDependencies["react-dom"], ">=19.1.0 <20");
+      assert.match(
+        await readFile(resolve(installedPackage, "docs", "GUIDE.md"), "utf8"),
+        /unslide review quarterly-review --pdf/,
+      );
+      assert.match(
+        await readFile(resolve(installedPackage, "docs", "CLI.md"), "utf8"),
+        /Primitive commands consume existing upstream artifacts/,
+      );
       await execFileAsync(
         "node",
         [
@@ -293,6 +305,55 @@ test(
       assert.equal((starterElementBuild.result as Record<string, unknown>).kind, "build");
       const businessBuild = await runConsumerCli(consumerRoot, ["build", "business-review"]);
       assert.equal((businessBuild.result as Record<string, unknown>).kind, "build");
+      const focusedReview = await runConsumerCli(consumerRoot, [
+        "review",
+        "business-review",
+        "--page-id",
+        "highlights",
+        "--format",
+        "json",
+      ]);
+      const focusedSummary = (
+        (focusedReview.result as Record<string, unknown>).reports as Array<Record<string, unknown>>
+      )[0];
+      assert.ok(focusedSummary);
+      assert.equal(focusedSummary.status, "ok");
+      assert.deepEqual(focusedSummary.scope, {
+        kind: "page",
+        id: "highlights",
+        number: 3,
+      });
+      assert.deepEqual(
+        (focusedSummary.pages as Array<Record<string, unknown>>)
+          .filter((page) => page.selected)
+          .map((page) => page.id),
+        ["highlights"],
+      );
+
+      const completeReview = await runConsumerCli(consumerRoot, [
+        "review",
+        "business-review",
+        "--pdf",
+        "--format",
+        "json",
+      ]);
+      const completeSummary = (
+        (completeReview.result as Record<string, unknown>).reports as Array<Record<string, unknown>>
+      )[0];
+      assert.ok(completeSummary);
+      assert.equal(completeSummary.status, "ok");
+      assert.deepEqual(completeSummary.scope, { kind: "all" });
+      const completePages = completeSummary.pages as Array<Record<string, unknown>>;
+      assert.equal(completePages.length, 3);
+      for (const page of completePages) {
+        assert.equal(page.selected, true);
+        assert.equal(typeof page.htmlCapture, "object");
+        assert.equal(typeof page.pdfCapture, "object");
+      }
+      const manifest = completeSummary.manifest as Record<string, unknown>;
+      assert.equal(manifest.status, "published");
+      await access(manifest.path as string);
+
       const businessCapture = await runConsumerCli(consumerRoot, ["capture", "business-review"]);
       const businessExport = await runConsumerCli(consumerRoot, ["export", "business-review"]);
       const businessPdfInspection = await runConsumerCli(consumerRoot, [
