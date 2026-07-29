@@ -80,7 +80,7 @@ test("PDF text evidence validates every page rather than accepting a repeated he
         id: "subset",
         index: 1,
         samples: samplePageText("a b c d", ["a b c x b c d"]),
-        normalizedCoverage: "abcd",
+        normalizedCoverage: { letters: "abcd", numbers: [] },
       },
       {
         id: "superset",
@@ -99,7 +99,7 @@ test("PDF text evidence validates every page rather than accepting a repeated he
         id: "subset",
         index: 1,
         samples: samplePageText("a b c d", ["a b c x b c d"]),
-        normalizedCoverage: "abcd",
+        normalizedCoverage: { letters: "abcd", numbers: [] },
       },
       {
         id: "superset",
@@ -118,13 +118,67 @@ test("PDF text evidence validates every page rather than accepting a repeated he
         id: "positioned",
         index: 1,
         samples: samplePageText("important message body"),
-        normalizedCoverage: [..."importantmessagebody"].sort().join(""),
+        normalizedCoverage: {
+          letters: [..."importantmessagebody"].sort().join(""),
+          numbers: [],
+        },
       },
     ],
     ["body 1 2 3 important message"],
     [{ textSample: "body 1 2 3 important message" }],
   );
   assert.equal(reorderedCoverage, undefined);
+
+  const missingAuthoredNumber = validatePageTextSamples(
+    [
+      {
+        id: "financials",
+        index: 1,
+        samples: samplePageText("Revenue 123"),
+        normalizedCoverage: {
+          letters: [..."revenue"].sort().join(""),
+          numbers: ["123"],
+        },
+      },
+    ],
+    ["Revenue"],
+    [{ textSample: "Revenue" }],
+  );
+  assert.match(missingAuthoredNumber ?? "", /PDF page 1 \(financials\)/);
+
+  const changedAuthoredNumber = validatePageTextSamples(
+    [
+      {
+        id: "financials",
+        index: 1,
+        samples: samplePageText("Revenue 123"),
+        normalizedCoverage: {
+          letters: [..."revenue"].sort().join(""),
+          numbers: ["123"],
+        },
+      },
+    ],
+    ["Revenue 124"],
+    [{ textSample: "Revenue 124" }],
+  );
+  assert.match(changedAuthoredNumber ?? "", /PDF page 1 \(financials\)/);
+
+  const generatedCounterNumbers = validatePageTextSamples(
+    [
+      {
+        id: "financials",
+        index: 1,
+        samples: samplePageText("Revenue 123"),
+        normalizedCoverage: {
+          letters: [..."revenue"].sort().join(""),
+          numbers: ["123"],
+        },
+      },
+    ],
+    ["01 Revenue 123 02"],
+    [{ textSample: "01 Revenue 123 02" }],
+  );
+  assert.equal(generatedCounterNumbers, undefined);
 });
 
 async function temporaryDirectory(prefix: string): Promise<string> {

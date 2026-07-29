@@ -66,7 +66,7 @@ folios, table-of-contents entries, and cross-references aligned:
 export const pageManifest = [
   { id: "cover", title: "Quarterly review", kind: "cover" },
   { id: "contents", title: "Contents", kind: "contents" },
-  { id: "regions", title: "Regional performance", kind: "region" },
+  { id: "highlights", title: "Performance highlights", kind: "highlights" },
 ] as const;
 
 export function pageNumber(id: (typeof pageManifest)[number]["id"]): number {
@@ -166,7 +166,7 @@ Unslide does not paginate, redistribute, shrink, truncate, or score content.
 For a crowded page, temporarily add report-local diagnostics such as:
 
 ```css
-[data-unslide-page="regions"] * {
+[data-unslide-page="highlights"] * {
   outline: 1px solid rgb(220 40 40 / 35%);
 }
 ```
@@ -174,7 +174,7 @@ For a crowded page, temporarily add report-local diagnostics such as:
 Then review only that stable page while editing:
 
 ```sh
-pnpm exec unslide review quarterly-review --page-id regions
+pnpm exec unslide review quarterly-review --page-id highlights
 ```
 
 Inspect the returned HTML capture at full resolution. Correct the source by
@@ -188,7 +188,7 @@ A focused review rebuilds and validates the whole HTML artifact but rasterizes
 only the selected page:
 
 ```sh
-pnpm exec unslide review quarterly-review --page-id regions
+pnpm exec unslide review quarterly-review --page-id highlights
 ```
 
 Before HTML delivery, review every page:

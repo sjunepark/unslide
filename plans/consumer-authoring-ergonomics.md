@@ -110,14 +110,29 @@ visual design, print CSS, numbering, and content fit.
   discovery and focused HTML/PDF review to Unslide while retaining protected
   reference discovery, rasterization, pairing, and acceptance policy. This
   implementation exposed PDF text extraction reordering and generated-counter
-  evidence; normalized full-page letter coverage now handles that equivalent
-  extraction while page-substitution regressions remain enforced. Focused
-  checks, both repositories' complete validation, the impairment-report
-  review, and all configured proof-page visual inspections pass. Final review
-  found one consumer selector-verification gap; explicit ID and number checks
-  plus regressions resolved it. PR feedback covering the required primitive
-  sequence, durable-plan and installed-skill synchronization, and real public
-  CLI integration coverage is resolved. Goal 5 was delivered in package PR
+  evidence; normalized full-page coverage tolerates reordered extraction and
+  extra generated-counter numbers while still requiring every authored letter
+  and numeric token. Page-substitution and missing-authored-number regressions
+  enforce that boundary.
+- Goal 5 verification is reproducible through these commands and covered
+  behaviors:
+  - `pnpm run check` checks formatting, lint, Effect diagnostics, and types;
+    `pnpm test` covers the CLI, review, publication, PDF, and packed-consumer
+    contracts.
+  - `pnpm run validate` adds both configured proof-report lifecycles. Its
+    `capture:*` and `inspect-pdf:*` stages produce the HTML and PDF-native page
+    images for the required page-by-page visual inspection.
+  - In the adjacent consumer, `pnpm run validate` covers wrapper unit tests,
+    repository boundaries, the primitive template lifecycle, and a real public
+    `report` plus focused `review --pdf` integration.
+  - `pnpm page-review asset-impairment-report --id impairment-review --pdf`
+    exercises protected reference pairing without moving acceptance policy
+    into Unslide.
+- Final code review and PR feedback identified selector verification, the
+  required primitive sequence, durable-plan and installed-skill
+  synchronization, public CLI integration coverage, authored numeric PDF
+  evidence, and a starter page-ID example. Each finding has a focused
+  regression or documentation correction. Goal 5 was delivered in package PR
   #17 and adjacent consumer PR #8 with individual commits preserved.
 
 ## Accepted design
