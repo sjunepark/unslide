@@ -111,9 +111,9 @@ visual design, print CSS, numbering, and content fit.
   reference discovery, rasterization, pairing, and acceptance policy. This
   implementation exposed PDF text extraction reordering and generated-counter
   evidence; normalized full-page coverage tolerates reordered extraction and
-  extra generated-counter numbers while still requiring every authored letter
-  and numeric token. Page-substitution and missing-authored-number regressions
-  enforce that boundary.
+  extra generated-counter digits while still requiring every authored letter
+  and digit across split text runs. Page-substitution and
+  missing-authored-number regressions enforce that boundary.
 - Goal 5 verification is reproducible through these commands and covered
   behaviors:
   - `pnpm run check` checks formatting, lint, Effect diagnostics, and types;

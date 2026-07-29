@@ -34,8 +34,8 @@ interface ExpectedPageText {
 }
 
 interface NormalizedTextCoverage {
+  readonly digits: string;
   readonly letters: string;
-  readonly numbers: readonly string[];
 }
 
 interface PageTextSample {
@@ -208,24 +208,29 @@ function compactText(value: string): string {
 function normalizedTextCoverage(value: string): NormalizedTextCoverage {
   const compact = compactText(value);
   return {
+    digits: [...compact.replace(/\p{L}/gu, "")].sort().join(""),
     letters: [...compact.replace(/\p{N}/gu, "")].sort().join(""),
-    numbers: textTokens(value)
-      .flatMap((token) => token.match(/\p{N}+/gu) ?? [])
-      .sort(),
   };
 }
 
-function containsExpectedNumbers(actual: readonly string[], expected: readonly string[]): boolean {
+function containsExpectedCharacters(actual: string, expected: string): boolean {
   const available = new Map<string, number>();
-  for (const value of actual) {
-    available.set(value, (available.get(value) ?? 0) + 1);
+  for (const character of actual) {
+    available.set(character, (available.get(character) ?? 0) + 1);
   }
-  for (const value of expected) {
-    const remaining = available.get(value) ?? 0;
+  for (const character of expected) {
+    const remaining = available.get(character) ?? 0;
     if (remaining === 0) return false;
-    available.set(value, remaining - 1);
+    available.set(character, remaining - 1);
   }
   return true;
+}
+
+function sameNormalizedCoverage(
+  left: NormalizedTextCoverage,
+  right: NormalizedTextCoverage,
+): boolean {
+  return left.letters === right.letters && left.digits === right.digits;
 }
 
 function preservesNormalizedCoverage(
@@ -234,10 +239,12 @@ function preservesNormalizedCoverage(
 ): boolean {
   const actual = normalizedTextCoverage(actualText);
   // PDF extraction may reorder positioned text, while CSS counters can add
-  // numeric tokens that do not exist in DOM innerText. Require every authored
-  // number but tolerate only that numeric-only surplus.
+  // digits that do not exist in DOM innerText and styled runs can split one
+  // number across items. Require every authored digit but tolerate only that
+  // numeric-only surplus.
   return (
-    actual.letters === expected.letters && containsExpectedNumbers(actual.numbers, expected.numbers)
+    actual.letters === expected.letters &&
+    containsExpectedCharacters(actual.digits, expected.digits)
   );
 }
 
@@ -257,10 +264,12 @@ export function validatePageTextSamples(
       }
     }
     if (
-      failedSample !== undefined &&
-      (expected.normalizedCoverage === undefined ||
-        !preservesNormalizedCoverage(actualText, expected.normalizedCoverage))
+      expected.normalizedCoverage !== undefined &&
+      !preservesNormalizedCoverage(actualText, expected.normalizedCoverage)
     ) {
+      return `PDF page ${expected.index} (${expected.id}) does not preserve its normalized full-page extractable-text coverage. Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`;
+    }
+    if (failedSample !== undefined && expected.normalizedCoverage === undefined) {
       return `PDF page ${expected.index} (${expected.id}) does not preserve its ${failedSample.region} extractable-text sample (${failedSample.tokens.join(" ")}). Extracted sample: ${JSON.stringify(pages[expected.index - 1]?.textSample ?? "")}. Check font embedding and authored print visibility.`;
     }
   }
@@ -549,9 +558,9 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
           const distinctive = distinctivePageSample(text, otherPageText);
           const coverage = normalizedTextCoverage(text);
           const normalizedCoverage =
-            coverage.letters !== "" &&
+            (coverage.letters !== "" || coverage.digits !== "") &&
             otherPageText.every(
-              (other) => normalizedTextCoverage(other).letters !== coverage.letters,
+              (other) => !sameNormalizedCoverage(normalizedTextCoverage(other), coverage),
             )
               ? coverage
               : undefined;
@@ -577,7 +586,7 @@ export const exportHtmlPdf = Effect.fn("pdf.exportHtmlPdf")(function* (
         if (indistinguishable) {
           throw new ArtifactOperationFailure({
             code: "extractable-text",
-            message: `Artifact page ${indistinguishable.index} (${indistinguishable.id}) has neither a distinctive extractable-text sample nor unique normalized full-page letter coverage. Add page-specific text before PDF export.`,
+            message: `Artifact page ${indistinguishable.index} (${indistinguishable.id}) has neither a distinctive extractable-text sample nor unique normalized full-page coverage. Add page-specific text before PDF export.`,
           });
         }
 
